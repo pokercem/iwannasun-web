@@ -407,7 +407,10 @@
 
     nextWindow.textContent = `${a} – ${b}`;
     nextWindow.className = 'big good';
-    nextWindowSub.textContent = `${win.minutes} minutes above threshold`;
+
+    // Backend window doesn't include minutes; compute if missing.
+    const mins = (win.minutes != null) ? win.minutes : windowMinutes(win.start, win.end);
+    nextWindowSub.textContent = `${mins} minutes above threshold`;
   }
 
   function renderTimeline(dayRows, threshold) {
@@ -623,18 +626,10 @@
     const nowRow = nearestNowRow(rows);
     renderDecision(nowRow, threshold);
 
-    // Next window: prefer backend result when it matches the selected day.
-    // For Tomorrow view, compute from start-of-day so it’s meaningful.
-    let win = null;
-    if (state.data.next_sunny_window) {
-      win = windowFromBackendIfMatchesDay(state.data.next_sunny_window, rows);
-    }
-    if (!win) {
-      const anchor = (dayIndex === 1)
-        ? (dayBoundsFromRows(rows).start || new Date())
-        : new Date();
-      win = computeNextWindow(rows, threshold, anchor);
-    }
+    // Next window: single source of truth from backend (per day_index)
+    const win = state.data.next_sunny_window_by_day
+      ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
+      : (state.data.next_sunny_window || null);
     renderNextWindow(win);
 
     // sun minutes from backend (based on now UTC)
