@@ -82,12 +82,16 @@
     return bestI;
   }
 
-  function findNextAbove(timeline, startIndex, threshold) {
-    for (let i = startIndex; i < timeline.length; i++) {
-      if (timeline[i].sun_score >= threshold && timeline[i].elevation > 0) return i;
-    }
-    return null;
+  function findNextAbove(timeline, startIndex, threshold, maxMinutesAhead = 360) {
+  const now = Date.now();
+  const maxMs = maxMinutesAhead * 60 * 1000;
+  for (let i = startIndex; i < timeline.length; i++) {
+    const tMs = new Date(timeline[i].time_utc).getTime();
+    if (tMs - now > maxMs) break;
+    if (timeline[i].sun_score >= threshold && timeline[i].elevation > 0) return i;
   }
+  return null;
+}
 
   function fmtTimeLocal(isoUtc) {
     // Convert ISO UTC string to user’s browser local time
@@ -137,7 +141,7 @@
       const iNext = findNextAbove(tl, iNow, thr);
       if (iNext === null) {
         decisionEl.textContent = "☁️ No strong sun soon";
-        decisionSubEl.textContent = `Nothing above ${thr} today (based on current model).`;
+        decisionSubEl.textContent = `Nothing above ${thr} in the next ~6 hours (based on current model).`;
       } else {
         const mins = Math.max(0, Math.round((new Date(tl[iNext].time_utc).getTime() - Date.now()) / 60000));
         decisionEl.textContent = `🌤 Sun likely in ~${mins} min`;
