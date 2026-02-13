@@ -8,16 +8,17 @@
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; line-height: 1.35; }
     h1 { margin: 0 0 8px 0; }
     .muted { color: #666; font-size: 14px; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; align-items: center; }
     button, input { font-size: 16px; padding: 10px 12px; }
     button { cursor: pointer; }
     .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin: 12px 0; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 13px; }
     .ok { color: #0a7; }
     .bad { color: #c22; }
-    .timeline { max-height: 55vh; overflow: auto; }
+    .timeline { max-height: 45vh; overflow: auto; }
     .item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
     .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid #ddd; font-size: 13px; }
+    canvas { width: 100%; height: 220px; display:block; border: 1px solid #eee; border-radius: 10px; }
   </style>
 </head>
 <body>
@@ -26,24 +27,25 @@
 
   <div class="card">
     <div class="row">
-      <button id="useMyLocation">Use my location</button>
-      <button id="useDemo">Demo (Amsterdam)</button>
+      <button id="locBtn">Use my location</button>
+      <button id="demoBtn">Demo (Amsterdam)</button>
     </div>
 
     <div class="row">
       <label class="muted">Sunny threshold (0–100)</label>
       <input id="threshold" type="number" min="0" max="100" value="70" style="width: 110px;">
+      <button id="refreshBtn">Refresh</button>
     </div>
 
     <div class="muted">API:</div>
     <div class="mono" id="apiUrl">https://iwannasun.onrender.com</div>
-    <div class="muted">(If your API URL changes, edit it in this file.)</div>
+    <div class="muted">(If your API URL changes, edit API_BASE in this file.)</div>
   </div>
 
   <div class="card">
     <div id="status" class="muted">Waiting…</div>
   </div>
-  
+
   <div class="card">
     <h3 style="margin:0 0 8px 0;">Right now</h3>
     <div id="decision" style="font-size:18px;">—</div>
@@ -53,206 +55,160 @@
   <div class="card">
     <h3 style="margin:0 0 8px 0;">Next sunny window</h3>
     <div id="nextWindow" class="muted">—</div>
+    <div id="sunMinutes" class="muted" style="margin-top:6px;"></div>
   </div>
-  
+
   <div class="card">
-    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
-      <h3 style="margin:0;">Sun path today</h3>
-      <div class="muted" style="font-size:12px;">
-        Highlight when sun_score ≥ <span id="thrLabel">70</span>
-      </div>
-    </div>
-
-    <canvas id="sunChart" style="width:100%; height:260px; display:block; margin-top:10px; border:1px solid #eee; border-radius:10px;"></canvas>
-
-    <div class="muted" style="font-size:12px; margin-top:8px;">
-      Gray = blocked/weak direct sun • Orange = likely direct sun • Line = sun elevation
+    <h3 style="margin:0 0 8px 0;">Sun path (elevation)</h3>
+    <canvas id="sunChart"></canvas>
+    <div class="muted" style="margin-top:8px;">
+      Line shows sun elevation. Highlighted segments mean <b>sun_score ≥ threshold</b>. Vertical line is <b>now</b>.
     </div>
   </div>
 
   <div class="card timeline">
-    <h3 style="margin:0 0 8px 0;">Today (daylight only, 10-min steps)</h3>
+    <h3 style="margin:0 0 8px 0;">Today (daylight only)</h3>
     <div id="timeline"></div>
   </div>
 
 <script>
-  // Small helper to grab elements
-  function $(id) { return document.getElementById(id); }
+  const API_BASE = "https://iwannasun.onrender.com";
 
+  const $ = (id) => document.getElementById(id);
   const statusEl = $("status");
+  const nextEl = $("nextWindow");
+  const sunMinutesEl = $("sunMinutes");
+  const timelineEl = $("timeline");
   const decisionEl = $("decision");
   const decisionSubEl = $("decisionSub");
-  const nextWindowEl = $("nextWindow");
-  const timelineEl = $("timeline");
-  const thrInput = $("threshold");
-  const thrLabel = $("thrLabel");
+  const chart = $("sunChart");
+  const ctx = chart.getContext("2d");
 
-  // ===== Canvas Sun Path Chart (no libraries) =====
-  function clamp(v, min, max) {
-    return Math.max(min, Math.min(max, v));
+  let lastLatLon = null; // {lat, lon}
+
+  function fmtTimeLocalFromUtcIso(isoUtc) {
+    const d = new Date(isoUtc);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  function parseMs(iso) {
-    const ms = new Date(iso).getTime();
-    return Number.isFinite(ms) ? ms : NaN;
+  function scoreLabel(score) {
+    if (score >= 80) return "SUN";
+    if (score >= 60) return "MIX";
+    if (score >= 30) return "CLOUD";
+    return "NO";
   }
 
-  function fmtHM(dateObj) {
-    const hh = String(dateObj.getHours()).padStart(2, "0");
-    const mm = String(dateObj.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
+  function pillForScore(score) {
+    const label = scoreLabel(score);
+    return `<span class="pill">${label} ${score}</span>`;
   }
 
-  function getDPR() {
-    return window.devicePixelRatio || 1;
+  function findNearestIndex(timeline) {
+    const now = Date.now();
+    let bestI = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < timeline.length; i++) {
+      const t = new Date(timeline[i].time_utc).getTime();
+      const d = Math.abs(t - now);
+      if (d < bestD) { bestD = d; bestI = i; }
+    }
+    return bestI;
   }
 
-  function setupCanvas(canvas) {
-    const ctx = canvas.getContext("2d");
-    const dpr = getDPR();
+  function findNextAbove(timeline, startIndex, threshold, maxMinutesAhead = 360) {
+    const now = Date.now();
+    const maxMs = maxMinutesAhead * 60 * 1000;
+    for (let i = startIndex; i < timeline.length; i++) {
+      const tMs = new Date(timeline[i].time_utc).getTime();
+      if (tMs - now > maxMs) break;
+      if (timeline[i].sun_score >= threshold && timeline[i].elevation > 0) return i;
+    }
+    return null;
+  }
 
-    const cssW = canvas.clientWidth;
-    const cssH = canvas.clientHeight;
+  async function fetchDay(lat, lon) {
+    const thr = Number($("threshold").value || 70);
+    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(thr)}`;
+    $("apiUrl").textContent = API_BASE;
+    statusEl.textContent = "Loading… (free server may take a bit to wake up)";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  }
 
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
+  function resizeCanvasToCSSPixels(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    return dpr;
+  }
 
+  function drawSunChart(daylight, threshold, nextWindow) {
+    const dpr = resizeCanvasToCSSPixels(chart);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssW, cssH);
 
-    return { ctx, w: cssW, h: cssH };
-  }
+    const w = chart.getBoundingClientRect().width;
+    const h = chart.getBoundingClientRect().height;
 
-  let __lastDayDataForChart = null;
+    ctx.clearRect(0, 0, w, h);
 
-  function drawSunChart(data) {
-    const canvas = $("sunChart");
-    if (!canvas) return;
+    const padL = 36, padR = 10, padT = 12, padB = 24;
+    const plotW = w - padL - padR;
+    const plotH = h - padT - padB;
 
-    const thr = Number(thrInput.value || 70);
-    if (thrLabel) thrLabel.textContent = String(thr);
+    if (!daylight.length) {
+      ctx.fillText("No daylight points", 10, 20);
+      return;
+    }
 
-    const tl = data.timeline || [];
-    if (!Array.isArray(tl) || tl.length < 2) return;
+    const times = daylight.map(p => new Date(p.time_utc).getTime());
+    const elevs = daylight.map(p => p.elevation);
 
-    const pts = tl.map(p => ({
-      ms: parseMs(p.time_utc),
-      elev: Number(p.elevation),
-      score: Number(p.sun_score)
-    }))
-    .filter(p => Number.isFinite(p.ms) && Number.isFinite(p.elev) && Number.isFinite(p.score))
-    .sort((a, b) => a.ms - b.ms);
-
-    if (pts.length < 2) return;
-
-    const tMin = pts[0].ms;
-    const tMax = pts[pts.length - 1].ms;
-
-    const eMax = Math.max(5, Math.ceil(Math.max(...pts.map(p => p.elev))));
+    const tMin = Math.min(...times);
+    const tMax = Math.max(...times);
     const eMin = 0;
+    const eMax = Math.max(...elevs, 1);
 
-    const { ctx, w, h } = setupCanvas(canvas);
+    const xOf = (tMs) => padL + ((tMs - tMin) / (tMax - tMin)) * plotW;
+    const yOf = (e) => padT + (1 - ((e - eMin) / (eMax - eMin))) * plotH;
 
-    const pad = { left: 46, right: 14, top: 16, bottom: 28 };
-    const left = pad.left, right = w - pad.right;
-    const top = pad.top, bottom = h - pad.bottom;
-
-    // Background
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, w, h);
-
-    // Plot border
-    ctx.strokeStyle = "#ddd";
+    // axes (light)
+    ctx.globalAlpha = 1;
     ctx.lineWidth = 1;
-    ctx.strokeRect(left, top, right - left, bottom - top);
-
-    // Grid + elevation labels
-    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.fillStyle = "#444";
     ctx.strokeStyle = "#eee";
-    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL, padT + plotH);
+    ctx.lineTo(padL + plotW, padT + plotH);
+    ctx.stroke();
 
-    const gridLines = 4;
-    for (let i = 0; i <= gridLines; i++) {
-      const u = i / gridLines;
-      const y = top + (bottom - top) * (1 - u);
-
-      ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.lineTo(right, y);
-      ctx.stroke();
-
-      const elevVal = Math.round(eMin + (eMax - eMin) * u);
-      ctx.fillText(`${elevVal}°`, 6, y + 4);
-    }
-
-    // Time labels
-    const startD = new Date(tMin);
-    const midD = new Date((tMin + tMax) / 2);
-    const endD = new Date(tMax);
-
-    ctx.fillStyle = "#444";
-    ctx.fillText(fmtHM(startD), left, h - 8);
-    ctx.fillText(fmtHM(midD), (left + right) / 2 - 16, h - 8);
-    ctx.fillText(fmtHM(endD), right - 40, h - 8);
-
-    function xFromMs(ms) {
-      const u = (ms - tMin) / (tMax - tMin);
-      return left + u * (right - left);
-    }
-
-    function yFromElev(elev) {
-      const v = (elev - eMin) / (eMax - eMin);
-      return bottom - v * (bottom - top);
-    }
-
-    // Next sunny window shading
-    const win = data.next_sunny_window;
-    if (win && win.start && win.end) {
-      const s = parseMs(win.start);
-      const e = parseMs(win.end);
-      if (Number.isFinite(s) && Number.isFinite(e)) {
-        const sC = clamp(s, tMin, tMax);
-        const eC = clamp(e, tMin, tMax);
-        if (eC > sC) {
-          const x1 = xFromMs(sC);
-          const x2 = xFromMs(eC);
-
-          ctx.fillStyle = "rgba(246, 183, 60, 0.12)";
-          ctx.fillRect(x1, top, x2 - x1, bottom - top);
-
-          ctx.strokeStyle = "rgba(246, 183, 60, 0.45)";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x1, top); ctx.lineTo(x1, bottom);
-          ctx.moveTo(x2, top); ctx.lineTo(x2, bottom);
-          ctx.stroke();
-        }
+    // next window shading
+    if (nextWindow && nextWindow.start_utc && nextWindow.end_utc) {
+      const a = new Date(nextWindow.start_utc).getTime();
+      const b = new Date(nextWindow.end_utc).getTime();
+      const x1 = xOf(Math.max(a, tMin));
+      const x2 = xOf(Math.min(b, tMax));
+      if (x2 > x1) {
+        ctx.fillStyle = "rgba(0,160,120,0.10)";
+        ctx.fillRect(x1, padT, x2 - x1, plotH);
       }
     }
 
-    // Curve segments colored by sun_score
-    const sunnyColor = "#f6b73c";
-    const grayColor = "rgba(120,120,120,0.55)";
+    // draw line segments (highlight if sunny)
+    for (let i = 0; i < daylight.length - 1; i++) {
+      const p1 = daylight[i];
+      const p2 = daylight[i + 1];
 
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+      const x1 = xOf(new Date(p1.time_utc).getTime());
+      const y1 = yOf(p1.elevation);
+      const x2 = xOf(new Date(p2.time_utc).getTime());
+      const y2 = yOf(p2.elevation);
 
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i];
-      const b = pts[i + 1];
+      const sunny = (p1.sun_score >= threshold) && (p2.sun_score >= threshold);
 
-      const aElev = Math.max(0, a.elev);
-      const bElev = Math.max(0, b.elev);
-
-      const x1 = xFromMs(a.ms);
-      const y1 = yFromElev(aElev);
-      const x2 = xFromMs(b.ms);
-      const y2 = yFromElev(bElev);
-
-      const isSunny = (a.score >= thr) && (aElev > 0.1);
-      ctx.strokeStyle = isSunny ? sunnyColor : grayColor;
+      ctx.strokeStyle = sunny ? "#0a7" : "#bbb";
+      ctx.lineWidth = sunny ? 2.5 : 2;
 
       ctx.beginPath();
       ctx.moveTo(x1, y1);
@@ -260,130 +216,134 @@
       ctx.stroke();
     }
 
-    // "now" marker
+    // now marker
     const now = Date.now();
     if (now >= tMin && now <= tMax) {
-      const x = xFromMs(now);
+      const xNow = xOf(now);
       ctx.strokeStyle = "rgba(0,0,0,0.35)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x, top);
-      ctx.lineTo(x, bottom);
+      ctx.moveTo(xNow, padT);
+      ctx.lineTo(xNow, padT + plotH);
       ctx.stroke();
-
-      ctx.fillStyle = "rgba(0,0,0,0.7)";
-      ctx.fillText("now", x + 6, top + 14);
     }
-  }
-  // ===== end chart code =====
 
-  window.addEventListener("resize", () => {
-    if (__lastDayDataForChart) drawSunChart(__lastDayDataForChart);
-  });
-
-  function setDecision(goNow, sub) {
-    decisionEl.textContent = goNow ? "Go now" : "Wait";
-    decisionEl.style.color = goNow ? "#0a7" : "#d60";
-    decisionSubEl.textContent = sub || "";
+    // labels (start/end time)
+    ctx.fillStyle = "#666";
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText(fmtTimeLocalFromUtcIso(new Date(tMin).toISOString()), padL, padT + plotH + 18);
+    const endLabel = fmtTimeLocalFromUtcIso(new Date(tMax).toISOString());
+    const endWidth = ctx.measureText(endLabel).width;
+    ctx.fillText(endLabel, padL + plotW - endWidth, padT + plotH + 18);
   }
 
   function render(data) {
-    const thr = Number(thrInput.value || 70);
+    const thr = Number($("threshold").value || 70);
+    const tl = data.timeline || [];
+    const daylight = tl.filter(p => p.elevation > 0);
 
-    const nowPoint = (data.timeline || [])[0];
-    if (nowPoint) {
-      const goNow = Number(nowPoint.sun_score) >= thr && Number(nowPoint.elevation) > 0.1;
-      setDecision(
-        goNow,
-        `sun_score=${Math.round(nowPoint.sun_score)} • elevation=${Number(nowPoint.elevation).toFixed(1)}°`
-      );
+    // status
+    statusEl.textContent = `Loaded. Daylight points: ${daylight.length} (of ${tl.length})`;
+
+    // Right now decision
+    const iNow = findNearestIndex(tl);
+    const pNow = tl[iNow];
+
+    if (!pNow || pNow.elevation <= 0) {
+      decisionEl.textContent = "🌙 Night — no direct sun";
+      decisionSubEl.textContent = "Sun is below the horizon.";
+    } else if (pNow.sun_score >= thr) {
+      decisionEl.textContent = "☀️ Go now — direct sun likely";
+      decisionSubEl.textContent = `Sun score ${pNow.sun_score} • confidence ${Math.round((pNow.confidence||0)*100)}%`;
     } else {
-      setDecision(false, "No data");
+      const iNext = findNextAbove(tl, iNow, thr);
+      if (iNext === null) {
+        decisionEl.textContent = "☁️ No strong sun soon";
+        decisionSubEl.textContent = `Nothing above ${thr} in the next ~6 hours (based on current model).`;
+      } else {
+        const mins = Math.max(0, Math.round((new Date(tl[iNext].time_utc).getTime() - Date.now()) / 60000));
+        decisionEl.textContent = `🌤 Sun likely in ~${mins} min`;
+        decisionSubEl.textContent = `${fmtTimeLocalFromUtcIso(tl[iNext].time_utc)} • expected score ${tl[iNext].sun_score}`;
+      }
     }
 
-    if (data.next_sunny_window && data.next_sunny_window.start && data.next_sunny_window.end) {
-      const s = new Date(data.next_sunny_window.start);
-      const e = new Date(data.next_sunny_window.end);
-      nextWindowEl.textContent = `${fmtHM(s)}–${fmtHM(e)} (local time)`;
+    // Next window (API returns UTC)
+    const win = data.next_sunny_window;
+    if (!win) {
+      nextEl.innerHTML = `<span class="bad">No sunny window above threshold coming up.</span>`;
     } else {
-      nextWindowEl.textContent = "No sunny window found today.";
+      const startLocal = fmtTimeLocalFromUtcIso(win.start_utc);
+      const endLocal = fmtTimeLocalFromUtcIso(win.end_utc);
+      nextEl.innerHTML = `<span class="ok">${startLocal} → ${endLocal}</span>`;
     }
 
-    const rows = (data.timeline || [])
-      .filter(p => Number(p.elevation) > 0)
-      .map(p => {
-        const t = new Date(p.time_utc);
-        const hm = fmtHM(t);
-        const s = Math.round(p.sun_score);
-        const e = Number(p.elevation).toFixed(1);
-        const c = p.cloud ? `L${p.cloud.low}/M${p.cloud.mid}/H${p.cloud.high}` : "";
-        return `<div style="display:flex; justify-content:space-between; gap:12px;">
-                  <div>${hm}</div>
-                  <div class="muted">elev ${e}°</div>
-                  <div class="muted">score ${s}</div>
-                  <div class="muted">${c}</div>
-                </div>`;
-      })
-      .join("");
+    // Sun minutes
+    if (data.sun_minutes) {
+      sunMinutesEl.textContent = `Expected sun: next 1h ${data.sun_minutes.next_1h} min • next 2h ${data.sun_minutes.next_2h} min`;
+    } else {
+      sunMinutesEl.textContent = "";
+    }
 
-    timelineEl.innerHTML = rows || `<div class="muted">No daylight points.</div>`;
+    // Chart
+    drawSunChart(daylight, thr, win);
 
-    __lastDayDataForChart = data;
-    drawSunChart(data);
+    // Timeline list (daylight only)
+    const rows = daylight.map(p => {
+      const t = fmtTimeLocalFromUtcIso(p.time_utc);
+      const score = p.sun_score;
+      const conf = Math.round((p.confidence || 0) * 100);
+      return `
+        <div class="item">
+          <div>
+            <div><b>${t}</b> <span class="muted">elev ${p.elevation.toFixed(1)}°</span></div>
+            <div class="muted">conf ${conf}% • clouds L${p.cloud.low}% M${p.cloud.mid}% H${p.cloud.high}%</div>
+          </div>
+          <div>${pillForScore(score)}</div>
+        </div>
+      `;
+    }).join("");
 
-    statusEl.textContent =
-      `Loaded. Daylight points: ${(data.timeline || []).filter(p => Number(p.elevation) > 0).length}`;
+    timelineEl.innerHTML = rows;
   }
 
-  async function fetchDay(lat, lon) {
-    const thr = Number(thrInput.value || 70);
-    statusEl.textContent = "Loading…";
-
-    const base = "https://iwannasun.onrender.com";
-    const url = `${base}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(thr)}`;
-
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`API error ${res.status}`);
-    return await res.json();
-  }
-
-  async function run(lat, lon) {
+  async function runWithLatLon(lat, lon) {
+    lastLatLon = { lat, lon };
     try {
       const data = await fetchDay(lat, lon);
       render(data);
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = `Error: ${err.message}`;
+    } catch (e) {
+      statusEl.innerHTML = `<span class="bad">${e.message}</span>`;
     }
   }
 
-const demoBtn = $("useDemo");
-if (demoBtn) {
-  demoBtn.addEventListener("click", () => run(52.3676, 4.9041));
-}
+  $("demoBtn").addEventListener("click", () => runWithLatLon(52.37, 4.90));
 
-const locBtn = $("useMyLocation");
-if (locBtn) {
-  locBtn.addEventListener("click", () => {
-    statusEl.textContent = "Requesting location…";
+  $("locBtn").addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      statusEl.innerHTML = `<span class="bad">Geolocation not supported in this browser.</span>`;
+      return;
+    }
+    statusEl.textContent = "Requesting location permission…";
     navigator.geolocation.getCurrentPosition(
-      (pos) => run(pos.coords.latitude, pos.coords.longitude),
-      (err) => {
-        console.error(err);
-        statusEl.textContent = "Location denied or unavailable.";
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      (pos) => runWithLatLon(pos.coords.latitude, pos.coords.longitude),
+      (err) => statusEl.innerHTML = `<span class="bad">Location error: ${err.message}</span>`,
+      { enableHighAccuracy: true, timeout: 15000 }
     );
   });
-}
 
-if (thrInput) {
-  thrInput.addEventListener("change", () => {
-    if (__lastDayDataForChart) drawSunChart(__lastDayDataForChart);
+  $("refreshBtn").addEventListener("click", () => {
+    if (!lastLatLon) {
+      statusEl.innerHTML = `<span class="bad">Click “Use my location” or “Demo” first.</span>`;
+      return;
+    }
+    runWithLatLon(lastLatLon.lat, lastLatLon.lon);
   });
-}
 
+  // Redraw chart on resize (if we already loaded)
+  window.addEventListener("resize", () => {
+    if (!lastLatLon) return;
+    runWithLatLon(lastLatLon.lat, lastLatLon.lon);
+  });
 </script>
-
 </body>
 </html>
