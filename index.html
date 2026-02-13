@@ -505,7 +505,38 @@
     return best;
   }
 
-  async function fetchDay() {
+  function cacheKey(lat, lon, threshold) {
+    // round to avoid tiny GPS jitter exploding the cache
+    const rlat = Number(lat).toFixed(4);
+    const rlon = Number(lon).toFixed(4);
+    const thr = Number(threshold);
+    return `iwannasun_day_${rlat}_${rlon}_${thr}`;
+  }
+
+  function loadCached(lat, lon, threshold, maxAgeMs = 5 * 60 * 1000) {
+    try {
+      const key = cacheKey(lat, lon, threshold);
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.ts || !obj.data) return null;
+      if (Date.now() - obj.ts > maxAgeMs) return null;
+      return obj.data;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveCached(lat, lon, threshold, data) {
+    try {
+      const key = cacheKey(lat, lon, threshold);
+      sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
+    } catch {
+      // ignore quota / privacy mode
+    }
+  }
+
+  async function fetchDay(force = false) {
     clearError();
 
     const lat = state.lat;
@@ -521,6 +552,16 @@
 
     const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=2`;
 
+    // Avoid hammering the API (and reduces hosting usage during testing)
+    if (!force) {
+      const cached = loadCached(lat, lon, threshold);
+      if (cached) {
+        state.data = cached;
+        render();
+        return;
+      }
+    }
+
     try {
       const res = await fetch(url);
       if (!res.ok) {
@@ -528,6 +569,7 @@
       }
       const data = await res.json();
       state.data = data;
+      saveCached(lat, lon, threshold, data);
       render();
     } catch (e) {
       showError('Failed to fetch. Try again.');
@@ -587,7 +629,7 @@
 
   document.getElementById('btnDemo').addEventListener('click', useDemo);
   document.getElementById('btnHere').addEventListener('click', useHere);
-  document.getElementById('btnRefresh').addEventListener('click', fetchDay);
+  document.getElementById('btnRefresh').addEventListener('click', () => fetchDay(true));
 
   thresholdEl.addEventListener('change', () => {
     if (state.data) render();
