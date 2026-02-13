@@ -15,7 +15,7 @@
       --bad: #ff8c72;
       --accent-blue: #9bbed9;
       --line: rgba(51,51,51,0.10);
-      --sunset: linear-gradient(90deg, #ff8c72, #f4b860);
+      --sunset: linear-gradient(90deg, #f4b860, #ff8c72);
     }
     * { box-sizing: border-box; }
     body {
@@ -473,7 +473,8 @@
       ctx.lineTo(x2, yOf(b.elevation));
       const grad = ctx.createLinearGradient(0, 0, w, 0);
       grad.addColorStop(0, '#ff8c72');
-      grad.addColorStop(1, '#f4b860');
+      grad.addColorStop(0.5, '#f4b860');
+      grad.addColorStop(1, '#ff8c72');
       ctx.strokeStyle = grad;
       ctx.stroke();
     }
