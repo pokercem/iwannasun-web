@@ -177,7 +177,7 @@
     }).join("");
 
     timelineEl.innerHTML = rows;
-    statusEl.textContent = `Loaded. Points: ${data.timeline.length}`;
+    statusEl.textContent = `Loaded. Daylight points: ${data.timeline.filter(p => p.elevation > 0).length}`;
   }
 
   async function runWithLatLon(lat, lon) {
