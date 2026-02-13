@@ -54,6 +54,21 @@
     <h3 style="margin:0 0 8px 0;">Next sunny window</h3>
     <div id="nextWindow" class="muted">—</div>
   </div>
+  
+  <div class="card">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+      <h3 style="margin:0;">Sun path today</h3>
+      <div class="muted" style="font-size:12px;">
+        Highlight when sun_score ≥ <span id="thrLabel">70</span>
+      </div>
+    </div>
+
+    <canvas id="sunChart" style="width:100%; height:260px; display:block; margin-top:10px; border:1px solid #eee; border-radius:10px;"></canvas>
+
+    <div class="muted" style="font-size:12px; margin-top:8px;">
+      Gray = blocked/weak direct sun • Orange = likely direct sun • Line = sun elevation
+    </div>
+  </div>
 
   <div class="card timeline">
     <h3 style="margin:0 0 8px 0;">Today (daylight only, 10-min steps)</h3>
@@ -69,6 +84,193 @@
   const timelineEl = $("timeline");
   const decisionEl = $("decision");
   const decisionSubEl = $("decisionSub");
+  // ===== Canvas Sun Path Chart (no libraries) =====
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
+
+  function parseMs(iso) {
+    const ms = new Date(iso).getTime();
+    return Number.isFinite(ms) ? ms : NaN;
+  }
+
+  function fmtHM(dateObj) {
+    const hh = String(dateObj.getHours()).padStart(2, "0");
+    const mm = String(dateObj.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  function getDPR() {
+    return window.devicePixelRatio || 1;
+  }
+
+  function setupCanvas(canvas) {
+    const ctx = canvas.getContext("2d");
+    const dpr = getDPR();
+
+    // Use CSS size; set internal pixel size for crisp lines
+    const cssW = canvas.clientWidth;
+    const cssH = canvas.clientHeight;
+
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+
+    // Draw in CSS pixels
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    return { ctx, w: cssW, h: cssH };
+  }
+
+  function drawSunChart(data) {
+    const canvas = $("sunChart");
+    if (!canvas) return;
+
+    const thr = Number($("threshold").value || 70);
+    const thrLabel = $("thrLabel");
+    if (thrLabel) thrLabel.textContent = String(thr);
+
+    const tl = data.timeline || [];
+    if (!Array.isArray(tl) || tl.length < 2) return;
+
+    // Build points sorted by time
+    const pts = tl.map(p => ({
+      ms: parseMs(p.time_utc),
+      elev: Number(p.elevation),
+      score: Number(p.sun_score)
+    }))
+    .filter(p => Number.isFinite(p.ms) && Number.isFinite(p.elev) && Number.isFinite(p.score))
+    .sort((a, b) => a.ms - b.ms);
+
+    if (pts.length < 2) return;
+
+    const tMin = pts[0].ms;
+    const tMax = pts[pts.length - 1].ms;
+
+    // Elevation range (0..max)
+    const eMax = Math.max(5, Math.ceil(Math.max(...pts.map(p => p.elev))));
+    const eMin = 0;
+
+    const { ctx, w, h } = setupCanvas(canvas);
+
+    const pad = { left: 46, right: 14, top: 16, bottom: 28 };
+    const left = pad.left, right = w - pad.right;
+    const top = pad.top, bottom = h - pad.bottom;
+
+    // Background
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, w, h);
+
+    // Plot border
+    ctx.strokeStyle = "#ddd";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(left, top, right - left, bottom - top);
+
+    // Horizontal grid + elevation labels
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillStyle = "#444";
+    ctx.strokeStyle = "#eee";
+    ctx.lineWidth = 1;
+
+    const gridLines = 4;
+    for (let i = 0; i <= gridLines; i++) {
+      const u = i / gridLines;                // 0..1
+      const y = top + (bottom - top) * (1 - u);
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.stroke();
+
+      const elevVal = Math.round(eMin + (eMax - eMin) * u);
+      ctx.fillText(`${elevVal}°`, 6, y + 4);
+    }
+
+    // Time labels (start / mid / end)
+    const startD = new Date(tMin);
+    const midD = new Date((tMin + tMax) / 2);
+    const endD = new Date(tMax);
+
+    ctx.fillStyle = "#444";
+    ctx.fillText(fmtHM(startD), left, h - 8);
+    ctx.fillText(fmtHM(midD), (left + right) / 2 - 16, h - 8);
+    ctx.fillText(fmtHM(endD), right - 40, h - 8);
+
+    function xFromMs(ms) {
+      const u = (ms - tMin) / (tMax - tMin);
+      return left + u * (right - left);
+    }
+
+    function yFromElev(elev) {
+      const v = (elev - eMin) / (eMax - eMin);
+      return bottom - v * (bottom - top);
+    }
+
+    // Shade next sunny window
+    const win = data.next_sunny_window;
+    if (win && win.start && win.end) {
+      const s = parseMs(win.start);
+      const e = parseMs(win.end);
+      if (Number.isFinite(s) && Number.isFinite(e)) {
+        const sC = clamp(s, tMin, tMax);
+        const eC = clamp(e, tMin, tMax);
+        if (eC > sC) {
+          const x1 = xFromMs(sC);
+          const x2 = xFromMs(eC);
+
+          ctx.fillStyle = "rgba(246, 183, 60, 0.12)";
+          ctx.fillRect(x1, top, x2 - x1, bottom - top);
+
+          ctx.strokeStyle = "rgba(246, 183, 60, 0.45)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x1, top); ctx.lineTo(x1, bottom);
+          ctx.moveTo(x2, top); ctx.lineTo(x2, bottom);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw elevation curve segments, colored by sun_score
+    const sunnyColor = "#f6b73c";
+    const grayColor = "rgba(120,120,120,0.55)";
+
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+
+      const aElev = Math.max(0, a.elev);
+      const bElev = Math.max(0, b.elev);
+
+      const x1 = xFromMs(a.ms);
+      const y1 = yFromElev(aElev);
+      const x2 = xFromMs(b.ms);
+      const y2 = yFromElev(bElev);
+
+      const isSunny = (a.score >= thr) && (aElev > 0.1);
+      ctx.strokeStyle = isSunny ? sunnyColor : grayColor;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // Draw "now" vertical marker
+    const now = Date.now();
+    if (now >= tMin && now <= tMax) {
+      const x = xFromMs(now);
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+
+      ctx.fillSty
 
   function findNearestIndex(timeline) {
     const now = Date.now();
@@ -186,6 +388,10 @@ if (!win || new Date(win.end).getTime() < now) {
     }).join("");
 
     timelineEl.innerHTML = rows;
+    
+    __lastDayDataForChart = data;
+    drawSunChart(data);    
+    
     statusEl.textContent = `Loaded. Daylight points: ${data.timeline.filter(p => p.elevation > 0).length}`;
   }
 
