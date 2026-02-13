@@ -76,14 +76,17 @@
   </div>
 
 <script>
-  const API_BASE = "https://iwannasun.onrender.com";
+  // Small helper to grab elements
+  function $(id) { return document.getElementById(id); }
 
-  const $ = (id) => document.getElementById(id);
   const statusEl = $("status");
-  const nextEl = $("nextWindow");
-  const timelineEl = $("timeline");
   const decisionEl = $("decision");
   const decisionSubEl = $("decisionSub");
+  const nextWindowEl = $("nextWindow");
+  const timelineEl = $("timeline");
+  const thrInput = $("threshold");
+  const thrLabel = $("thrLabel");
+
   // ===== Canvas Sun Path Chart (no libraries) =====
   function clamp(v, min, max) {
     return Math.max(min, Math.min(max, v));
@@ -108,32 +111,30 @@
     const ctx = canvas.getContext("2d");
     const dpr = getDPR();
 
-    // Use CSS size; set internal pixel size for crisp lines
     const cssW = canvas.clientWidth;
     const cssH = canvas.clientHeight;
 
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
 
-    // Draw in CSS pixels
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cssW, cssH);
 
     return { ctx, w: cssW, h: cssH };
   }
 
+  let __lastDayDataForChart = null;
+
   function drawSunChart(data) {
     const canvas = $("sunChart");
     if (!canvas) return;
 
-    const thr = Number($("threshold").value || 70);
-    const thrLabel = $("thrLabel");
+    const thr = Number(thrInput.value || 70);
     if (thrLabel) thrLabel.textContent = String(thr);
 
     const tl = data.timeline || [];
     if (!Array.isArray(tl) || tl.length < 2) return;
 
-    // Build points sorted by time
     const pts = tl.map(p => ({
       ms: parseMs(p.time_utc),
       elev: Number(p.elevation),
@@ -147,7 +148,6 @@
     const tMin = pts[0].ms;
     const tMax = pts[pts.length - 1].ms;
 
-    // Elevation range (0..max)
     const eMax = Math.max(5, Math.ceil(Math.max(...pts.map(p => p.elev))));
     const eMin = 0;
 
@@ -166,7 +166,7 @@
     ctx.lineWidth = 1;
     ctx.strokeRect(left, top, right - left, bottom - top);
 
-    // Horizontal grid + elevation labels
+    // Grid + elevation labels
     ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
     ctx.fillStyle = "#444";
     ctx.strokeStyle = "#eee";
@@ -174,8 +174,9 @@
 
     const gridLines = 4;
     for (let i = 0; i <= gridLines; i++) {
-      const u = i / gridLines;                // 0..1
+      const u = i / gridLines;
       const y = top + (bottom - top) * (1 - u);
+
       ctx.beginPath();
       ctx.moveTo(left, y);
       ctx.lineTo(right, y);
@@ -185,7 +186,7 @@
       ctx.fillText(`${elevVal}°`, 6, y + 4);
     }
 
-    // Time labels (start / mid / end)
+    // Time labels
     const startD = new Date(tMin);
     const midD = new Date((tMin + tMax) / 2);
     const endD = new Date(tMax);
@@ -205,7 +206,7 @@
       return bottom - v * (bottom - top);
     }
 
-    // Shade next sunny window
+    // Next sunny window shading
     const win = data.next_sunny_window;
     if (win && win.start && win.end) {
       const s = parseMs(win.start);
@@ -230,7 +231,7 @@
       }
     }
 
-    // Draw elevation curve segments, colored by sun_score
+    // Curve segments colored by sun_score
     const sunnyColor = "#f6b73c";
     const grayColor = "rgba(120,120,120,0.55)";
 
@@ -259,7 +260,7 @@
       ctx.stroke();
     }
 
-    // Draw "now" vertical marker
+    // "now" marker
     const now = Date.now();
     if (now >= tMin && now <= tMax) {
       const x = xFromMs(now);
@@ -270,154 +271,119 @@
       ctx.lineTo(x, bottom);
       ctx.stroke();
 
-      ctx.fillSty
-
-  function findNearestIndex(timeline) {
-    const now = Date.now();
-    let bestI = 0;
-    let bestD = Infinity;
-    for (let i = 0; i < timeline.length; i++) {
-      const t = new Date(timeline[i].time_utc).getTime();
-      const d = Math.abs(t - now);
-      if (d < bestD) { bestD = d; bestI = i; }
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillText("now", x + 6, top + 14);
     }
-    return bestI;
   }
+  // ===== end chart code =====
 
-  function findNextAbove(timeline, startIndex, threshold, maxMinutesAhead = 360) {
-  const now = Date.now();
-  const maxMs = maxMinutesAhead * 60 * 1000;
-  for (let i = startIndex; i < timeline.length; i++) {
-    const tMs = new Date(timeline[i].time_utc).getTime();
-    if (tMs - now > maxMs) break;
-    if (timeline[i].sun_score >= threshold && timeline[i].elevation > 0) return i;
-  }
-  return null;
-}
+  window.addEventListener("resize", () => {
+    if (__lastDayDataForChart) drawSunChart(__lastDayDataForChart);
+  });
 
-  function fmtTimeLocal(isoUtc) {
-    // Convert ISO UTC string to user’s browser local time
-    const d = new Date(isoUtc);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-
-  function scoreLabel(score) {
-    if (score >= 80) return "SUN";
-    if (score >= 60) return "MIX";
-    if (score >= 30) return "CLOUD";
-    return "NO";
-  }
-
-  function pillForScore(score) {
-    const label = scoreLabel(score);
-    return `<span class="pill">${label} ${score}</span>`;
-  }
-
-  async function fetchDay(lat, lon) {
-    const thr = Number($("threshold").value || 70);
-    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(thr)}`;
-    $("apiUrl").textContent = API_BASE;
-    statusEl.textContent = "Loading… (free server may take a bit to wake up)";
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    return await res.json();
+  function setDecision(goNow, sub) {
+    decisionEl.textContent = goNow ? "Go now" : "Wait";
+    decisionEl.style.color = goNow ? "#0a7" : "#d60";
+    decisionSubEl.textContent = sub || "";
   }
 
   function render(data) {
-    const win = data.next_sunny_window;
+    const thr = Number(thrInput.value || 70);
 
-        // Decision banner
-    const thr = Number($("threshold").value || 70);
-    const tl = data.timeline;
-
-    const iNow = findNearestIndex(tl);
-    const pNow = tl[iNow];
-
-    if (pNow.elevation <= 0) {
-      decisionEl.textContent = "🌙 Night — no direct sun";
-      decisionSubEl.textContent = "Sun is below the horizon.";
-    } else if (pNow.sun_score >= thr) {
-      decisionEl.textContent = "☀️ Go now — direct sun likely";
-      decisionSubEl.textContent = `Sun score ${pNow.sun_score} • confidence ${Math.round((pNow.confidence||0)*100)}%`;
+    // Decision based on first timeline point (closest to "now" per backend)
+    const nowPoint = (data.timeline || [])[0];
+    if (nowPoint) {
+      const goNow = Number(nowPoint.sun_score) >= thr && Number(nowPoint.elevation) > 0.1;
+      setDecision(
+        goNow,
+        `sun_score=${Math.round(nowPoint.sun_score)} • elevation=${nowPoint.elevation.toFixed(1)}°`
+      );
     } else {
-      const iNext = findNextAbove(tl, iNow, thr);
-      if (iNext === null) {
-        decisionEl.textContent = "☁️ No strong sun soon";
-        decisionSubEl.textContent = `Nothing above ${thr} in the next ~6 hours (based on current model).`;
-      } else {
-        const mins = Math.max(0, Math.round((new Date(tl[iNext].time_utc).getTime() - Date.now()) / 60000));
-        decisionEl.textContent = `🌤 Sun likely in ~${mins} min`;
-        decisionSubEl.textContent = `${fmtTimeLocal(tl[iNext].time_utc)} • expected score ${tl[iNext].sun_score}`;
-      }
+      setDecision(false, "No data");
     }
 
-    const now = Date.now();
+    // Next window
+    if (data.next_sunny_window && data.next_sunny_window.start && data.next_sunny_window.end) {
+      const s = new Date(data.next_sunny_window.start);
+      const e = new Date(data.next_sunny_window.end);
+      nextWindowEl.textContent = `${fmtHM(s)}–${fmtHM(e)} (local time)`;
+    } else {
+      nextWindowEl.textContent = "No sunny window found today.";
+    }
 
-if (!win || new Date(win.end).getTime() < now) {
-  nextEl.innerHTML = `<span class="bad">No more sun today</span>`;
-} else {
-  const start = new Date(win.start);
-  const end = new Date(win.end);
-
-  if (start.getTime() < now) {
-    nextEl.innerHTML =
-      `<span class="ok">Happening now → ${end.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>`;
-  } else {
-    nextEl.innerHTML =
-      `<span class="ok">${start.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})} → ${end.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>`;
-  }
-}
-
-
-    const rows = data.timeline
-      .filter(p => p.elevation > 0)
+    // Timeline list (daylight only)
+    const rows = (data.timeline || [])
+      .filter(p => Number(p.elevation) > 0)
       .map(p => {
+        const t = new Date(p.time_utc);
+        const hm = fmtHM(t);
+        const s = Math.round(p.sun_score);
+        const e = Number(p.elevation).toFixed(1);
+        const c = p.cloud ? `L${p.cloud.low}/M${p.cloud.mid}/H${p.cloud.high}` : "";
+        return `<div style="display:flex; justify-content:space-between; gap:12px;">
+                  <div>${hm}</div>
+                  <div class="muted">elev ${e}°</div>
+                  <div class="muted">score ${s}</div>
+                  <div class="muted">${c}</div>
+                </div>`;
+      })
+      .join("");
 
-      const t = fmtTimeLocal(p.time_utc);
-      const score = p.sun_score;
-      const conf = Math.round((p.confidence || 0) * 100);
-      return `
-        <div class="item">
-          <div>
-            <div><b>${t}</b> <span class="muted">elev ${p.elevation.toFixed(1)}°</span></div>
-            <div class="muted">conf ${conf}% • clouds L${p.cloud.low}% M${p.cloud.mid}% H${p.cloud.high}%</div>
-          </div>
-          <div>${pillForScore(score)}</div>
-        </div>
-      `;
-    }).join("");
+    timelineEl.innerHTML = rows || `<div class="muted">No daylight points.</div>`;
 
-    timelineEl.innerHTML = rows;
-    
+    // Draw chart
     __lastDayDataForChart = data;
-    drawSunChart(data);    
-    
-    statusEl.textContent = `Loaded. Daylight points: ${data.timeline.filter(p => p.elevation > 0).length}`;
+    drawSunChart(data);
+
+    statusEl.textContent = `Loaded. Daylight points: ${(data.timeline || []).filter(p => p.elevation > 0).length}`;
   }
 
-  async function runWithLatLon(lat, lon) {
+  async function fetchDay(lat, lon) {
+    const thr = Number(thrInput.value || 70);
+    statusEl.textContent = "Loading…";
+
+    // IMPORTANT: update this to your actual Render URL if different
+    const base = "https://iwannasun.onrender.com";
+    const url = `${base}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(thr)}`;
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`API error ${res.status}`);
+    }
+    return await res.json();
+  }
+
+  async function run(lat, lon) {
     try {
       const data = await fetchDay(lat, lon);
       render(data);
-    } catch (e) {
-      statusEl.innerHTML = `<span class="bad">${e.message}</span>`;
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = `Error: ${err.message}`;
     }
   }
 
-  $("demoBtn").addEventListener("click", () => runWithLatLon(52.37, 4.90));
+  $("useDemo").addEventListener("click", () => {
+    run(52.3676, 4.9041);
+  });
 
-  $("locBtn").addEventListener("click", () => {
-    if (!navigator.geolocation) {
-      statusEl.innerHTML = `<span class="bad">Geolocation not supported in this browser.</span>`;
-      return;
-    }
-    statusEl.textContent = "Requesting location permission…";
+  $("useMyLocation").addEventListener("click", () => {
+    statusEl.textContent = "Requesting location…";
     navigator.geolocation.getCurrentPosition(
-      (pos) => runWithLatLon(pos.coords.latitude, pos.coords.longitude),
-      (err) => statusEl.innerHTML = `<span class="bad">Location error: ${err.message}</span>`,
-      { enableHighAccuracy: true, timeout: 15000 }
+      (pos) => run(pos.coords.latitude, pos.coords.longitude),
+      (err) => {
+        console.error(err);
+        statusEl.textContent = "Location denied or unavailable.";
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   });
+
+  thrInput.addEventListener("change", () => {
+    // Re-run demo if user changes threshold and already has a chart
+    if (__lastDayDataForChart) {
+      // easiest: rerun last location is not stored, so just redraw chart with new threshold
+      drawSunChart(__lastDayDataForChart);
+    }
+  });
 </script>
-</body>
-</html>
