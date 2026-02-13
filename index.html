@@ -149,14 +149,23 @@
       }
     }
 
-    if (!win) {
-      nextEl.innerHTML = `<span class="bad">No sunny window above threshold today.</span>`;
-    } else {
-      const start = new Date(win.start);
-      const end = new Date(win.end);
-      nextEl.innerHTML =
-        `<span class="ok">${start.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})} → ${end.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>`;
-    }
+    const now = Date.now();
+
+if (!win || new Date(win.end).getTime() < now) {
+  nextEl.innerHTML = `<span class="bad">No more sun today</span>`;
+} else {
+  const start = new Date(win.start);
+  const end = new Date(win.end);
+
+  if (start.getTime() < now) {
+    nextEl.innerHTML =
+      `<span class="ok">Happening now → ${end.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>`;
+  } else {
+    nextEl.innerHTML =
+      `<span class="ok">${start.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})} → ${end.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>`;
+  }
+}
+
 
     const rows = data.timeline
       .filter(p => p.elevation > 0)
