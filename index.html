@@ -177,6 +177,13 @@
     }
 
     .small { font-size: 12px; }
+  
+    /* Dark dropdown readability */
+    select, select option {
+      background: #0b0f14;
+      color: var(--text);
+    }
+    select:focus { outline: 1px solid var(--line); }
   </style>
 </head>
 <body>
@@ -488,7 +495,7 @@
 
     // threshold text
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif';
+    ctx.font = '500 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif';
     ctx.fillText(`Elevation (°) — sunny segments ≥ ${threshold}`, 10, 18);
   }
 
