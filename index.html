@@ -15,10 +15,11 @@
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 13px; }
     .ok { color: #0a7; }
     .bad { color: #c22; }
-    .timeline { max-height: 45vh; overflow: auto; }
+    .timeline { max-height: 55vh; overflow: auto; }
     .item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-    .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid #ddd; font-size: 13px; }
-    canvas { width: 100%; height: 220px; display:block; border: 1px solid #eee; border-radius: 10px; }
+    .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid #ddd; font-size: 13px; white-space: nowrap; }
+    canvas { width: 100%; height: 180px; display: block; }
+    .small { font-size: 13px; }
   </style>
 </head>
 <body>
@@ -38,8 +39,8 @@
     </div>
 
     <div class="muted">API:</div>
-    <div class="mono" id="apiUrl">https://iwannasun.onrender.com</div>
-    <div class="muted">(If your API URL changes, edit API_BASE in this file.)</div>
+    <div class="mono" id="apiUrl"></div>
+    <div class="muted">(If your API URL changes, edit <span class="mono">API_BASE</span> in this file.)</div>
   </div>
 
   <div class="card">
@@ -55,40 +56,55 @@
   <div class="card">
     <h3 style="margin:0 0 8px 0;">Next sunny window</h3>
     <div id="nextWindow" class="muted">—</div>
-    <div id="sunMinutes" class="muted" style="margin-top:6px;"></div>
+    <div id="expectedSun" class="muted small" style="margin-top:6px;"></div>
   </div>
 
   <div class="card">
     <h3 style="margin:0 0 8px 0;">Sun path (elevation)</h3>
-    <canvas id="sunChart"></canvas>
-    <div class="muted" style="margin-top:8px;">
-      Line shows sun elevation. Highlighted segments mean <b>sun_score ≥ threshold</b>. Vertical line is <b>now</b>.
+    <div style="border:1px solid #eee; border-radius:10px; padding:10px;">
+      <canvas id="sunCanvas" width="1000" height="220"></canvas>
+      <div class="muted small" style="margin-top:8px;">
+        Line shows sun elevation. Highlighted segments mean <b>sun_score ≥ threshold</b>. Vertical line is <b>now</b>.
+      </div>
+      <div class="muted small" id="sunAxis"></div>
     </div>
   </div>
 
   <div class="card timeline">
-    <h3 style="margin:0 0 8px 0;">Today (daylight only)</h3>
+    <h3 id="timelineTitle" style="margin:0 0 8px 0;">Today (daylight only)</h3>
     <div id="timeline"></div>
   </div>
 
 <script>
+  // ✅ EDIT THIS if your backend URL changes:
   const API_BASE = "https://iwannasun.onrender.com";
 
   const $ = (id) => document.getElementById(id);
   const statusEl = $("status");
   const nextEl = $("nextWindow");
-  const sunMinutesEl = $("sunMinutes");
+  const expectedEl = $("expectedSun");
   const timelineEl = $("timeline");
+  const timelineTitleEl = $("timelineTitle");
   const decisionEl = $("decision");
   const decisionSubEl = $("decisionSub");
-  const chart = $("sunChart");
-  const ctx = chart.getContext("2d");
+  const canvas = $("sunCanvas");
+  const sunAxisEl = $("sunAxis");
+  const ctx = canvas.getContext("2d");
 
-  let lastLatLon = null; // {lat, lon}
+  $("apiUrl").textContent = API_BASE;
 
-  function fmtTimeLocalFromUtcIso(isoUtc) {
-    const d = new Date(isoUtc);
+  let lastLatLon = null;
+
+  function fmtTimeLocal(isoWithOffset) {
+    const d = new Date(isoWithOffset);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function fmtDayTime(isoWithOffset) {
+    const d = new Date(isoWithOffset);
+    const day = d.toLocaleDateString([], { weekday: "short", month: "short", day: "2-digit" });
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return `${day} ${time}`;
   }
 
   function scoreLabel(score) {
@@ -103,7 +119,7 @@
     return `<span class="pill">${label} ${score}</span>`;
   }
 
-  function findNearestIndex(timeline) {
+  function nearestIndexByUtc(timeline) {
     const now = Date.now();
     let bestI = 0;
     let bestD = Infinity;
@@ -115,182 +131,159 @@
     return bestI;
   }
 
-  function findNextAbove(timeline, startIndex, threshold, maxMinutesAhead = 360) {
-    const now = Date.now();
-    const maxMs = maxMinutesAhead * 60 * 1000;
-    for (let i = startIndex; i < timeline.length; i++) {
-      const tMs = new Date(timeline[i].time_utc).getTime();
-      if (tMs - now > maxMs) break;
-      if (timeline[i].sun_score >= threshold && timeline[i].elevation > 0) return i;
-    }
-    return null;
-  }
-
   async function fetchDay(lat, lon) {
     const thr = Number($("threshold").value || 70);
-    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(thr)}`;
-    $("apiUrl").textContent = API_BASE;
+    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(thr)}&days=2`;
     statusEl.textContent = "Loading… (free server may take a bit to wake up)";
     const res = await fetch(url);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return await res.json();
   }
 
-  function resizeCanvasToCSSPixels(canvas) {
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-    return dpr;
-  }
+  function drawSunPath(todayPoints, threshold) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  function drawSunChart(daylight, threshold, nextWindow) {
-    const dpr = resizeCanvasToCSSPixels(chart);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!todayPoints.length) return;
 
-    const w = chart.getBoundingClientRect().width;
-    const h = chart.getBoundingClientRect().height;
+    const W = canvas.width, H = canvas.height;
+    const padL = 40, padR = 20, padT = 20, padB = 30;
 
-    ctx.clearRect(0, 0, w, h);
+    const elevs = todayPoints.map(p => p.elevation);
+    const minE = Math.min(...elevs, 0);
+    const maxE = Math.max(...elevs, 1);
 
-    const padL = 36, padR = 10, padT = 12, padB = 24;
-    const plotW = w - padL - padR;
-    const plotH = h - padT - padB;
+    const t0 = new Date(todayPoints[0].time_utc).getTime();
+    const t1 = new Date(todayPoints[todayPoints.length - 1].time_utc).getTime();
 
-    if (!daylight.length) {
-      ctx.fillText("No daylight points", 10, 20);
-      return;
-    }
+    const xForT = (t) => {
+      const u = (t - t0) / (t1 - t0 || 1);
+      return padL + u * (W - padL - padR);
+    };
+    const yForE = (e) => {
+      const u = (e - minE) / (maxE - minE || 1);
+      return (H - padB) - u * (H - padT - padB);
+    };
 
-    const times = daylight.map(p => new Date(p.time_utc).getTime());
-    const elevs = daylight.map(p => p.elevation);
-
-    const tMin = Math.min(...times);
-    const tMax = Math.max(...times);
-    const eMin = 0;
-    const eMax = Math.max(...elevs, 1);
-
-    const xOf = (tMs) => padL + ((tMs - tMin) / (tMax - tMin)) * plotW;
-    const yOf = (e) => padT + (1 - ((e - eMin) / (eMax - eMin))) * plotH;
-
-    // axes (light)
+    // baseline axis
     ctx.globalAlpha = 1;
     ctx.lineWidth = 1;
     ctx.strokeStyle = "#eee";
     ctx.beginPath();
-    ctx.moveTo(padL, padT);
-    ctx.lineTo(padL, padT + plotH);
-    ctx.lineTo(padL + plotW, padT + plotH);
+    ctx.moveTo(padL, H - padB);
+    ctx.lineTo(W - padR, H - padB);
     ctx.stroke();
 
-    // next window shading
-    if (nextWindow && nextWindow.start_utc && nextWindow.end_utc) {
-      const a = new Date(nextWindow.start_utc).getTime();
-      const b = new Date(nextWindow.end_utc).getTime();
-      const x1 = xOf(Math.max(a, tMin));
-      const x2 = xOf(Math.min(b, tMax));
-      if (x2 > x1) {
-        ctx.fillStyle = "rgba(0,160,120,0.10)";
-        ctx.fillRect(x1, padT, x2 - x1, plotH);
+    // draw grey elevation curve
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#bbb";
+    ctx.beginPath();
+    for (let i = 0; i < todayPoints.length; i++) {
+      const p = todayPoints[i];
+      const t = new Date(p.time_utc).getTime();
+      const x = xForT(t);
+      const y = yForE(p.elevation);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // highlight segments where score >= threshold (green)
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#0a7";
+    ctx.beginPath();
+    let drawing = false;
+    for (let i = 0; i < todayPoints.length; i++) {
+      const p = todayPoints[i];
+      const ok = p.sun_score >= threshold;
+      const t = new Date(p.time_utc).getTime();
+      const x = xForT(t);
+      const y = yForE(p.elevation);
+
+      if (ok) {
+        if (!drawing) {
+          ctx.moveTo(x, y);
+          drawing = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      } else {
+        drawing = false;
+        ctx.moveTo(x, y);
       }
     }
+    ctx.stroke();
 
-    // draw line segments (highlight if sunny)
-    for (let i = 0; i < daylight.length - 1; i++) {
-      const p1 = daylight[i];
-      const p2 = daylight[i + 1];
-
-      const x1 = xOf(new Date(p1.time_utc).getTime());
-      const y1 = yOf(p1.elevation);
-      const x2 = xOf(new Date(p2.time_utc).getTime());
-      const y2 = yOf(p2.elevation);
-
-      const sunny = (p1.sun_score >= threshold) && (p2.sun_score >= threshold);
-
-      ctx.strokeStyle = sunny ? "#0a7" : "#bbb";
-      ctx.lineWidth = sunny ? 2.5 : 2;
-
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-    }
-
-    // now marker
+    // vertical "now" line if within range
     const now = Date.now();
-    if (now >= tMin && now <= tMax) {
-      const xNow = xOf(now);
-      ctx.strokeStyle = "rgba(0,0,0,0.35)";
-      ctx.lineWidth = 1;
+    if (now >= t0 && now <= t1) {
+      const xNow = xForT(now);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ddd";
       ctx.beginPath();
       ctx.moveTo(xNow, padT);
-      ctx.lineTo(xNow, padT + plotH);
+      ctx.lineTo(xNow, H - padB);
       ctx.stroke();
     }
 
-    // labels (start/end time)
-    ctx.fillStyle = "#666";
-    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.fillText(fmtTimeLocalFromUtcIso(new Date(tMin).toISOString()), padL, padT + plotH + 18);
-    const endLabel = fmtTimeLocalFromUtcIso(new Date(tMax).toISOString());
-    const endWidth = ctx.measureText(endLabel).width;
-    ctx.fillText(endLabel, padL + plotW - endWidth, padT + plotH + 18);
+    // labels (start/end)
+    const startLabel = fmtTimeLocal(todayPoints[0].time_local);
+    const endLabel = fmtTimeLocal(todayPoints[todayPoints.length - 1].time_local);
+    sunAxisEl.textContent = `${startLabel}  —  ${endLabel}`;
   }
 
   function render(data) {
     const thr = Number($("threshold").value || 70);
     const tl = data.timeline || [];
-    const daylight = tl.filter(p => p.elevation > 0);
 
-    // status
-    statusEl.textContent = `Loaded. Daylight points: ${daylight.length} (of ${tl.length})`;
+    // Split today points (day_index=0), daylight only
+    const todayDaylight = tl.filter(p => p.day_index === 0 && p.elevation > 0);
 
-    // Right now decision
-    const iNow = findNearestIndex(tl);
+    // Status line
+    statusEl.textContent = `Loaded. Daylight points: ${todayDaylight.length} (of ${tl.length}) • TZ: ${data.meta?.tz_name || "?"}`;
+
+    // Decision (right now)
+    const iNow = nearestIndexByUtc(tl);
     const pNow = tl[iNow];
 
-    if (!pNow || pNow.elevation <= 0) {
+    if (!pNow) {
+      decisionEl.textContent = "—";
+      decisionSubEl.textContent = "";
+    } else if (pNow.elevation <= 0) {
       decisionEl.textContent = "🌙 Night — no direct sun";
       decisionSubEl.textContent = "Sun is below the horizon.";
     } else if (pNow.sun_score >= thr) {
       decisionEl.textContent = "☀️ Go now — direct sun likely";
       decisionSubEl.textContent = `Sun score ${pNow.sun_score} • confidence ${Math.round((pNow.confidence||0)*100)}%`;
     } else {
-      const iNext = findNextAbove(tl, iNow, thr);
-      if (iNext === null) {
-        decisionEl.textContent = "☁️ No strong sun soon";
-        decisionSubEl.textContent = `Nothing above ${thr} in the next ~6 hours (based on current model).`;
-      } else {
-        const mins = Math.max(0, Math.round((new Date(tl[iNext].time_utc).getTime() - Date.now()) / 60000));
-        decisionEl.textContent = `🌤 Sun likely in ~${mins} min`;
-        decisionSubEl.textContent = `${fmtTimeLocalFromUtcIso(tl[iNext].time_utc)} • expected score ${tl[iNext].sun_score}`;
-      }
+      decisionEl.textContent = "⛅ Not strong sun right now";
+      decisionSubEl.textContent = `Sun score ${pNow.sun_score} • confidence ${Math.round((pNow.confidence||0)*100)}%`;
     }
 
-    // Next window (API returns UTC)
+    // Next window (can be tomorrow now)
     const win = data.next_sunny_window;
     if (!win) {
       nextEl.innerHTML = `<span class="bad">No sunny window above threshold coming up.</span>`;
     } else {
-      const startLocal = fmtTimeLocalFromUtcIso(win.start_utc);
-      const endLocal = fmtTimeLocalFromUtcIso(win.end_utc);
-      nextEl.innerHTML = `<span class="ok">${startLocal} → ${endLocal}</span>`;
+      const start = new Date(win.start);
+      const end = new Date(win.end);
+      // show day+time so “tomorrow” is obvious
+      nextEl.innerHTML = `<span class="ok">${fmtDayTime(start.toISOString())} → ${fmtDayTime(end.toISOString())}</span>`;
+      // BUT: win.start/end already include timezone offset in string; this is just display.
+      // If you prefer, replace with fmtDayTime(win.start) and fmtDayTime(win.end).
+      nextEl.innerHTML = `<span class="ok">${fmtDayTime(win.start)} → ${fmtDayTime(win.end)}</span>`;
     }
 
-    // Sun minutes
-    if (data.sun_minutes) {
-      sunMinutesEl.textContent = `Expected sun: next 1h ${data.sun_minutes.next_1h} min • next 2h ${data.sun_minutes.next_2h} min`;
-    } else {
-      sunMinutesEl.textContent = "";
-    }
+    // Expected sun minutes
+    const sm = data.sun_minutes || {};
+    expectedEl.textContent = `Expected sun: next 1h ${sm.next_1h ?? 0} min • next 2h ${sm.next_2h ?? 0} min`;
 
-    // Chart
-    drawSunChart(daylight, thr, win);
+    // Sun path chart (today daylight points)
+    drawSunPath(todayDaylight, thr);
 
-    // Timeline list (daylight only)
-    const rows = daylight.map(p => {
-      const t = fmtTimeLocalFromUtcIso(p.time_utc);
-      const score = p.sun_score;
+    // Timeline (today daylight only)
+    timelineTitleEl.textContent = "Today (daylight only)";
+    const rows = todayDaylight.map(p => {
+      const t = fmtTimeLocal(p.time_local);
       const conf = Math.round((p.confidence || 0) * 100);
       return `
         <div class="item">
@@ -298,12 +291,12 @@
             <div><b>${t}</b> <span class="muted">elev ${p.elevation.toFixed(1)}°</span></div>
             <div class="muted">conf ${conf}% • clouds L${p.cloud.low}% M${p.cloud.mid}% H${p.cloud.high}%</div>
           </div>
-          <div>${pillForScore(score)}</div>
+          <div>${pillForScore(p.sun_score)}</div>
         </div>
       `;
     }).join("");
 
-    timelineEl.innerHTML = rows;
+    timelineEl.innerHTML = rows || `<div class="muted">No daylight points left today.</div>`;
   }
 
   async function runWithLatLon(lat, lon) {
@@ -333,15 +326,9 @@
 
   $("refreshBtn").addEventListener("click", () => {
     if (!lastLatLon) {
-      statusEl.innerHTML = `<span class="bad">Click “Use my location” or “Demo” first.</span>`;
+      statusEl.textContent = "Pick Demo or Use my location first.";
       return;
     }
-    runWithLatLon(lastLatLon.lat, lastLatLon.lon);
-  });
-
-  // Redraw chart on resize (if we already loaded)
-  window.addEventListener("resize", () => {
-    if (!lastLatLon) return;
     runWithLatLon(lastLatLon.lat, lastLatLon.lon);
   });
 </script>
