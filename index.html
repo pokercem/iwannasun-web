@@ -388,6 +388,14 @@
   function renderTimeline(dayRows, threshold) {
     timelineEl.innerHTML = '';
 
+    // header
+    const head = document.createElement('div');
+    head.className = 'trow muted small';
+    head.innerHTML = '<div>Time</div><div>Sun score</div><div>Confidence</div>';
+    timelineEl.appendChild(head);
+
+    // Daylight only;
+
     // Daylight only
     const rows = dayRows.filter(r => r.elevation > 0);
 
@@ -405,7 +413,7 @@
 
       const mid = document.createElement('div');
       const label = document.createElement('div');
-      label.textContent = s;
+      label.textContent = s + '%';
       label.className = cls;
 
       const bar = document.createElement('div');
@@ -419,6 +427,7 @@
 
       const right = document.createElement('div');
       right.textContent = Math.round(r.confidence * 100) + '%';
+      right.title = 'Confidence in prediction';
       right.className = 'muted';
 
       el.appendChild(left);
