@@ -158,7 +158,10 @@
         `<span class="ok">${start.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})} → ${end.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>`;
     }
 
-    const rows = data.timeline.map(p => {
+    const rows = data.timeline
+      .filter(p => p.elevation > 0)
+      .map(p => {
+
       const t = fmtTimeLocal(p.time_utc);
       const score = p.sun_score;
       const conf = Math.round((p.confidence || 0) * 100);
