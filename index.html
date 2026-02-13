@@ -178,6 +178,33 @@
     }
 
     .small { font-size: 12px; }
+    .scoreNum { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .chartWrap {
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: 10px;
+      align-items: stretch;
+      margin-top: 8px;
+    }
+    .yAxis {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 8px 0 10px;
+      font-size: 12px;
+      color: var(--muted);
+      user-select: none;
+    }
+    .xAxis {
+      display: flex;
+      justify-content: space-between;
+      padding-left: 56px; /* yAxis width + gap */
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -218,7 +245,7 @@
             <div class="value" id="scoreNow">—</div>
           </div>
           <div class="box">
-            <div class="label">Confidence now</div>
+            <div class="label">Confidence now <span class="muted" title="How reliable the sun score estimate is (higher = more stable conditions).">ⓘ</span></div>
             <div class="value" id="confNow">—</div>
           </div>
           <div class="box">
@@ -231,8 +258,14 @@
           </div>
         </div>
 
-        <div class="small" id="chartTitle" style="margin-top:10px; opacity:0.85">Elevation (°) — sunny segments ≥ 70</div>
-        <canvas id="sunChart" width="900" height="250"></canvas>
+        <div class="chartBlock" style="margin-top:10px">
+          <div class="small" id="chartTitle" style="opacity:0.85">Elevation (°) — sunny segments ≥ 70</div>
+          <div class="chartWrap">
+            <div class="yAxis" id="yAxis"></div>
+            <canvas id="sunChart" width="900" height="250"></canvas>
+          </div>
+          <div class="xAxis" id="xAxis"></div>
+        </div>
 
         <div class="timeline" id="timeline"></div>
         <div class="err" id="errBox"></div>
@@ -249,6 +282,10 @@
             Sun Score is the probability of direct sun reaching you (0–100). Not a weather forecast.
             Low sun = distant clouds matter more.
           </div>
+          <div class="muted small" style="line-height:1.45; margin-top:10px">
+            <strong>Confidence</strong> is how reliable this estimate is (0–100%). It drops when conditions are mixed or rainy.
+          </div>
+          <div class="muted small" id="whyNow" style="line-height:1.45; margin-top:10px"></div>
         </div>
       </div>
     </div>
@@ -274,6 +311,8 @@
   const nextWindowSub = document.getElementById('nextWindowSub');
 
   const timelineEl = document.getElementById('timeline');
+  const yAxisEl = document.getElementById('yAxis');
+  const xAxisEl = document.getElementById('xAxis');
   const canvas = document.getElementById('sunChart');
   const ctx = canvas.getContext('2d');
 
@@ -367,10 +406,13 @@
   }
 
   function renderDecision(nowRow, threshold) {
+    const whyEl = document.getElementById('whyNow');
+
     if (!nowRow) {
       rightNow.textContent = '—';
       scoreNow.textContent = '—';
       confNow.textContent = '—';
+      if (whyEl) whyEl.textContent = '';
       return;
     }
 
@@ -378,9 +420,11 @@
     const c = nowRow.confidence;
 
     scoreNow.textContent = Math.round(s);
-    scoreNow.className = 'value ' + scoreClass(s, threshold);
+    // Keep score color consistent (don’t flip based on threshold)
+    scoreNow.className = 'value';
 
     confNow.textContent = Math.round(c * 100) + '%';
+    confNow.title = 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
 
     if (s >= threshold) {
       rightNow.textContent = 'Go now';
@@ -391,6 +435,43 @@
     } else {
       rightNow.textContent = 'Wait';
       rightNow.className = 'big bad';
+    }
+
+    // WHY (short, decision-oriented)
+    if (whyEl) {
+      if (nowRow.elevation <= 0) {
+        whyEl.textContent = 'Why: Sun is below the horizon.';
+      } else {
+        const low = nowRow.cloud?.low ?? null;
+        const mid = nowRow.cloud?.mid ?? null;
+        const high = nowRow.cloud?.high ?? null;
+        const precip = nowRow.cloud?.precip_mm ?? 0;
+
+        let main = null;
+        const parts = [];
+        if (precip && precip > 0) parts.push('precipitation');
+
+        // pick dominant layer
+        const layers = [
+          { name: 'low clouds', v: low },
+          { name: 'mid clouds', v: mid },
+          { name: 'high clouds', v: high },
+        ].filter(x => typeof x.v === 'number');
+
+        if (layers.length) {
+          layers.sort((a,b) => b.v - a.v);
+          main = `${layers[0].name} (${Math.round(layers[0].v)}%)`;
+        }
+
+        if (main) parts.push(main);
+
+        if (!parts.length) {
+          whyEl.textContent = 'Why: Mostly clear sky and sun above horizon.';
+        } else {
+          const prefix = (s >= threshold) ? 'Why: Clear enough despite ' : 'Why: Blocked by ';
+          whyEl.textContent = prefix + parts.join(' + ') + '.';
+        }
+      }
     }
   }
 
@@ -440,7 +521,7 @@
       const mid = document.createElement('div');
       const label = document.createElement('div');
       label.textContent = s + '%';
-      label.className = cls;
+      label.className = 'scoreNum';
 
       const bar = document.createElement('div');
       bar.className = 'bar';
@@ -465,59 +546,104 @@
   }
 
   function renderChart(dayRows, threshold) {
-    // Plot elevation curve, and shade segments where sun_score >= threshold.
+    // Plot elevation curve, and highlight segments where sun_score >= threshold.
     const w = canvas.width;
     const h = canvas.height;
 
     ctx.clearRect(0, 0, w, h);
 
-    const rows = dayRows;
-    if (!rows.length) return;
+    if (!dayRows || !dayRows.length) {
+      if (yAxisEl) yAxisEl.innerHTML = '';
+      if (xAxisEl) xAxisEl.innerHTML = '';
+      return;
+    }
 
-    const elevs = rows.map(r => r.elevation);
+    // Trim to the daylight arc but keep endpoints at the baseline (no flat night line)
+    let first = -1, last = -1;
+    for (let i = 0; i < dayRows.length; i++) {
+      if (dayRows[i].elevation > 0) { first = i; break; }
+    }
+    for (let i = dayRows.length - 1; i >= 0; i--) {
+      if (dayRows[i].elevation > 0) { last = i; break; }
+    }
+    if (first === -1 || last === -1) {
+      // No daylight
+      if (yAxisEl) yAxisEl.innerHTML = '';
+      if (xAxisEl) xAxisEl.innerHTML = '';
+      return;
+    }
+
+    const startIdx = Math.max(0, first - 1);
+    const endIdx = Math.min(dayRows.length - 1, last + 1);
+    const rows = dayRows.slice(startIdx, endIdx + 1);
+
+    const elevs = rows.map(r => Math.max(0, r.elevation));
     const maxElev = Math.max(...elevs, 1);
 
-    // axis baseline
-    ctx.globalAlpha = 0.25;
-    ctx.beginPath();
-    ctx.moveTo(0, h - 25);
-    ctx.lineTo(w, h - 25);
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+    // --- Axes labels OUTSIDE the canvas ---
+    if (yAxisEl) {
+      const top = Math.ceil(maxElev / 10) * 10;
+      const ticks = [];
+      for (let d = top; d >= 0; d -= 10) ticks.push(d);
+      yAxisEl.innerHTML = ticks.map(d => `<div>${d}°</div>`).join('');
+    }
+
+    if (xAxisEl) {
+      const t0 = new Date(rows[0].time_local);
+      const t1 = new Date(rows[rows.length - 1].time_local);
+      const spanH = Math.max(1, Math.round((t1 - t0) / 3600000));
+
+      // 5-ish labels including ends
+      const steps = 4;
+      const labels = [];
+      for (let k = 0; k <= steps; k++) {
+        const tt = new Date(t0.getTime() + (k / steps) * (t1 - t0));
+        const hh = tt.getHours().toString().padStart(2, '0');
+        labels.push(`${hh}:00`);
+      }
+      xAxisEl.innerHTML = labels.map(t => `<div>${t}</div>`).join('');
+    }
+
+    // --- Plot with padding so endpoints aren’t cut ---
+    const padX = 14;
+    const padTop = 14;
+    const padBottom = 14;
 
     function yOf(e) {
-      const yy = (h - 40) - (e / maxElev) * (h - 60);
-      return clamp(yy, 10, h - 25);
+      const usableH = h - padTop - padBottom;
+      const yy = (h - padBottom) - (e / maxElev) * usableH;
+      return clamp(yy, padTop, h - padBottom);
+    }
+
+    function xOf(i) {
+      if (rows.length === 1) return w / 2;
+      return padX + (i / (rows.length - 1)) * (w - 2 * padX);
     }
 
     // Elevation line
     ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
     ctx.beginPath();
     for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-      const x = i / (rows.length - 1) * w;
-      const y = yOf(Math.max(0, r.elevation));
+      const x = xOf(i);
+      const y = yOf(Math.max(0, rows[i].elevation));
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.42)';
     ctx.stroke();
 
-    // Draw sunny segments on top of the elevation line
+    // Sunny segments on top
     ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
     for (let i = 1; i < rows.length; i++) {
-      const a = rows[i-1], b = rows[i];
-      if (a.elevation <= 0 && b.elevation <= 0) continue;
-      const sunny = (a.sun_score >= threshold) && (b.sun_score >= threshold);
+      const a = rows[i - 1], b = rows[i];
+      const sunny = (a.sun_score >= threshold) && (b.sun_score >= threshold) && (a.elevation > 0 || b.elevation > 0);
       if (!sunny) continue;
-      const x1 = (i-1) / (rows.length - 1) * w;
-      const x2 = i / (rows.length - 1) * w;
+
       ctx.beginPath();
-      ctx.moveTo(x1, yOf(a.elevation));
-      ctx.lineTo(x2, yOf(b.elevation));
+      ctx.moveTo(xOf(i - 1), yOf(Math.max(0, a.elevation)));
+      ctx.lineTo(xOf(i), yOf(Math.max(0, b.elevation)));
+
       const gradTop = ctx.createLinearGradient(0, 0, w, 0);
       gradTop.addColorStop(0, '#ff8c72');
       gradTop.addColorStop(0.5, '#f4b860');
@@ -526,7 +652,7 @@
       ctx.stroke();
     }
 
-    // update chart title in DOM (matches page font)
+    // update chart title in DOM
     const titleEl = document.getElementById('chartTitle');
     if (titleEl) titleEl.textContent = `Elevation (°) — sunny segments ≥ ${threshold}`;
   }
