@@ -43,6 +43,12 @@
   <div class="card">
     <div id="status" class="muted">Waiting…</div>
   </div>
+  
+  <div class="card">
+    <h3 style="margin:0 0 8px 0;">Right now</h3>
+    <div id="decision" style="font-size:18px;">—</div>
+    <div id="decisionSub" class="muted"></div>
+  </div>
 
   <div class="card">
     <h3 style="margin:0 0 8px 0;">Next sunny window</h3>
@@ -61,6 +67,27 @@
   const statusEl = $("status");
   const nextEl = $("nextWindow");
   const timelineEl = $("timeline");
+  const decisionEl = $("decision");
+  const decisionSubEl = $("decisionSub");
+
+  function findNearestIndex(timeline) {
+    const now = Date.now();
+    let bestI = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < timeline.length; i++) {
+      const t = new Date(timeline[i].time_utc).getTime();
+      const d = Math.abs(t - now);
+      if (d < bestD) { bestD = d; bestI = i; }
+    }
+    return bestI;
+  }
+
+  function findNextAbove(timeline, startIndex, threshold) {
+    for (let i = startIndex; i < timeline.length; i++) {
+      if (timeline[i].sun_score >= threshold && timeline[i].elevation > 0) return i;
+    }
+    return null;
+  }
 
   function fmtTimeLocal(isoUtc) {
     // Convert ISO UTC string to user’s browser local time
@@ -92,6 +119,31 @@
 
   function render(data) {
     const win = data.next_sunny_window;
+
+        // Decision banner
+    const thr = Number($("threshold").value || 70);
+    const tl = data.timeline;
+
+    const iNow = findNearestIndex(tl);
+    const pNow = tl[iNow];
+
+    if (pNow.elevation <= 0) {
+      decisionEl.textContent = "🌙 Night — no direct sun";
+      decisionSubEl.textContent = "Sun is below the horizon.";
+    } else if (pNow.sun_score >= thr) {
+      decisionEl.textContent = "☀️ Go now — direct sun likely";
+      decisionSubEl.textContent = `Sun score ${pNow.sun_score} • confidence ${Math.round((pNow.confidence||0)*100)}%`;
+    } else {
+      const iNext = findNextAbove(tl, iNow, thr);
+      if (iNext === null) {
+        decisionEl.textContent = "☁️ No strong sun soon";
+        decisionSubEl.textContent = `Nothing above ${thr} today (based on current model).`;
+      } else {
+        const mins = Math.max(0, Math.round((new Date(tl[iNext].time_utc).getTime() - Date.now()) / 60000));
+        decisionEl.textContent = `🌤 Sun likely in ~${mins} min`;
+        decisionSubEl.textContent = `${fmtTimeLocal(tl[iNext].time_utc)} • expected score ${tl[iNext].sun_score}`;
+      }
+    }
 
     if (!win) {
       nextEl.innerHTML = `<span class="bad">No sunny window above threshold today.</span>`;
