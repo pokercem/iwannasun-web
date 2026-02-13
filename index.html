@@ -492,6 +492,27 @@
     ctx.strokeStyle = 'rgba(0,0,0,0.45)';
     ctx.stroke();
 
+    // Draw sunny segments on top of the elevation line
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    for (let i = 1; i < rows.length; i++) {
+      const a = rows[i-1], b = rows[i];
+      if (a.elevation <= 0 && b.elevation <= 0) continue;
+      const sunny = (a.sun_score >= threshold) && (b.sun_score >= threshold);
+      if (!sunny) continue;
+      const x1 = (i-1) / (rows.length - 1) * w;
+      const x2 = i / (rows.length - 1) * w;
+      ctx.beginPath();
+      ctx.moveTo(x1, yOf(a.elevation));
+      ctx.lineTo(x2, yOf(b.elevation));
+      const gradTop = ctx.createLinearGradient(0, 0, w, 0);
+      gradTop.addColorStop(0, '#ff8c72');
+      gradTop.addColorStop(0.5, '#f4b860');
+      gradTop.addColorStop(1, '#ff8c72');
+      ctx.strokeStyle = gradTop;
+      ctx.stroke();
+    }
+
     // update chart title in DOM (matches page font)
     const titleEl = document.getElementById('chartTitle');
     if (titleEl) titleEl.textContent = `Elevation (°) — sunny segments ≥ ${threshold}`;
