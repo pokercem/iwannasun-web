@@ -357,9 +357,14 @@
     }
   }
 
-  $("useDemo").addEventListener("click", () => run(52.3676, 4.9041));
+const demoBtn = $("useDemo");
+if (demoBtn) {
+  demoBtn.addEventListener("click", () => run(52.3676, 4.9041));
+}
 
-  $("useMyLocation").addEventListener("click", () => {
+const locBtn = $("useMyLocation");
+if (locBtn) {
+  locBtn.addEventListener("click", () => {
     statusEl.textContent = "Requesting location…";
     navigator.geolocation.getCurrentPosition(
       (pos) => run(pos.coords.latitude, pos.coords.longitude),
@@ -370,10 +375,14 @@
       { enableHighAccuracy: true, timeout: 10000 }
     );
   });
+}
 
+if (thrInput) {
   thrInput.addEventListener("change", () => {
     if (__lastDayDataForChart) drawSunChart(__lastDayDataForChart);
   });
+}
+
 </script>
 
 </body>
