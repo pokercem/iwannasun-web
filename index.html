@@ -74,7 +74,7 @@
       padding: 6px 10px;
       border-radius: 999px;
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.03);
+      background: rgba(155,190,217,0.18);
       color: var(--text);
       font-size: 12px;
     }
@@ -133,13 +133,13 @@
       grid-template-columns: 70px 1fr 60px;
       gap: 10px;
       padding: 8px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid var(--line);
       font-size: 13px;
     }
     .bar {
       height: 10px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.08);
+      background: rgba(51,51,51,0.08);
       overflow: hidden;
       margin-top: 5px;
     }
@@ -170,9 +170,9 @@
       margin-top: 10px;
       padding: 10px;
       border-radius: 12px;
-      border: 1px solid rgba(251,113,133,0.35);
-      background: rgba(251,113,133,0.08);
-      color: #fecdd3;
+      border: 1px solid rgba(255,140,114,0.35);
+      background: rgba(255,140,114,0.12);
+      color: var(--text);
       font-size: 13px;
       display: none;
     }
@@ -306,38 +306,63 @@
     return 'bad';
   }
 
-  function computeNextWindow(dayRows, threshold) {
+  function computeNextWindow(dayRows, threshold, fromDate = new Date()) {
     // Find next contiguous window of >= threshold for min 20 min
-    const now = new Date();
-
-    // Future rows only
-    const future = dayRows.filter(r => new Date(r.time_local) >= now);
+    const future = dayRows.filter(r => new Date(r.time_local) >= fromDate);
     if (!future.length) return null;
 
     let start = null;
-    let count = 0;
+    let minutes = 0;
 
     for (let i = 0; i < future.length; i++) {
       const ok = future[i].sun_score >= threshold;
       if (ok) {
         if (!start) start = future[i];
-        count += 10;
+        minutes += 10;
       } else {
-        if (start && count >= 20) {
-          return { start: start.time_local, end: future[i].time_local, minutes: count };
+        if (start && minutes >= 20) {
+          return { start: start.time_local, end: future[i].time_local, minutes };
         }
         start = null;
-        count = 0;
+        minutes = 0;
       }
     }
 
-    if (start && count >= 20) {
-      // End at last + 10
+    if (start && minutes >= 20) {
       const end = new Date(future[future.length - 1].time_local);
       end.setMinutes(end.getMinutes() + 10);
-      return { start: start.time_local, end: end.toISOString(), minutes: count };
+      return { start: start.time_local, end: end.toISOString(), minutes };
     }
 
+    return null;
+  }
+
+  function windowMinutes(startIso, endIso) {
+    const a = new Date(startIso);
+    const b = new Date(endIso);
+    return Math.max(0, Math.round((b - a) / 60000));
+  }
+
+  function dayBoundsFromRows(dayRows) {
+    if (!dayRows || !dayRows.length) return { start: null, end: null };
+    let minT = Infinity;
+    let maxT = -Infinity;
+    for (const r of dayRows) {
+      const t = new Date(r.time_local).getTime();
+      if (t < minT) minT = t;
+      if (t > maxT) maxT = t;
+    }
+    return { start: new Date(minT), end: new Date(maxT) };
+  }
+
+  function windowFromBackendIfMatchesDay(apiWin, dayRows) {
+    if (!apiWin || !apiWin.start || !apiWin.end) return null;
+    const { start, end } = dayBoundsFromRows(dayRows);
+    if (!start || !end) return null;
+    const s = new Date(apiWin.start);
+    if (s >= start && s <= end) {
+      return { start: apiWin.start, end: apiWin.end, minutes: windowMinutes(apiWin.start, apiWin.end) };
+    }
     return null;
   }
 
@@ -393,8 +418,6 @@
     head.className = 'trow muted small';
     head.innerHTML = '<div>Time</div><div>Sun score</div><div>Confidence</div>';
     timelineEl.appendChild(head);
-
-    // Daylight only;
 
     // Daylight only
     const rows = dayRows.filter(r => r.elevation > 0);
@@ -456,7 +479,7 @@
     ctx.beginPath();
     ctx.moveTo(0, h - 25);
     ctx.lineTo(w, h - 25);
-    ctx.strokeStyle = 'white';
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.globalAlpha = 1;
@@ -464,28 +487,6 @@
     function yOf(e) {
       const yy = (h - 40) - (e / maxElev) * (h - 60);
       return clamp(yy, 10, h - 25);
-    }
-
-    // Highlight sunny segments
-    ctx.lineWidth = 6;
-    for (let i = 1; i < rows.length; i++) {
-      const a = rows[i-1], b = rows[i];
-      if (a.elevation <= 0 && b.elevation <= 0) continue;
-
-      const sunny = (a.sun_score >= threshold) && (b.sun_score >= threshold);
-      if (!sunny) continue;
-
-      const x1 = (i-1) / (rows.length - 1) * w;
-      const x2 = i / (rows.length - 1) * w;
-      ctx.beginPath();
-      ctx.moveTo(x1, yOf(a.elevation));
-      ctx.lineTo(x2, yOf(b.elevation));
-      const grad = ctx.createLinearGradient(0, 0, w, 0);
-      grad.addColorStop(0, '#ff8c72');
-      grad.addColorStop(0.5, '#f4b860');
-      grad.addColorStop(1, '#ff8c72');
-      ctx.strokeStyle = grad;
-      ctx.stroke();
     }
 
     // Elevation line
@@ -622,14 +623,24 @@
     const nowRow = nearestNowRow(rows);
     renderDecision(nowRow, threshold);
 
-    // use client-side next window (currently)
-    const win = computeNextWindow(rows, threshold);
+    // Next window: prefer backend result when it matches the selected day.
+    // For Tomorrow view, compute from start-of-day so it’s meaningful.
+    let win = null;
+    if (state.data.next_sunny_window) {
+      win = windowFromBackendIfMatchesDay(state.data.next_sunny_window, rows);
+    }
+    if (!win) {
+      const anchor = (dayIndex === 1)
+        ? (dayBoundsFromRows(rows).start || new Date())
+        : new Date();
+      win = computeNextWindow(rows, threshold, anchor);
+    }
     renderNextWindow(win);
 
     // sun minutes from backend (based on now UTC)
     if (state.data.sun_minutes) {
-      sun60.textContent = state.data.sun_minutes['60'] ?? '—';
-      sun120.textContent = state.data.sun_minutes['120'] ?? '—';
+      sun60.textContent = state.data.sun_minutes.next_1h ?? '—';
+      sun120.textContent = state.data.sun_minutes.next_2h ?? '—';
     }
 
     renderChart(rows, threshold);
