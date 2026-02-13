@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iwannasun</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; line-height: 1.35; }
+    h1 { margin: 0 0 8px 0; }
+    .muted { color: #666; font-size: 14px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    button, input { font-size: 16px; padding: 10px 12px; }
+    button { cursor: pointer; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin: 12px 0; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 13px; }
+    .ok { color: #0a7; }
+    .bad { color: #c22; }
+    .timeline { max-height: 55vh; overflow: auto; }
+    .item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid #ddd; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>iwannasun</h1>
+  <div class="muted">Direct sun probability — simple MVP</div>
+
+  <div class="card">
+    <div class="row">
+      <button id="locBtn">Use my location</button>
+      <button id="demoBtn">Demo (Amsterdam)</button>
+    </div>
+
+    <div class="row">
+      <label class="muted">Sunny threshold (0–100)</label>
+      <input id="threshold" type="number" min="0" max="100" value="70" style="width: 110px;">
+    </div>
+
+    <div class="muted">API:</div>
+    <div class="mono" id="apiUrl">https://iwannasun.onrender.com</div>
+    <div class="muted">(If your API URL changes, edit it in this file.)</div>
+  </div>
+
+  <div class="card">
+    <div id="status" class="muted">Waiting…</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 8px 0;">Next sunny window</h3>
+    <div id="nextWindow" class="muted">—</div>
+  </div>
+
+  <div class="card timeline">
+    <h3 style="margin:0 0 8px 0;">Today (10-minute steps)</h3>
+    <div id="timeline"></div>
+  </div>
+
+<script>
+  const API_BASE = "https://iwannasun.onrender.com";
+
+  const $ = (id) => document.getElementById(id);
+  const statusEl = $("status");
+  const nextEl = $("nextWindow");
+  const timelineEl = $("timeline");
+
+  function fmtTimeLocal(isoUtc) {
+    // Convert ISO UTC string to user’s browser local time
+    const d = new Date(isoUtc);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function scoreLabel(score) {
+    if (score >= 80) return "SUN";
+    if (score >= 60) return "MIX";
+    if (score >= 30) return "CLOUD";
+    return "NO";
+  }
+
+  function pillForScore(score) {
+    const label = scoreLabel(score);
+    return `<span class="pill">${label} ${score}</span>`;
+  }
+
+  async function fetchDay(lat, lon) {
+    const thr = Number($("threshold").value || 70);
+    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(thr)}`;
+    $("apiUrl").textContent = API_BASE;
+    statusEl.textContent = "Loading… (free server may take a bit to wake up)";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  }
+
+  function render(data) {
+    const win = data.next_sunny_window;
+
+    if (!win) {
+      nextEl.innerHTML = `<span class="bad">No sunny window above threshold today.</span>`;
+    } else {
+      const start = new Date(win.start);
+      const end = new Date(win.end);
+      nextEl.innerHTML =
+        `<span class="ok">${start.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})} → ${end.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span>`;
+    }
+
+    const rows = data.timeline.map(p => {
+      const t = fmtTimeLocal(p.time_utc);
+      const score = p.sun_score;
+      const conf = Math.round((p.confidence || 0) * 100);
+      return `
+        <div class="item">
+          <div>
+            <div><b>${t}</b> <span class="muted">elev ${p.elevation.toFixed(1)}°</span></div>
+            <div class="muted">conf ${conf}% • clouds L${p.cloud.low}% M${p.cloud.mid}% H${p.cloud.high}%</div>
+          </div>
+          <div>${pillForScore(score)}</div>
+        </div>
+      `;
+    }).join("");
+
+    timelineEl.innerHTML = rows;
+    statusEl.textContent = `Loaded. Points: ${data.timeline.length}`;
+  }
+
+  async function runWithLatLon(lat, lon) {
+    try {
+      const data = await fetchDay(lat, lon);
+      render(data);
+    } catch (e) {
+      statusEl.innerHTML = `<span class="bad">${e.message}</span>`;
+    }
+  }
+
+  $("demoBtn").addEventListener("click", () => runWithLatLon(52.37, 4.90));
+
+  $("locBtn").addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      statusEl.innerHTML = `<span class="bad">Geolocation not supported in this browser.</span>`;
+      return;
+    }
+    statusEl.textContent = "Requesting location permission…";
+    navigator.geolocation.getCurrentPosition(
+      (pos) => runWithLatLon(pos.coords.latitude, pos.coords.longitude),
+      (err) => statusEl.innerHTML = `<span class="bad">Location error: ${err.message}</span>`,
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  });
+</script>
+</body>
+</html>
