@@ -238,18 +238,20 @@
     const endLabel = fmtTimeLocal(dayPoints[dayPoints.length - 1].time_local);
     sunAxisEl.textContent = `${startLabel}  —  ${endLabel}`;
   }
+
   function computeNextWindow(points, threshold) {
     const now = Date.now();
-  
+
     let inWindow = false;
     let start = null;
-  
+
     for (const p of points) {
       const t = new Date(p.time_utc).getTime();
       const ok = p.elevation > 0 && p.sun_score >= threshold;
-  
-      if (t < now) continue;
-  
+
+      // For Today: only future windows matter. For Tomorrow: scan the whole day.
+      if ($("dayPick").value === "0" && t < now) continue;
+
       if (ok && !inWindow) {
         inWindow = true;
         start = p;
@@ -257,12 +259,12 @@
         return { start: start.time_local, end: p.time_local };
       }
     }
-  
+
     if (inWindow && start) {
       const last = points[points.length - 1];
       return { start: start.time_local, end: last.time_local };
     }
-  
+
     return null;
   }
 
@@ -296,27 +298,25 @@
       decisionSubEl.textContent = `Sun score ${pNow.sun_score} • confidence ${Math.round((pNow.confidence||0)*100)}%`;
     }
 
-    // Next window (can be tomorrow)
+    // Next window (based on selected day)
     const win = computeNextWindow(
       tl.filter(p => p.day_index === dayPick),
       thr
     );
-    
+
     if (!win) {
       nextEl.innerHTML = `<span class="bad">No sunny window above threshold for this day.</span>`;
     } else {
       nextEl.innerHTML = `<span class="ok">${fmtDayTime(win.start)} → ${fmtDayTime(win.end)}</span>`;
     }
 
-
-    // Expected sun minutes
+    // Expected sun minutes (only makes sense for Today)
     const sm = data.sun_minutes || {};
     if (dayPick === 0) {
       expectedEl.textContent = `Expected sun: next 1h ${sm.next_1h ?? 0} min • next 2h ${sm.next_2h ?? 0} min`;
     } else {
       expectedEl.textContent = "";
     }
-
 
     // Sun path chart (selected day daylight points)
     drawSunPath(dayDaylight, thr);
