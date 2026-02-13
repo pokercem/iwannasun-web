@@ -290,19 +290,17 @@
   function render(data) {
     const thr = Number(thrInput.value || 70);
 
-    // Decision based on first timeline point (closest to "now" per backend)
     const nowPoint = (data.timeline || [])[0];
     if (nowPoint) {
       const goNow = Number(nowPoint.sun_score) >= thr && Number(nowPoint.elevation) > 0.1;
       setDecision(
         goNow,
-        `sun_score=${Math.round(nowPoint.sun_score)} • elevation=${nowPoint.elevation.toFixed(1)}°`
+        `sun_score=${Math.round(nowPoint.sun_score)} • elevation=${Number(nowPoint.elevation).toFixed(1)}°`
       );
     } else {
       setDecision(false, "No data");
     }
 
-    // Next window
     if (data.next_sunny_window && data.next_sunny_window.start && data.next_sunny_window.end) {
       const s = new Date(data.next_sunny_window.start);
       const e = new Date(data.next_sunny_window.end);
@@ -311,7 +309,6 @@
       nextWindowEl.textContent = "No sunny window found today.";
     }
 
-    // Timeline list (daylight only)
     const rows = (data.timeline || [])
       .filter(p => Number(p.elevation) > 0)
       .map(p => {
@@ -331,25 +328,22 @@
 
     timelineEl.innerHTML = rows || `<div class="muted">No daylight points.</div>`;
 
-    // Draw chart
     __lastDayDataForChart = data;
     drawSunChart(data);
 
-    statusEl.textContent = `Loaded. Daylight points: ${(data.timeline || []).filter(p => p.elevation > 0).length}`;
+    statusEl.textContent =
+      `Loaded. Daylight points: ${(data.timeline || []).filter(p => Number(p.elevation) > 0).length}`;
   }
 
   async function fetchDay(lat, lon) {
     const thr = Number(thrInput.value || 70);
     statusEl.textContent = "Loading…";
 
-    // IMPORTANT: update this to your actual Render URL if different
     const base = "https://iwannasun.onrender.com";
     const url = `${base}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(thr)}`;
 
     const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`API error ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`API error ${res.status}`);
     return await res.json();
   }
 
@@ -363,9 +357,7 @@
     }
   }
 
-  $("useDemo").addEventListener("click", () => {
-    run(52.3676, 4.9041);
-  });
+  $("useDemo").addEventListener("click", () => run(52.3676, 4.9041));
 
   $("useMyLocation").addEventListener("click", () => {
     statusEl.textContent = "Requesting location…";
@@ -380,10 +372,9 @@
   });
 
   thrInput.addEventListener("change", () => {
-    // Re-run demo if user changes threshold and already has a chart
-    if (__lastDayDataForChart) {
-      // easiest: rerun last location is not stored, so just redraw chart with new threshold
-      drawSunChart(__lastDayDataForChart);
-    }
+    if (__lastDayDataForChart) drawSunChart(__lastDayDataForChart);
   });
 </script>
+
+</body>
+</html>
