@@ -57,6 +57,12 @@
       display: grid;
       grid-template-columns: 1.2fr 0.8fr;
       gap: 14px;
+      align-items: start; /* prevent right card stretching to match left */
+    }
+    .side {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
     @media (max-width: 860px) {
       .grid { grid-template-columns: 1fr; }
@@ -155,7 +161,7 @@
       height: 220px;
       border-radius: 12px;
       border: 1px solid var(--line);
-      background: rgba(155,190,217,0.08);
+      background: rgba(155,190,217,0.06);
       margin-top: 10px;
     }
 
@@ -226,7 +232,7 @@
         <div class="row" style="justify-content: space-between;">
           <div>
             <div class="muted small">Decision</div>
-            <div class="big" id="rightNow">—</div>
+            <div class="big" id="decisionWrap"><span id="decisionText">—</span> <span class="muted small" id="whyInline"></span></div>
           </div>
           <div class="row">
             <select id="daySelect">
@@ -257,7 +263,7 @@
         </div>
 
         <div class="chartBlock" style="margin-top:10px">
-          <div class="small" id="chartTitle" style="opacity:0.85">Elevation (°) — color intensity = sun score</div>
+          <div class="small" id="chartTitle" style="opacity:0.85; display:flex; justify-content:space-between;"><span>Elevation (°)</span><span>line intensity = sun score</span></div>
           <div class="chartWrap">
             <div class="yAxis" id="yAxis"></div>
             <canvas id="sunChart" width="900" height="250"></canvas>
@@ -269,37 +275,36 @@
         <div class="err" id="errBox"></div>
       </div>
 
-      <div class="card">
-        <div class="muted small">Next sunny window</div>
-        <div class="big" id="nextWindow">—</div>
-        <div class="muted" id="nextWindowSub" style="margin-top:6px">—</div>
+      <div class="side">
+        <div class="card">
+          <div class="muted small">Next sunny window</div>
+          <div class="big" id="nextWindow">—</div>
+          <div class="muted" id="nextWindowSub" style="margin-top:6px">—</div>
 
-        <div style="margin-top: 12px; display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
-          <div>
-            <div class="muted small">Sunrise</div>
-            <div class="big" id="sunriseTime" style="font-size:18px; margin-top:4px;">—</div>
-          </div>
-          <div>
-            <div class="muted small">Sunset</div>
-            <div class="big" id="sunsetTime" style="font-size:18px; margin-top:4px;">—</div>
+          <div style="margin-top: 12px; display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+            <div>
+              <div class="muted small">Sunrise</div>
+              <div class="big" id="sunriseTime" style="font-size:18px; margin-top:4px;">—</div>
+            </div>
+            <div>
+              <div class="muted small">Sunset</div>
+              <div class="big" id="sunsetTime" style="font-size:18px; margin-top:4px;">—</div>
+            </div>
           </div>
         </div>
 
-        <div style="margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px;">
-          <div class="muted small">Notes</div>
+        <div class="card notes">
+          <div class="muted small">About</div>
           <div class="muted small" style="line-height:1.45; margin-top:6px">
-            Sun Score is the probability of direct sun reaching you (0–100). Not a weather forecast.
-            Low sun = distant clouds matter more.
+            Sun Score = probability of direct sun reaching you (0–100). Not a weather forecast. Low sun = distant clouds matter more.
+            <br><br>
+            Confidence is reliability (drops when conditions are mixed or rainy).
           </div>
-          <div class="muted small" style="line-height:1.45; margin-top:10px">
-            <strong>Confidence</strong> is how reliable this estimate is (0–100%). It drops when conditions are mixed or rainy.
-          </div>
-          <div class="muted small" id="whyNow" style="line-height:1.45; margin-top:10px"></div>
         </div>
       </div>
     </div>
 
-    <div class="footer">Built for decisions: go now vs wait.</div>
+    <div class="footer"></div>
   </div>
 
 <script>
@@ -309,7 +314,8 @@
   const locPill = document.getElementById('locPill');
   const errBox = document.getElementById('errBox');
 
-  const rightNow = document.getElementById('rightNow');
+  const decisionWrap = document.getElementById('decisionWrap');
+  const decisionText = document.getElementById('decisionText');
   const scoreNow = document.getElementById('scoreNow');
   const confNow = document.getElementById('confNow');
   const sun60 = document.getElementById('sun60');
@@ -357,10 +363,11 @@
   }
 
   function renderDecision(nowRow) {
-    const whyEl = document.getElementById('whyNow');
+    const whyEl = document.getElementById('whyInline');
 
     if (!nowRow) {
-      rightNow.textContent = '—';
+      decisionText.textContent = '—';
+      if (decisionWrap) decisionWrap.className = 'big';
       scoreNow.textContent = '—';
       confNow.textContent = '—';
       if (whyEl) whyEl.textContent = '';
@@ -377,20 +384,20 @@
     confNow.title = 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
 
     if (s >= DEFAULT_THRESHOLD) {
-      rightNow.textContent = 'Go now';
-      rightNow.className = 'big good';
+      decisionText.textContent = 'Go now';
+      if (decisionWrap) decisionWrap.className = 'big good';
     } else if (s >= DEFAULT_THRESHOLD - 15) {
-      rightNow.textContent = 'Maybe soon';
-      rightNow.className = 'big warn';
+      decisionText.textContent = 'Maybe soon';
+      if (decisionWrap) decisionWrap.className = 'big warn';
     } else {
-      rightNow.textContent = 'Wait';
-      rightNow.className = 'big bad';
+      decisionText.textContent = 'Wait';
+      if (decisionWrap) decisionWrap.className = 'big bad';
     }
 
     // WHY (short, decision-oriented)
     if (whyEl) {
       if (Number(nowRow.elevation || 0) <= 0) {
-        whyEl.textContent = 'Why: Sun is below the horizon.';
+        whyEl.textContent = '— because sun is below the horizon.';
       } else {
         const low = nowRow.cloud?.low ?? null;
         const mid = nowRow.cloud?.mid ?? null;
@@ -414,9 +421,9 @@
         if (main) parts.push(main);
 
         if (!parts.length) {
-          whyEl.textContent = 'Why: Mostly clear sky and sun above horizon.';
+          whyEl.textContent = '— clear sky and sun above horizon.';
         } else {
-          const prefix = (s >= DEFAULT_THRESHOLD) ? 'Why: Clear enough despite ' : 'Why: Blocked by ';
+          const prefix = (s >= DEFAULT_THRESHOLD) ? '— clear despite ' : '— blocked by ';
           whyEl.textContent = prefix + parts.join(' + ') + '.';
         }
       }
@@ -512,8 +519,16 @@
   }
 
   function renderChart(dayRows) {
-    const w = canvas.width;
-    const h = canvas.height;
+    // Make canvas crisp on high-DPI screens
+    const cssW = canvas.clientWidth || 900;
+    const cssH = 250; // keep in sync with <canvas height>
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const w = cssW;
+    const h = cssH;
 
     ctx.clearRect(0, 0, w, h);
 
@@ -544,13 +559,13 @@
     const rows = dayRows.slice(startIdx, endIdx + 1);
 
     const elevs = rows.map(r => Math.max(0, Number(r.elevation || 0)));
-    const maxElev = Math.max(...elevs, 1);
+    const maxElevRaw = Math.max(...elevs, 1);
+    const maxElev = Math.max(10, Math.ceil(maxElevRaw / 10) * 10); // nice round top
 
     // Axes labels outside canvas
     if (yAxisEl) {
-      const top = Math.ceil(maxElev / 10) * 10;
       const ticks = [];
-      for (let d = top; d >= 0; d -= 10) ticks.push(d);
+      for (let d = maxElev; d >= 0; d -= 10) ticks.push(d);
       yAxisEl.innerHTML = ticks.map(d => `<div>${d}°</div>`).join('');
     }
 
@@ -569,7 +584,7 @@
 
     const padX = 14;
     const padTop = 14;
-    const padBottom = 14;
+    const padBottom = 18;
 
     function yOf(e) {
       const usableH = h - padTop - padBottom;
@@ -582,51 +597,133 @@
       return padX + (i / (rows.length - 1)) * (w - 2 * padX);
     }
 
-    // Base elevation line (thin)
+    // --- subtle gridlines (cleaner, more "chart-like") ---
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    for (let d = 0; d <= maxElev; d += 10) {
+      const y = yOf(d);
+      ctx.beginPath();
+      ctx.moveTo(padX, y);
+      ctx.lineTo(w - padX, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // --- build elevation path ---
+    const pts = rows.map((r, i) => {
+      const e = Math.max(0, Number(r.elevation || 0));
+      return { x: xOf(i), y: yOf(e), e, s: Number(r.sun_score || 0), t: new Date(r.time_local) };
+    });
+
+    // --- soft fill under curve (professional look) ---
+    // Fill alpha follows average sun score across the day.
+    const avgScore = pts.reduce((acc, p) => acc + p.s, 0) / Math.max(1, pts.length);
+    const fillAlpha = 0.05 + 0.12 * clamp(avgScore / 100, 0, 1);
+    const fillGrad = ctx.createLinearGradient(0, padTop, 0, h);
+    fillGrad.addColorStop(0, `rgba(244,184,96,${fillAlpha})`);
+    fillGrad.addColorStop(1, `rgba(255,140,114,0)`);
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, h - padBottom);
+    for (const p of pts) ctx.lineTo(p.x, p.y);
+    ctx.lineTo(pts[pts.length - 1].x, h - padBottom);
+    ctx.closePath();
+    ctx.fillStyle = fillGrad;
+    ctx.fill();
+
+    // --- base elevation line (thin, neutral) ---
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    for (let i = 0; i < rows.length; i++) {
-      const x = xOf(i);
-      const y = yOf(Math.max(0, Number(rows[i].elevation || 0)));
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    for (let i = 0; i < pts.length; i++) {
+      if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
+      else ctx.lineTo(pts[i].x, pts[i].y);
     }
-    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.26)';
     ctx.stroke();
 
-    // Sun score overlay: opacity + thickness vary with score
-    for (let i = 1; i < rows.length; i++) {
-      const a = rows[i - 1], b = rows[i];
-      const ea = Number(a.elevation || 0);
-      const eb = Number(b.elevation || 0);
-      if (ea <= 0 && eb <= 0) continue;
+    // --- sun score overlay: opacity + thickness vary with score + subtle glow ---
+    const grad = ctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, '#ff8c72');
+    grad.addColorStop(0.5, '#f4b860');
+    grad.addColorStop(1, '#ff8c72');
 
-      const avg = (Number(a.sun_score || 0) + Number(b.sun_score || 0)) / 2;
-      const t = clamp(avg / 100, 0, 1);
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      // avoid weird tails below horizon
+      if (a.e <= 0 || b.e <= 0) continue;
 
-      const alpha = 0.08 + 0.92 * t;          // clearer difference
-      const lw = 2.5 + 7.5 * (t ** 0.9);      // thicker at high scores
+      const t = clamp(((a.s + b.s) / 2) / 100, 0, 1);
+      const elev = (a.e + b.e) / 2;
 
-      ctx.beginPath();
-      ctx.moveTo(xOf(i - 1), yOf(Math.max(0, ea)));
-      ctx.lineTo(xOf(i), yOf(Math.max(0, eb)));
+      // IMPORTANT: don't fade the main line with elevation (that hides "clear sunset" vs "cloud fade").
+      // Instead: keep alpha driven by sun_score, and only reduce thickness/glow near the horizon.
+      const alpha = 0.10 + 0.90 * t;
+
+      // Slightly thinner near horizon to prevent the end "blob", but still readable.
+      const thinNearHorizon = 0.55 + 0.45 * clamp(elev / 6, 0, 1);
+      const lw = (2.5 + 7.0 * (t ** 0.9)) * thinNearHorizon;
+
+      // Glow fades near horizon (this is what caused the weird red-circle artifact)
+      const glowFade = clamp(elev / 8, 0, 1);
 
       const grad = ctx.createLinearGradient(0, 0, w, 0);
       grad.addColorStop(0, '#ff8c72');
       grad.addColorStop(0.5, '#f4b860');
       grad.addColorStop(1, '#ff8c72');
 
+      // Glow pass (very subtle)
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.35 * glowFade;
+      ctx.lineWidth = lw + 5;
+      ctx.strokeStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
+
+      // Main pass
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.lineWidth = lw;
       ctx.strokeStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
       ctx.stroke();
       ctx.restore();
     }
 
-    const titleEl = document.getElementById('chartTitle');
-    if (titleEl) titleEl.textContent = 'Elevation (°) — color intensity = sun score';
+    // --- markers: now ---
+
+    // Now marker (if within chart range)
+    const now = Date.now();
+    const t0ms = pts[0].t.getTime();
+    const t1ms = pts[pts.length - 1].t.getTime();
+    if (now >= t0ms && now <= t1ms) {
+      const u = clamp((now - t0ms) / Math.max(1, (t1ms - t0ms)), 0, 1);
+      const xn = padX + u * (w - 2 * padX);
+      ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath();
+      ctx.moveTo(xn, padTop);
+      ctx.lineTo(xn, h - padBottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // small dot at curve height (nearest point)
+      const idx = Math.round(u * (pts.length - 1));
+      const p = pts[clamp(idx, 0, pts.length - 1)];
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.beginPath();
+      ctx.arc(xn, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    
   }
 
   function nearestNowRow(dayRows) {
