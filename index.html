@@ -347,6 +347,127 @@ input,select{
   const btnHere = document.getElementById('btnHere');
   const btnDemo = document.getElementById('btnDemo');
   const btnRefresh = document.getElementById('btnRefresh');
+  const daySelect = document.getElementById('daySelect');
+
+  // Remaining DOM refs used by render()
+  const decisionWrap = document.getElementById('decisionWrap');
+  const decisionText = document.getElementById('decisionText');
+  const decisionContext = document.getElementById('decisionContext');
+  const whyInline = document.getElementById('whyInline');
+
+  const labelScore = document.getElementById('labelScore');
+  const labelConf = document.getElementById('labelConf');
+  const labelSun60 = document.getElementById('labelSun60');
+  const labelSun120 = document.getElementById('labelSun120');
+  const boxSun60 = document.getElementById('boxSun60');
+  const boxSun120 = document.getElementById('boxSun120');
+
+  const scoreNow = document.getElementById('scoreNow');
+  const confNow = document.getElementById('confNow');
+  const sun60 = document.getElementById('sun60');
+  const sun120 = document.getElementById('sun120');
+
+  const nextWindow = document.getElementById('nextWindow');
+  const nextWindowSub = document.getElementById('nextWindowSub');
+  const sunriseEl = document.getElementById('sunriseTime');
+  const sunsetEl = document.getElementById('sunsetTime');
+
+  const timelineEl = document.getElementById('timeline');
+  const yAxisEl = document.getElementById('yAxis');
+  const xAxisEl = document.getElementById('xAxis');
+  const canvas = document.getElementById('sunChart');
+  const ctx = canvas ? canvas.getContext('2d') : null;
+
+  // App state
+  let state = { lat: null, lon: null, data: null, days: null };
+
+  function setLocation(lat, lon, label = null) {
+    state.lat = Number(lat);
+    state.lon = Number(lon);
+    state.data = null;
+    state.days = null;
+
+    if (locPill) locPill.textContent = (label && String(label).trim()) ? label : `${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}`;
+    if (cityInput) cityInput.value = (label && label !== 'My location') ? label : '';
+  }
+
+  // =========================
+  // GEO + CITY SEARCH
+  // =========================
+  let _cityTimer = null;
+  let _lastCityQuery = '';
+  let _lastCityResults = [];
+
+  const hideCityResults = () => { if (!cityResults) return; cityResults.style.display = 'none'; cityResults.innerHTML = ''; };
+  const renderCityResults = (list) => {
+    if (!cityResults) return;
+    if (!list?.length) return hideCityResults();
+    cityResults.innerHTML = list.map((r, idx) => {
+      const name = r.name || '—';
+      const admin = r.admin1 ? `, ${r.admin1}` : '';
+      const country = r.country ? `, ${r.country}` : '';
+      let meta = `${admin}${country}`;
+      if (meta.startsWith(', ')) meta = meta.slice(2);
+      return `<div class="item" data-idx="${idx}"><div class="name">${name}</div><div class="meta">${meta}</div></div>`;
+    }).join('');
+    cityResults.style.display = 'block';
+  };
+
+  async function searchCities(q) {
+    const query = (q || '').trim();
+    if (query.length < 2) return hideCityResults();
+    if (query === _lastCityQuery) return;
+    _lastCityQuery = query;
+
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('geocoding failed');
+      const data = await res.json();
+      const results = data?.results || [];
+      _lastCityResults = results;
+      renderCityResults(results);
+    } catch {
+      hideCityResults();
+    }
+  }
+
+  if (cityInput) {
+    cityInput.addEventListener('input', (e) => {
+      clearTimeout(_cityTimer);
+      _cityTimer = setTimeout(() => searchCities(e.target.value), 220);
+    });
+    cityInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideCityResults();
+      if (e.key === 'Enter' && _lastCityResults?.length) {
+        const r = _lastCityResults[0];
+        const label = `${r.name}${r.country ? ', ' + r.country : ''}`;
+        setLocation(r.latitude, r.longitude, label);
+        hideCityResults();
+        fetchDay(true);
+      }
+    });
+  }
+
+  if (cityResults) {
+    cityResults.addEventListener('mousedown', (e) => {
+      const item = e.target.closest('.item');
+      if (!item) return;
+      const idx = Number(item.getAttribute('data-idx'));
+      const r = _lastCityResults[idx];
+      if (!r) return;
+      const label = `${r.name}${r.country ? ', ' + r.country : ''}`;
+      setLocation(r.latitude, r.longitude, label);
+      hideCityResults();
+      fetchDay(true);
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!cityResults || !cityInput) return;
+    if (e.target === cityInput || cityResults.contains(e.target)) return;
+    hideCityResults();
+  });
 
   // =========================
   // UI HELPERS
