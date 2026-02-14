@@ -274,6 +274,17 @@
         <div class="big" id="nextWindow">—</div>
         <div class="muted" id="nextWindowSub" style="margin-top:6px">—</div>
 
+        <div style="margin-top: 12px; display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+          <div>
+            <div class="muted small">Sunrise</div>
+            <div class="big" id="sunriseTime" style="font-size:18px; margin-top:4px;">—</div>
+          </div>
+          <div>
+            <div class="muted small">Sunset</div>
+            <div class="big" id="sunsetTime" style="font-size:18px; margin-top:4px;">—</div>
+          </div>
+        </div>
+
         <div style="margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px;">
           <div class="muted small">Notes</div>
           <div class="muted small" style="line-height:1.45; margin-top:6px">
@@ -308,6 +319,8 @@
 
   const nextWindow = document.getElementById('nextWindow');
   const nextWindowSub = document.getElementById('nextWindowSub');
+  const sunriseEl = document.getElementById('sunriseTime');
+  const sunsetEl = document.getElementById('sunsetTime');
 
   const timelineEl = document.getElementById('timeline');
   const yAxisEl = document.getElementById('yAxis');
@@ -709,6 +722,22 @@
       ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
       : (state.data.next_sunny_window || null);
     renderNextWindow(win);
+
+    // Sunrise / Sunset for selected day (based on elevation crossing)
+    const dayWin = daylightWindow(rows, 0);
+    if (sunriseEl && sunsetEl) {
+      if (!dayWin) {
+        sunriseEl.textContent = '—';
+        sunsetEl.textContent = '—';
+        sunriseEl.title = 'No sunrise (sun stays below horizon)';
+        sunsetEl.title = 'No sunset (sun stays below horizon)';
+      } else {
+        sunriseEl.textContent = fmtTime(dayWin.start.toISOString());
+        sunsetEl.textContent = fmtTime(dayWin.end.toISOString());
+        sunriseEl.title = dayWin.start.toLocaleString();
+        sunsetEl.title = dayWin.end.toLocaleString();
+      }
+    }
 
     if (state.data.sun_minutes) {
       sun60.textContent = state.data.sun_minutes.next_1h ?? '—';
