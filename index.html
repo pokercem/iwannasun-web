@@ -526,12 +526,12 @@ input,select{
           + '<div>Time</div><div>Sun score</div><div>Confidence</div></div>';
 
     for (const r of (dayRows || [])) {
-      const t = tLocal(r);
-      const inWin = win ? (t >= win.start && t <= win.end) : (Number(r.elevation || 0) > 0);
+      const dt = tLocal(r);
+      const inWin = win ? (dt >= win.start && dt <= win.end) : (Number(r.elevation || 0) > 0);
       if (!inWin) continue;
       if (Number(dayIndex) === 0 && tMs(r) < nowMs) continue; // hide past (Today)
 
-      const t = fmtTime(tLocal(r));
+      const t = fmtTime(dt);
       const s = Math.round(Number(r.sun_score || 0));
       const c = Math.round(Number(r.confidence || 0) * 100);
 
