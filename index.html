@@ -571,8 +571,8 @@
   // Color mix: 0 -> cloudy blue, 1 -> sunny warm
   function mixSunColor(t, alpha = 1) {
     t = clamp(Number(t || 0), 0, 1);
-    const a = { r: 0x9b, g: 0xbe, b: 0xd9 }; // #9bbed9
-    const b = { r: 0xff, g: 0x8c, b: 0x72 }; // #f4b860
+    const a = { r: 0x9b, g: 0xbe, b: 0xd9 }; // #9bbed9 (cloudy)
+    const b = { r: 0xf4, g: 0xb8, b: 0x60 }; // #f4b860 (sunny)
     const r = Math.round(a.r + (b.r - a.r) * t);
     const g = Math.round(a.g + (b.g - a.g) * t);
     const bl = Math.round(a.b + (b.b - a.b) * t);
@@ -614,15 +614,12 @@
     confNow.textContent = Math.round(c * 100) + '%';
     confNow.title = 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
 
-    if (s >= DEFAULT_THRESHOLD) {
-      decisionText.textContent = isNow ? 'Go now' : 'Go';
-      if (decisionWrap) decisionWrap.className = 'big good';
-    } else if (s >= DEFAULT_THRESHOLD - 15) {
-      decisionText.textContent = isNow ? 'Maybe soon' : 'Maybe';
-      if (decisionWrap) decisionWrap.className = 'big warn';
-    } else {
-      decisionText.textContent = 'Wait';
-      if (decisionWrap) decisionWrap.className = 'big bad';
+    // Decision text is colored by actual sun intensity instead of categories
+    const sunT = clamp(s/100,0,1);
+    decisionText.textContent = (s >= DEFAULT_THRESHOLD) ? (isNow ? 'Go now' : 'Go') : (s >= DEFAULT_THRESHOLD - 15 ? (isNow ? 'Maybe soon' : 'Maybe') : 'Wait');
+    if (decisionWrap) {
+      decisionWrap.className = 'big';
+      decisionWrap.style.color = mixSunColor(sunT, 1);
     }
 
     // WHY (short, decision-oriented)
