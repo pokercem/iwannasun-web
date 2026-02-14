@@ -104,6 +104,22 @@
 
       /* Hide Demo on mobile (keeps the top calm) */
       #btnDemo { display: none; }
+
+      /* Decision header: stack controls so they never overflow */
+      .decisionTop {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .decisionControls {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .decisionControls select {
+        min-width: 140px;
+      }
     }
     .card {
       background: linear-gradient(180deg, #ffffff, #F9F9F7);
@@ -324,14 +340,14 @@
     <div class="grid">
       <div class="card" style="position:relative;">
         <div id="loadingOverlay" class="loadingOverlay"><div class="spinner"></div></div>
-        <div class="row" style="justify-content: space-between; align-items:flex-start; flex-wrap:nowrap;">
+        <div class="row decisionTop">
           <div>
             <div class="muted small">Decision</div>
             <div class="big" id="decisionWrap"><span id="decisionText">—</span></div>
             <div class="muted small" id="decisionContext" style="margin-top:4px; line-height:1.25;"></div>
             <div class="muted small" id="whyInline" style="margin-top:4px; line-height:1.35; max-width:520px;"></div>
           </div>
-          <div class="row" style="align-self:flex-start;">
+          <div class="row decisionControls">
             <select id="daySelect">
               <option value="0">Today</option>
               <option value="1">Tomorrow</option>
