@@ -385,15 +385,11 @@
       locPill.textContent = `${Number(lat).toFixed(4)}, ${Number(lon).toFixed(4)}`;
     }
 
-    // City input reflects *manual* city picks; for "Use my location" we clear it.
+    // City input reflects manual city picks; for "Use my location" we clear it.
     if (cityInput) {
-      if (label && label !== 'My location') {
-        cityInput.value = label;
-      } else {
-        cityInput.value = '';
-      }
+      if (label && label !== 'My location') cityInput.value = label;
+      else cityInput.value = '';
     }
-  }, ${Number(lon).toFixed(4)}`;
   }
 
   // --- City search (typeahead) via Open‑Meteo Geocoding ---
