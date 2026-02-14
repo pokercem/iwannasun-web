@@ -211,6 +211,21 @@
       display: none;
     }
 
+    .loadingOverlay{
+      position:absolute; inset:0;
+      background:rgba(249,249,247,0.75);
+      backdrop-filter: blur(2px);
+      display:none; align-items:center; justify-content:center;
+      border-radius:14px;
+    }
+    .spinner{
+      width:28px; height:28px; border-radius:50%;
+      border:3px solid rgba(0,0,0,0.15);
+      border-top-color: rgba(0,0,0,0.45);
+      animation:spin 0.9s linear infinite;
+    }
+    @keyframes spin{ to{ transform:rotate(360deg);} }
+
     .small { font-size: 12px; }
     .scoreNum { color: var(--muted); font-variant-numeric: tabular-nums; }
 
@@ -260,7 +275,8 @@
 
   <div class="wrap">
     <div class="grid">
-      <div class="card">
+      <div class="card" style="position:relative;">
+        <div id="loadingOverlay" class="loadingOverlay"><div class="spinner"></div></div>
         <div class="row" style="justify-content: space-between;">
           <div>
             <div class="muted small">Decision</div>
@@ -347,6 +363,7 @@
   const cityInput = document.getElementById('cityInput');
   const cityResults = document.getElementById('cityResults');
   const errBox = document.getElementById('errBox');
+  const loadingOverlay = document.getElementById('loadingOverlay');
 
   const decisionWrap = document.getElementById('decisionWrap');
   const decisionText = document.getElementById('decisionText');
@@ -918,6 +935,7 @@
   }
 
   async function fetchDay(force = false) {
+    if (loadingOverlay) loadingOverlay.style.display = 'flex';
     clearError();
 
     const lat = state.lat;
@@ -949,9 +967,11 @@
       state.data = data;
       saveCached(lat, lon, threshold, data);
       render();
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
     } catch (e) {
       showError('Failed to fetch. Try again.');
       console.error(e);
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
     }
   }
 
