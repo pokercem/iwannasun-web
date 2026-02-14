@@ -69,6 +69,75 @@
     @media (max-width: 860px) {
       .grid { grid-template-columns: 1fr; }
     }
+
+    /* Mobile: make the header controls stack nicely */
+    @media (max-width: 600px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      /* The control row becomes full-width and can wrap */
+      header .row {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      /* Search takes the full row */
+      .cityWrap {
+        width: 100%;
+        flex: 1 1 100%;
+      }
+      .cityInput {
+        width: 100% !important;
+      }
+
+      /* Pill should not force horizontal overflow */
+      #locPill {
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Hide Demo on mob
+    /* Mobile: make the header controls stack nicely */
+    @media (max-width: 600px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      /* The control row becomes full-width and can wrap */
+      header .row {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      /* Search takes the full row */
+      .cityWrap {
+        width: 100%;
+        flex: 1 1 100%;
+      }
+      .cityInput {
+        width: 100% !important;
+      }
+
+      /* Pill should not force horizontal overflow */
+      #locPill {
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Hide Demo on mobile (keeps the top calm) */
+      #btnDemo { display: none; }
+    }
     .card {
       background: linear-gradient(180deg, #ffffff, #F9F9F7);
       border: 1px solid var(--line);
@@ -246,12 +315,7 @@
       flex-direction: column;
       justify-content: space-between;
       padding: 8px 0 10px;
-      font-size: 12px;
-      color: var(--muted);
-      user-select: none;
-    }
-    .xAxis {
-      display: flex;
+      font-si display: flex;
       justify-content: space-between;
       padding-left: 40px; /* yAxis width + gap */
       margin-top: 6px;
