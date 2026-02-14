@@ -229,8 +229,6 @@
             <div class="big" id="rightNow">—</div>
           </div>
           <div class="row">
-            <label class="muted small">Threshold</label>
-            <input id="threshold" type="number" min="0" max="100" value="70" style="width:84px" />
             <select id="daySelect">
               <option value="0">Today</option>
               <option value="1">Tomorrow</option>
@@ -295,6 +293,8 @@
 
 <script>
   const API_BASE = "https://iwannasun.onrender.com";
+  const DEFAULT_THRESHOLD = 70; // product tuning constant (UI removed)
+
   const locPill = document.getElementById('locPill');
   const errBox = document.getElementById('errBox');
 
@@ -304,7 +304,6 @@
   const sun60 = document.getElementById('sun60');
   const sun120 = document.getElementById('sun120');
 
-  const thresholdEl = document.getElementById('threshold');
   const daySelect = document.getElementById('daySelect');
 
   const nextWindow = document.getElementById('nextWindow');
@@ -319,7 +318,6 @@
   let state = {
     lat: null,
     lon: null,
-    tz: null,
     data: null,
   };
 
@@ -339,73 +337,13 @@
 
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
-  function scoreClass(score, threshold) {
-    if (score >= threshold) return 'good';
-    if (score >= threshold - 15) return 'warn';
-    return 'bad';
-  }
-
-  function computeNextWindow(dayRows, threshold, fromDate = new Date()) {
-    // Find next contiguous window of >= threshold for min 20 min
-    const future = dayRows.filter(r => new Date(r.time_local) >= fromDate);
-    if (!future.length) return null;
-
-    let start = null;
-    let minutes = 0;
-
-    for (let i = 0; i < future.length; i++) {
-      const ok = future[i].sun_score >= threshold;
-      if (ok) {
-        if (!start) start = future[i];
-        minutes += 10;
-      } else {
-        if (start && minutes >= 20) {
-          return { start: start.time_local, end: future[i].time_local, minutes };
-        }
-        start = null;
-        minutes = 0;
-      }
-    }
-
-    if (start && minutes >= 20) {
-      const end = new Date(future[future.length - 1].time_local);
-      end.setMinutes(end.getMinutes() + 10);
-      return { start: start.time_local, end: end.toISOString(), minutes };
-    }
-
-    return null;
-  }
-
   function windowMinutes(startIso, endIso) {
     const a = new Date(startIso);
     const b = new Date(endIso);
     return Math.max(0, Math.round((b - a) / 60000));
   }
 
-  function dayBoundsFromRows(dayRows) {
-    if (!dayRows || !dayRows.length) return { start: null, end: null };
-    let minT = Infinity;
-    let maxT = -Infinity;
-    for (const r of dayRows) {
-      const t = new Date(r.time_local).getTime();
-      if (t < minT) minT = t;
-      if (t > maxT) maxT = t;
-    }
-    return { start: new Date(minT), end: new Date(maxT) };
-  }
-
-  function windowFromBackendIfMatchesDay(apiWin, dayRows) {
-    if (!apiWin || !apiWin.start || !apiWin.end) return null;
-    const { start, end } = dayBoundsFromRows(dayRows);
-    if (!start || !end) return null;
-    const s = new Date(apiWin.start);
-    if (s >= start && s <= end) {
-      return { start: apiWin.start, end: apiWin.end, minutes: windowMinutes(apiWin.start, apiWin.end) };
-    }
-    return null;
-  }
-
-  function renderDecision(nowRow, threshold) {
+  function renderDecision(nowRow) {
     const whyEl = document.getElementById('whyNow');
 
     if (!nowRow) {
@@ -416,20 +354,19 @@
       return;
     }
 
-    const s = nowRow.sun_score;
-    const c = nowRow.confidence;
+    const s = Number(nowRow.sun_score || 0);
+    const c = Number(nowRow.confidence || 0);
 
     scoreNow.textContent = Math.round(s);
-    // Keep score color consistent (don’t flip based on threshold)
     scoreNow.className = 'value';
 
     confNow.textContent = Math.round(c * 100) + '%';
     confNow.title = 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
 
-    if (s >= threshold) {
+    if (s >= DEFAULT_THRESHOLD) {
       rightNow.textContent = 'Go now';
       rightNow.className = 'big good';
-    } else if (s >= threshold - 15) {
+    } else if (s >= DEFAULT_THRESHOLD - 15) {
       rightNow.textContent = 'Maybe soon';
       rightNow.className = 'big warn';
     } else {
@@ -439,7 +376,7 @@
 
     // WHY (short, decision-oriented)
     if (whyEl) {
-      if (nowRow.elevation <= 0) {
+      if (Number(nowRow.elevation || 0) <= 0) {
         whyEl.textContent = 'Why: Sun is below the horizon.';
       } else {
         const low = nowRow.cloud?.low ?? null;
@@ -451,7 +388,6 @@
         const parts = [];
         if (precip && precip > 0) parts.push('precipitation');
 
-        // pick dominant layer
         const layers = [
           { name: 'low clouds', v: low },
           { name: 'mid clouds', v: mid },
@@ -462,13 +398,12 @@
           layers.sort((a,b) => b.v - a.v);
           main = `${layers[0].name} (${Math.round(layers[0].v)}%)`;
         }
-
         if (main) parts.push(main);
 
         if (!parts.length) {
           whyEl.textContent = 'Why: Mostly clear sky and sun above horizon.';
         } else {
-          const prefix = (s >= threshold) ? 'Why: Clear enough despite ' : 'Why: Blocked by ';
+          const prefix = (s >= DEFAULT_THRESHOLD) ? 'Why: Clear enough despite ' : 'Why: Blocked by ';
           whyEl.textContent = prefix + parts.join(' + ') + '.';
         }
       }
@@ -479,7 +414,7 @@
     if (!win) {
       nextWindow.textContent = 'No sunny window';
       nextWindow.className = 'big bad';
-      nextWindowSub.textContent = 'Try a lower threshold or check later.';
+      nextWindowSub.textContent = 'Try again later.';
       return;
     }
 
@@ -489,27 +424,45 @@
     nextWindow.textContent = `${a} – ${b}`;
     nextWindow.className = 'big good';
 
-    // Backend window doesn't include minutes; compute if missing.
     const mins = (win.minutes != null) ? win.minutes : windowMinutes(win.start, win.end);
     nextWindowSub.textContent = `${mins} minutes above threshold`;
   }
 
-  function renderTimeline(dayRows, threshold) {
+  function daylightWindow(dayRows, padMinutes = 30) {
+    // Returns {start: Date, end: Date} where start is padMinutes before first sun-up,
+    // and end is padMinutes after last sun-up. If no daylight, returns null.
+    const rows = (dayRows || []);
+    let first = null;
+    let last = null;
+    for (const r of rows) {
+      if (Number(r.elevation || 0) > 0) { first = new Date(r.time_local); break; }
+    }
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (Number(rows[i].elevation || 0) > 0) { last = new Date(rows[i].time_local); break; }
+    }
+    if (!first || !last) return null;
+    const start = new Date(first.getTime() - padMinutes * 60000);
+    const end = new Date(last.getTime() + padMinutes * 60000);
+    return { start, end };
+  }
+
+  function renderTimeline(dayRows) {
     timelineEl.innerHTML = '';
 
-    // header
     const head = document.createElement('div');
     head.className = 'trow muted small';
     head.innerHTML = '<div>Time</div><div>Sun score</div><div>Confidence</div>';
     timelineEl.appendChild(head);
 
-    // Daylight only
-    const rows = dayRows.filter(r => r.elevation > 0);
+    const win = daylightWindow(dayRows, 30);
+    const rows = (dayRows || []).filter(r => {
+      const t = new Date(r.time_local);
+      return win ? (t >= win.start && t <= win.end) : (Number(r.elevation || 0) > 0);
+    });
 
     for (const r of rows) {
       const t = fmtTime(r.time_local);
-      const s = Math.round(r.sun_score);
-      const cls = scoreClass(s, threshold);
+      const s = Math.round(Number(r.sun_score || 0));
 
       const el = document.createElement('div');
       el.className = 'trow';
@@ -533,7 +486,7 @@
       mid.appendChild(bar);
 
       const right = document.createElement('div');
-      right.textContent = Math.round(r.confidence * 100) + '%';
+      right.textContent = Math.round(Number(r.confidence || 0) * 100) + '%';
       right.title = 'Confidence in prediction';
       right.className = 'muted';
 
@@ -545,8 +498,7 @@
     }
   }
 
-  function renderChart(dayRows, threshold) {
-    // Plot elevation curve, and highlight segments where sun_score >= threshold.
+  function renderChart(dayRows) {
     const w = canvas.width;
     const h = canvas.height;
 
@@ -558,29 +510,30 @@
       return;
     }
 
-    // Trim to the daylight arc but keep endpoints at the baseline (no flat night line)
-    let first = -1, last = -1;
-    for (let i = 0; i < dayRows.length; i++) {
-      if (dayRows[i].elevation > 0) { first = i; break; }
-    }
-    for (let i = dayRows.length - 1; i >= 0; i--) {
-      if (dayRows[i].elevation > 0) { last = i; break; }
-    }
-    if (first === -1 || last === -1) {
-      // No daylight
+    // Trim to (sunrise - 30m) .. (sunset + 30m)
+    const win = daylightWindow(dayRows, 30);
+    if (!win) {
       if (yAxisEl) yAxisEl.innerHTML = '';
       if (xAxisEl) xAxisEl.innerHTML = '';
       return;
     }
 
-    const startIdx = Math.max(0, first - 1);
-    const endIdx = Math.min(dayRows.length - 1, last + 1);
+    // Find indices within padded window
+    let startIdx = 0;
+    let endIdx = dayRows.length - 1;
+    for (let i = 0; i < dayRows.length; i++) {
+      if (new Date(dayRows[i].time_local) >= win.start) { startIdx = Math.max(0, i); break; }
+    }
+    for (let i = dayRows.length - 1; i >= 0; i--) {
+      if (new Date(dayRows[i].time_local) <= win.end) { endIdx = Math.min(dayRows.length - 1, i); break; }
+    }
+
     const rows = dayRows.slice(startIdx, endIdx + 1);
 
-    const elevs = rows.map(r => Math.max(0, r.elevation));
+    const elevs = rows.map(r => Math.max(0, Number(r.elevation || 0)));
     const maxElev = Math.max(...elevs, 1);
 
-    // --- Axes labels OUTSIDE the canvas ---
+    // Axes labels outside canvas
     if (yAxisEl) {
       const top = Math.ceil(maxElev / 10) * 10;
       const ticks = [];
@@ -591,9 +544,6 @@
     if (xAxisEl) {
       const t0 = new Date(rows[0].time_local);
       const t1 = new Date(rows[rows.length - 1].time_local);
-      const spanH = Math.max(1, Math.round((t1 - t0) / 3600000));
-
-      // 5-ish labels including ends
       const steps = 4;
       const labels = [];
       for (let k = 0; k <= steps; k++) {
@@ -604,7 +554,6 @@
       xAxisEl.innerHTML = labels.map(t => `<div>${t}</div>`).join('');
     }
 
-    // --- Plot with padding so endpoints aren’t cut ---
     const padX = 14;
     const padTop = 14;
     const padBottom = 14;
@@ -620,37 +569,44 @@
       return padX + (i / (rows.length - 1)) * (w - 2 * padX);
     }
 
-    // Elevation line
+    // Base elevation line (thin)
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.beginPath();
     for (let i = 0; i < rows.length; i++) {
       const x = xOf(i);
-      const y = yOf(Math.max(0, rows[i].elevation));
+      const y = yOf(Math.max(0, Number(rows[i].elevation || 0)));
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = 'rgba(0,0,0,0.42)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
     ctx.stroke();
 
-    // Color intensity based on sun score
-    ctx.lineWidth = 4;
+    // Sun score overlay: opacity + thickness vary with score
     for (let i = 1; i < rows.length; i++) {
       const a = rows[i - 1], b = rows[i];
-      if (a.elevation <= 0 && b.elevation <= 0) continue;
-      const avg = ((a.sun_score || 0) + (b.sun_score || 0)) / 2;
-      const alpha = 0.15 + 0.85 * clamp(avg / 100, 0, 1);
+      const ea = Number(a.elevation || 0);
+      const eb = Number(b.elevation || 0);
+      if (ea <= 0 && eb <= 0) continue;
+
+      const avg = (Number(a.sun_score || 0) + Number(b.sun_score || 0)) / 2;
+      const t = clamp(avg / 100, 0, 1);
+
+      const alpha = 0.08 + 0.92 * t;          // clearer difference
+      const lw = 2.5 + 7.5 * (t ** 0.9);      // thicker at high scores
 
       ctx.beginPath();
-      ctx.moveTo(xOf(i - 1), yOf(Math.max(0, a.elevation)));
-      ctx.lineTo(xOf(i), yOf(Math.max(0, b.elevation)));
+      ctx.moveTo(xOf(i - 1), yOf(Math.max(0, ea)));
+      ctx.lineTo(xOf(i), yOf(Math.max(0, eb)));
 
       const grad = ctx.createLinearGradient(0, 0, w, 0);
       grad.addColorStop(0, '#ff8c72');
       grad.addColorStop(0.5, '#f4b860');
       grad.addColorStop(1, '#ff8c72');
+
       ctx.save();
       ctx.globalAlpha = alpha;
+      ctx.lineWidth = lw;
       ctx.strokeStyle = grad;
       ctx.stroke();
       ctx.restore();
@@ -664,7 +620,7 @@
     const now = new Date();
     let best = null;
     let bestDt = Infinity;
-    for (const r of dayRows) {
+    for (const r of (dayRows || [])) {
       const t = new Date(r.time_local);
       const dt = Math.abs(t - now);
       if (dt < bestDt) { bestDt = dt; best = r; }
@@ -673,7 +629,6 @@
   }
 
   function cacheKey(lat, lon, threshold) {
-    // round to avoid tiny GPS jitter exploding the cache
     const rlat = Number(lat).toFixed(4);
     const rlon = Number(lon).toFixed(4);
     const thr = Number(threshold);
@@ -713,13 +668,12 @@
       return;
     }
 
-    const threshold = Number(thresholdEl.value);
+    const threshold = DEFAULT_THRESHOLD;
 
     locPill.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
 
     const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=2&model=ray`;
 
-    // Avoid hammering the API (and reduces hosting usage during testing)
     if (!force) {
       const cached = loadCached(lat, lon, threshold);
       if (cached) {
@@ -731,9 +685,7 @@
 
     try {
       const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`API error ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = await res.json();
       state.data = data;
       saveCached(lat, lon, threshold, data);
@@ -747,28 +699,24 @@
   function render() {
     if (!state.data) return;
 
-    const threshold = Number(thresholdEl.value);
-    const dayIndex = Number(daySelect.value);
-
-    const rows = state.data.timeline.filter(r => r.day_index === dayIndex);
+    const dayIndex = Number(daySelect?.value || 0);
+    const rows = state.data.timeline.filter(r => Number(r.day_index) === dayIndex);
 
     const nowRow = nearestNowRow(rows);
-    renderDecision(nowRow, threshold);
+    renderDecision(nowRow);
 
-    // Next window: single source of truth from backend (per day_index)
     const win = state.data.next_sunny_window_by_day
       ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
       : (state.data.next_sunny_window || null);
     renderNextWindow(win);
 
-    // sun minutes from backend (based on now UTC)
     if (state.data.sun_minutes) {
       sun60.textContent = state.data.sun_minutes.next_1h ?? '—';
       sun120.textContent = state.data.sun_minutes.next_2h ?? '—';
     }
 
-    renderChart(rows, threshold);
-    renderTimeline(rows, threshold);
+    renderChart(rows);
+    renderTimeline(rows);
   }
 
   function useDemo() {
@@ -788,10 +736,7 @@
         state.lon = pos.coords.longitude;
         fetchDay();
       },
-      (err) => {
-        showError('Location permission denied');
-        console.warn(err);
-      },
+      () => showError('Location permission denied'),
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
@@ -799,13 +744,7 @@
   document.getElementById('btnDemo').addEventListener('click', useDemo);
   document.getElementById('btnHere').addEventListener('click', useHere);
   document.getElementById('btnRefresh').addEventListener('click', () => fetchDay(true));
-
-  thresholdEl.addEventListener('change', () => {
-    if (state.data) render();
-  });
-  daySelect.addEventListener('change', () => {
-    if (state.data) render();
-  });
+  daySelect.addEventListener('change', () => { if (state.data) render(); });
 
   // load demo on start
   useDemo();
