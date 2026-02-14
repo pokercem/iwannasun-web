@@ -84,6 +84,34 @@
       color: var(--text);
       font-size: 12px;
     }
+
+    .cityWrap { position: relative; }
+    .cityInput { width: 220px; }
+    @media (max-width: 520px) { .cityInput { width: 160px; } }
+    .suggest {
+      position: absolute;
+      top: 38px;
+      left: 0;
+      right: 0;
+      background: rgba(255,255,255,0.98);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+      overflow: hidden;
+      max-height: 280px;
+      display: none;
+      z-index: 50;
+      backdrop-filter: blur(10px);
+    }
+    .suggest .item {
+      padding: 10px 10px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--line);
+    }
+    .suggest .item:last-child { border-bottom: none; }
+    .suggest .item:hover { background: rgba(155,190,217,0.10); }
+    .suggest .name { font-size: 13px; }
+    .suggest .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
     button {
       border: 1px solid var(--line);
       background: rgba(244,184,96,0.10);
@@ -220,6 +248,10 @@
       <div class="sub">Will I get direct sunlight here?</div>
     </div>
     <div class="row">
+      <div class="cityWrap">
+        <input id="cityInput" class="cityInput" type="text" inputmode="search" autocomplete="off" placeholder="Search city…" />
+        <div id="cityResults" class="suggest"></div>
+      </div>
       <span class="pill" id="locPill">—</span>
       <button id="btnHere">Use my location</button>
       <button id="btnDemo">Demo</button>
@@ -312,6 +344,8 @@
   const DEFAULT_THRESHOLD = 70; // product tuning constant (UI removed)
 
   const locPill = document.getElementById('locPill');
+  const cityInput = document.getElementById('cityInput');
+  const cityResults = document.getElementById('cityResults');
   const errBox = document.getElementById('errBox');
 
   const decisionWrap = document.getElementById('decisionWrap');
@@ -339,6 +373,125 @@
     lon: null,
     data: null,
   };
+
+  function setLocation(lat, lon, label = null) {
+    state.lat = lat;
+    state.lon = lon;
+
+    // Location pill: show a human label when we have one, otherwise coordinates.
+    if (label && String(label).trim().length) {
+      locPill.textContent = label;
+    } else {
+      locPill.textContent = `${Number(lat).toFixed(4)}, ${Number(lon).toFixed(4)}`;
+    }
+
+    // City input reflects *manual* city picks; for "Use my location" we clear it.
+    if (cityInput) {
+      if (label && label !== 'My location') {
+        cityInput.value = label;
+      } else {
+        cityInput.value = '';
+      }
+    }
+  }, ${Number(lon).toFixed(4)}`;
+  }
+
+  // --- City search (typeahead) via Open‑Meteo Geocoding ---
+  let _cityTimer = null;
+  let _lastCityQuery = '';
+  let _lastCityResults = [];
+
+  function hideCityResults() {
+    if (!cityResults) return;
+    cityResults.style.display = 'none';
+    cityResults.innerHTML = '';
+  }
+
+  function renderCityResults(list) {
+    if (!cityResults) return;
+    if (!list || !list.length) {
+      hideCityResults();
+      return;
+    }
+    cityResults.innerHTML = list.map((r, idx) => {
+      const name = r.name || '—';
+      const admin = r.admin1 ? `, ${r.admin1}` : '';
+      const country = r.country ? `, ${r.country}` : '';
+      let meta = `${admin}${country}`;
+      if (meta.startsWith(', ')) meta = meta.slice(2);
+      return `<div class="item" data-idx="${idx}">
+        <div class="name">${name}</div>
+        <div class="meta">${meta}</div>
+      </div>`;
+    }).join('');
+    cityResults.style.display = 'block';
+  }
+
+  async function searchCities(q) {
+    const query = (q || '').trim();
+    if (query.length < 2) {
+      hideCityResults();
+      return;
+    }
+    if (query === _lastCityQuery) return;
+    _lastCityQuery = query;
+
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('geocoding failed');
+      const data = await res.json();
+      const results = (data && data.results) ? data.results : [];
+      _lastCityResults = results;
+      renderCityResults(results);
+    } catch (e) {
+      hideCityResults();
+      console.warn(e);
+    }
+  }
+
+  if (cityInput) {
+    cityInput.addEventListener('input', (e) => {
+      const v = e.target.value;
+      clearTimeout(_cityTimer);
+      _cityTimer = setTimeout(() => searchCities(v), 220);
+    });
+
+    cityInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideCityResults();
+      if (e.key === 'Enter') {
+        if (_lastCityResults && _lastCityResults.length) {
+          const r = _lastCityResults[0];
+          const label = `${r.name}${r.country ? ', ' + r.country : ''}`;
+          setLocation(Number(r.latitude), Number(r.longitude), label);
+          cityInput.value = label;
+          hideCityResults();
+          fetchDay(true);
+        }
+      }
+    });
+  }
+
+  if (cityResults) {
+    cityResults.addEventListener('mousedown', (e) => {
+      const item = e.target.closest('.item');
+      if (!item) return;
+      const idx = Number(item.getAttribute('data-idx'));
+      const r = _lastCityResults[idx];
+      if (!r) return;
+      const label = `${r.name}${r.country ? ', ' + r.country : ''}`;
+      setLocation(Number(r.latitude), Number(r.longitude), label);
+      if (cityInput) cityInput.value = label;
+      hideCityResults();
+      fetchDay(true);
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!cityResults || !cityInput) return;
+    if (e.target === cityInput || cityResults.contains(e.target)) return;
+    hideCityResults();
+  });
 
   function showError(msg) {
     errBox.style.display = 'block';
@@ -780,7 +933,7 @@
 
     const threshold = DEFAULT_THRESHOLD;
 
-    locPill.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    // loc pill is set via setLocation()
 
     const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=2&model=ray`;
 
@@ -846,8 +999,7 @@
   }
 
   function useDemo() {
-    state.lat = 52.3676;
-    state.lon = 4.9041;
+    setLocation(52.3676, 4.9041, 'Amsterdam');
     fetchDay();
   }
 
@@ -858,8 +1010,7 @@
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        state.lat = pos.coords.latitude;
-        state.lon = pos.coords.longitude;
+        setLocation(pos.coords.latitude, pos.coords.longitude, null);
         fetchDay();
       },
       () => showError('Location permission denied'),
