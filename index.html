@@ -365,6 +365,25 @@
   const errBox = document.getElementById('errBox');
   const loadingOverlay = document.getElementById('loadingOverlay');
 
+  function setBusy(isBusy) {
+    if (loadingOverlay) loadingOverlay.style.display = isBusy ? 'flex' : 'none';
+
+    const btnHere = document.getElementById('btnHere');
+    const btnDemo = document.getElementById('btnDemo');
+    const btnRefresh = document.getElementById('btnRefresh');
+
+    for (const el of [btnHere, btnDemo, btnRefresh, daySelect, cityInput].filter(Boolean)) {
+      el.disabled = !!isBusy;
+    }
+    for (const el of [btnHere, btnDemo, btnRefresh].filter(Boolean)) {
+      el.style.opacity = isBusy ? '0.65' : '1';
+    }
+  }
+
+  function nextPaint() {
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
   const decisionWrap = document.getElementById('decisionWrap');
   const decisionText = document.getElementById('decisionText');
   const scoreNow = document.getElementById('scoreNow');
@@ -935,27 +954,28 @@
   }
 
   async function fetchDay(force = false) {
-    if (loadingOverlay) loadingOverlay.style.display = 'flex';
+    setBusy(true);
+    await nextPaint();
     clearError();
 
     const lat = state.lat;
     const lon = state.lon;
     if (lat == null || lon == null) {
       showError('No location set');
+      setBusy(false);
       return;
     }
 
     const threshold = DEFAULT_THRESHOLD;
-
-    // loc pill is set via setLocation()
-
     const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=2&model=ray`;
 
+    // session cache fast path
     if (!force) {
       const cached = loadCached(lat, lon, threshold);
       if (cached) {
         state.data = cached;
         render();
+        setBusy(false);
         return;
       }
     }
@@ -967,11 +987,11 @@
       state.data = data;
       saveCached(lat, lon, threshold, data);
       render();
-      if (loadingOverlay) loadingOverlay.style.display = 'none';
     } catch (e) {
       showError('Failed to fetch. Try again.');
       console.error(e);
-      if (loadingOverlay) loadingOverlay.style.display = 'none';
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1020,6 +1040,10 @@
   }
 
   function useHere() {
+    // immediate UI feedback; geolocation can take time
+    setBusy(true);
+    nextPaint();
+
     if (!navigator.geolocation) {
       showError('Geolocation not supported');
       return;
@@ -1029,7 +1053,10 @@
         setLocation(pos.coords.latitude, pos.coords.longitude, null);
         fetchDay();
       },
-      () => showError('Location permission denied'),
+      () => {
+        showError('Location permission denied');
+        setBusy(false);
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
