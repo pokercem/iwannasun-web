@@ -126,11 +126,7 @@ input,select{
       padding-top: 10px;
       max-height: 460px;
       overflow-y: auto;
-      overflow-x: hidden;
-      /* Reserve space so the vertical scrollbar doesn't cover the last column */
-      padding-right: 14px;
-      scrollbar-gutter: stable;
-    }
+      overflow-x: hidden;    }
     .trow {
       display: grid;
       grid-template-columns: 70px minmax(0,1fr) 60px;
@@ -139,8 +135,6 @@ input,select{
       border-bottom: 1px solid var(--line);
       font-size: 13px;
     }
-    .trow > div:last-child{ text-align:right; padding-right:4px; }
-    .trowHead > div:last-child{ text-align:right; padding-right:4px; }
     .bar {
       height: 10px;
       border-radius: 999px;
