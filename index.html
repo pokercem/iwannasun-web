@@ -15,7 +15,7 @@
       --bad: #ff8c72;
       --accent-blue: #9bbed9;
       --line: rgba(51,51,51,0.10);
-      --sunset: linear-gradient(90deg, #f4b860, #ff8c72);
+      --sunset: linear-gradient(90deg, #9bbed9, #ff8c72);
     }
     * { box-sizing: border-box; }
     body {
@@ -52,7 +52,9 @@
       max-width: 980px;
       margin: 0 auto;
       padding: 18px;
+      position: relative;
     }
+
     .grid {
       display: grid;
       grid-template-columns: 1.2fr 0.8fr;
@@ -143,6 +145,9 @@
       background: rgba(255,255,255,0.03);
       border: 1px solid var(--line);
     }
+    .kpi .box.dim {
+      opacity: 0.55;
+    }
     .kpi .label { font-size: 11px; color: var(--muted); }
     .kpi .value { font-size: 20px; margin-top: 2px; }
     .muted { color: var(--muted); }
@@ -180,7 +185,7 @@
     .bar > div {
       height: 100%;
       border-radius: 999px;
-      background: var(--sunset);
+      background: none; /* dynamic via JS based on sun score */
       width: 0%;
     }
 
@@ -277,12 +282,14 @@
     <div class="grid">
       <div class="card" style="position:relative;">
         <div id="loadingOverlay" class="loadingOverlay"><div class="spinner"></div></div>
-        <div class="row" style="justify-content: space-between;">
+        <div class="row" style="justify-content: space-between; align-items:flex-start; flex-wrap:nowrap;">
           <div>
             <div class="muted small">Decision</div>
-            <div class="big" id="decisionWrap"><span id="decisionText">—</span> <span class="muted small" id="whyInline"></span></div>
+            <div class="big" id="decisionWrap"><span id="decisionText">—</span></div>
+            <div class="muted small" id="decisionContext" style="margin-top:4px; line-height:1.25;"></div>
+            <div class="muted small" id="whyInline" style="margin-top:4px; line-height:1.35; max-width:520px;"></div>
           </div>
-          <div class="row">
+          <div class="row" style="align-self:flex-start;">
             <select id="daySelect">
               <option value="0">Today</option>
               <option value="1">Tomorrow</option>
@@ -293,19 +300,19 @@
 
         <div class="kpi">
           <div class="box">
-            <div class="label">Sun score now</div>
+            <div class="label" id="labelScore">Sun score now</div>
             <div class="value" id="scoreNow">—</div>
           </div>
           <div class="box">
-            <div class="label">Confidence now <span class="muted" title="How reliable the sun score estimate is (higher = more stable conditions).">ⓘ</span></div>
+            <div class="label" id="labelConf">Confidence now <span class="muted">ⓘ</span></div>
             <div class="value" id="confNow">—</div>
           </div>
-          <div class="box">
-            <div class="label">Sunny minutes next 1h</div>
+          <div class="box" id="boxSun60">
+            <div class="label" id="labelSun60">Sunny minutes next 1h</div>
             <div class="value" id="sun60">—</div>
           </div>
-          <div class="box">
-            <div class="label">Sunny minutes next 2h</div>
+          <div class="box" id="boxSun120">
+            <div class="label" id="labelSun120">Sunny minutes next 2h</div>
             <div class="value" id="sun120">—</div>
           </div>
         </div>
@@ -342,17 +349,30 @@
         </div>
 
         <div class="card notes">
-          <div class="muted small">About</div>
-          <div class="muted small" style="line-height:1.45; margin-top:6px">
-            Sun Score = probability of direct sun reaching you (0–100). Not a weather forecast. Low sun = distant clouds matter more.
-            <br><br>
-            Confidence is reliability (drops when conditions are mixed or rainy).
+          <div class="muted small"><b>About</b></div>
+          <div class="muted small" style="line-height:1.55; margin-top:6px">
+            This app tells you if the sun will actually reach you.<br><br>
+
+            Not whether it’s warm.<br>
+            Just whether the sun itself is blocked or not.<br><br>
+
+            <b>Sun Score</b> is how likely you’ll be in direct sunlight.<br>
+            High = you’ll feel the sun.<br>
+            Low = clouds will stop it.<br><br>
+
+            <b>Confidence</b> is how steady that prediction is.<br>
+            Broken clouds and low sun make things uncertain.<br><br>
+
+            When the sun is low, far-away clouds can hide it.<br>
+            When it’s high, only nearby clouds matter.<br><br>
+
+            Made by sun enthusiasts, for sun enthusiasts ☀️
           </div>
         </div>
       </div>
     </div>
 
-    <div class="footer"></div>
+    <div class="footer">Data: Open‑Meteo • Model: iwannasun</div>
   </div>
 
 <script>
@@ -385,6 +405,13 @@
   }
 
   const decisionWrap = document.getElementById('decisionWrap');
+  const decisionContext = document.getElementById('decisionContext');
+  const labelScore = document.getElementById('labelScore');
+  const labelConf = document.getElementById('labelConf');
+  const labelSun60 = document.getElementById('labelSun60');
+  const labelSun120 = document.getElementById('labelSun120');
+  const boxSun60 = document.getElementById('boxSun60');
+  const boxSun120 = document.getElementById('boxSun120');
   const decisionText = document.getElementById('decisionText');
   const scoreNow = document.getElementById('scoreNow');
   const confNow = document.getElementById('confNow');
@@ -541,13 +568,25 @@
 
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
+  // Color mix: 0 -> cloudy blue, 1 -> sunny warm
+  function mixSunColor(t, alpha = 1) {
+    t = clamp(Number(t || 0), 0, 1);
+    const a = { r: 0x9b, g: 0xbe, b: 0xd9 }; // #9bbed9
+    const b = { r: 0xff, g: 0x8c, b: 0x72 }; // #ff8c72
+    const r = Math.round(a.r + (b.r - a.r) * t);
+    const g = Math.round(a.g + (b.g - a.g) * t);
+    const bl = Math.round(a.b + (b.b - a.b) * t);
+    const aa = clamp(alpha, 0, 1);
+    return `rgba(${r}, ${g}, ${bl}, ${aa})`;
+  }
+
   function windowMinutes(startIso, endIso) {
     const a = new Date(startIso);
     const b = new Date(endIso);
     return Math.max(0, Math.round((b - a) / 60000));
   }
 
-  function renderDecision(nowRow, contextLabel = '') {
+  function renderDecision(nowRow, context = { label: 'now', showMinutes: true }) {
     const whyEl = document.getElementById('whyInline');
 
     if (!nowRow) {
@@ -555,9 +594,16 @@
       if (decisionWrap) decisionWrap.className = 'big';
       scoreNow.textContent = '—';
       confNow.textContent = '—';
+      if (decisionContext) decisionContext.textContent = '';
       if (whyEl) whyEl.textContent = '';
       return;
     }
+
+    // Context line + KPI labels
+    const isNow = (context && context.label === 'now');
+    if (decisionContext) decisionContext.textContent = isNow ? '' : `Based on ${context.label}`;
+    if (labelScore) labelScore.textContent = isNow ? 'Sun score now' : 'Sun score';
+    if (labelConf) labelConf.textContent = isNow ? 'Confidence now ⓘ' : 'Confidence ⓘ';
 
     const s = Number(nowRow.sun_score || 0);
     const c = Number(nowRow.confidence || 0);
@@ -569,20 +615,20 @@
     confNow.title = 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
 
     if (s >= DEFAULT_THRESHOLD) {
-      decisionText.textContent = contextLabel ? `Go ${contextLabel}` : 'Go now';
+      decisionText.textContent = isNow ? 'Go now' : 'Go';
       if (decisionWrap) decisionWrap.className = 'big good';
     } else if (s >= DEFAULT_THRESHOLD - 15) {
-      decisionText.textContent = contextLabel ? `Maybe ${contextLabel}` : 'Maybe soon';
+      decisionText.textContent = isNow ? 'Maybe soon' : 'Maybe';
       if (decisionWrap) decisionWrap.className = 'big warn';
     } else {
-      decisionText.textContent = contextLabel ? `Wait ${contextLabel}` : 'Wait';
+      decisionText.textContent = 'Wait';
       if (decisionWrap) decisionWrap.className = 'big bad';
     }
 
     // WHY (short, decision-oriented)
     if (whyEl) {
       if (Number(nowRow.elevation || 0) <= 0) {
-        whyEl.textContent = '— because sun is below the horizon.';
+        whyEl.textContent = '— because the sun is below the horizon.';
       } else {
         const low = nowRow.cloud?.low ?? null;
         const mid = nowRow.cloud?.mid ?? null;
@@ -591,7 +637,7 @@
 
         let main = null;
         const parts = [];
-        if (precip && precip > 0) parts.push('precipitation');
+        if (precip && precip > 0.2) parts.push('rain');
 
         const layers = [
           { name: 'low clouds', v: low },
@@ -601,14 +647,14 @@
 
         if (layers.length) {
           layers.sort((a,b) => b.v - a.v);
-          main = `${layers[0].name} (${Math.round(layers[0].v)}%)`;
+          if (layers[0].v >= 20) main = `${layers[0].name} (${Math.round(layers[0].v)}%)`;
         }
         if (main) parts.push(main);
 
         if (!parts.length) {
-          whyEl.textContent = '— clear sky and sun above horizon.';
+          whyEl.textContent = '— clear sky and sun above the horizon.';
         } else {
-          const prefix = (s >= DEFAULT_THRESHOLD) ? '— clear despite ' : '— blocked by ';
+          const prefix = (s >= DEFAULT_THRESHOLD) ? '— clear despite ' : '— mostly blocked by ';
           whyEl.textContent = prefix + parts.join(' + ') + '.';
         }
       }
@@ -651,18 +697,28 @@
     return { start, end };
   }
 
-  function renderTimeline(dayRows) {
+  function renderTimeline(dayRows, dayIndex = 0) {
     timelineEl.innerHTML = '';
 
     const head = document.createElement('div');
     head.className = 'trow muted small';
+    head.style.textTransform = 'uppercase';
+    head.style.letterSpacing = '0.06em';
+    head.style.fontSize = '11px';
     head.innerHTML = '<div>Time</div><div>Sun score</div><div>Confidence</div>';
     timelineEl.appendChild(head);
 
     const win = daylightWindow(dayRows, 30);
+    const now = new Date();
+
     const rows = (dayRows || []).filter(r => {
       const t = new Date(r.time_local);
-      return win ? (t >= win.start && t <= win.end) : (Number(r.elevation || 0) > 0);
+      const inDaylightWindow = win ? (t >= win.start && t <= win.end) : (Number(r.elevation || 0) > 0);
+      if (!inDaylightWindow) return false;
+
+      // For Today: hide times that already passed (keeps the list focused on what’s next)
+      if (Number(dayIndex) === 0 && t.getTime() < now.getTime()) return false;
+      return true;
     });
 
     for (const r of rows) {
@@ -685,6 +741,9 @@
       bar.className = 'bar';
       const fill = document.createElement('div');
       fill.style.width = clamp(s, 0, 100) + '%';
+      const tcol = clamp(s/100,0,1);
+      fill.style.background = `linear-gradient(90deg, ${mixSunColor(0,0.6)}, ${mixSunColor(tcol,1)})`;
+      fill.style.opacity = (0.25 + 0.75*tcol).toFixed(3);
       bar.appendChild(fill);
 
       mid.appendChild(label);
@@ -703,7 +762,7 @@
     }
   }
 
-  function renderChart(dayRows) {
+  function renderChart(dayRows, dayIndex = 0) {
     // Make canvas crisp on high-DPI screens
     const cssW = canvas.clientWidth || 900;
     const cssH = 250; // keep in sync with <canvas height>
@@ -782,7 +841,7 @@
       return padX + (i / (rows.length - 1)) * (w - 2 * padX);
     }
 
-    // --- subtle gridlines (cleaner, more "chart-like") ---
+    // --- subtle gridlines ---
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
     ctx.strokeStyle = 'rgba(0,0,0,0.10)';
@@ -801,13 +860,15 @@
       return { x: xOf(i), y: yOf(e), e, s: Number(r.sun_score || 0), t: new Date(r.time_local) };
     });
 
-    // --- soft fill under curve (professional look) ---
-    // Fill alpha follows average sun score across the day.
+    // --- soft fill under curve ---
     const avgScore = pts.reduce((acc, p) => acc + p.s, 0) / Math.max(1, pts.length);
-    const fillAlpha = 0.05 + 0.12 * clamp(avgScore / 100, 0, 1);
+    const tAvg = clamp(avgScore / 100, 0, 1);
+    const fillAlpha = 0.04 + 0.14 * tAvg;
+
+    // Band: 0% = blue, 100% = warm (and fades down to transparent)
     const fillGrad = ctx.createLinearGradient(0, padTop, 0, h);
-    fillGrad.addColorStop(0, `rgba(244,184,96,${fillAlpha})`);
-    fillGrad.addColorStop(1, `rgba(255,140,114,0)`);
+    fillGrad.addColorStop(0, mixSunColor(tAvg, fillAlpha));
+    fillGrad.addColorStop(1, mixSunColor(tAvg, 0));
 
     ctx.beginPath();
     ctx.moveTo(pts[0].x, h - padBottom);
@@ -817,7 +878,7 @@
     ctx.fillStyle = fillGrad;
     ctx.fill();
 
-    // --- base elevation line (thin, neutral) ---
+    // --- base elevation line ---
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -828,41 +889,26 @@
     ctx.strokeStyle = 'rgba(0,0,0,0.26)';
     ctx.stroke();
 
-    // --- sun score overlay: opacity + thickness vary with score + subtle glow ---
-    const grad = ctx.createLinearGradient(0, 0, w, 0);
-    grad.addColorStop(0, '#ff8c72');
-    grad.addColorStop(0.5, '#f4b860');
-    grad.addColorStop(1, '#ff8c72');
-
+    // --- sun score overlay ---
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i];
-      // avoid weird tails below horizon
       if (a.e <= 0 || b.e <= 0) continue;
 
       const t = clamp(((a.s + b.s) / 2) / 100, 0, 1);
       const elev = (a.e + b.e) / 2;
+      // Cloudy = thinner + more transparent
+      const alpha = 0.05 + 0.95 * t;
 
-      // IMPORTANT: don't fade the main line with elevation (that hides "clear sunset" vs "cloud fade").
-      // Instead: keep alpha driven by sun_score, and only reduce thickness/glow near the horizon.
-      const alpha = 0.10 + 0.90 * t;
-
-      // Slightly thinner near horizon to prevent the end "blob", but still readable.
       const thinNearHorizon = 0.55 + 0.45 * clamp(elev / 6, 0, 1);
-      const lw = (2.5 + 7.0 * (t ** 0.9)) * thinNearHorizon;
+      const lw = (1.0 + 9.0 * (t ** 0.9)) * thinNearHorizon;
 
-      // Glow fades near horizon (this is what caused the weird red-circle artifact)
       const glowFade = clamp(elev / 8, 0, 1);
 
-      const grad = ctx.createLinearGradient(0, 0, w, 0);
-      grad.addColorStop(0, '#ff8c72');
-      grad.addColorStop(0.5, '#f4b860');
-      grad.addColorStop(1, '#ff8c72');
-
-      // Glow pass (very subtle)
+      // Glow pass
       ctx.save();
-      ctx.globalAlpha = alpha * 0.35 * glowFade;
+      ctx.globalAlpha = alpha * 0.25 * glowFade;
       ctx.lineWidth = lw + 5;
-      ctx.strokeStyle = grad;
+      ctx.strokeStyle = mixSunColor(t, 1);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -873,7 +919,7 @@
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.lineWidth = lw;
-      ctx.strokeStyle = grad;
+      ctx.strokeStyle = mixSunColor(t, 1);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -881,9 +927,7 @@
       ctx.restore();
     }
 
-    // --- markers: now ---
-
-    // Now marker (if within chart range)
+    // Now marker
     const now = Date.now();
     const t0ms = pts[0].t.getTime();
     const t1ms = pts[pts.length - 1].t.getTime();
@@ -899,7 +943,6 @@
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // small dot at curve height (nearest point)
       const idx = Math.round(u * (pts.length - 1));
       const p = pts[clamp(idx, 0, pts.length - 1)];
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -907,8 +950,6 @@
       ctx.arc(xn, p.y, 3, 0, Math.PI * 2);
       ctx.fill();
     }
-
-    
   }
 
   function nearestNowRow(dayRows) {
@@ -924,7 +965,6 @@
   }
 
   function nearestRowToLocalHour(dayRows, hour = 12) {
-    // Pick a stable representative row for future days (defaults to ~midday).
     const rows = (dayRows || []);
     if (!rows.length) return null;
 
@@ -988,7 +1028,6 @@
     const threshold = DEFAULT_THRESHOLD;
     const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=2&model=ray`;
 
-    // session cache fast path
     if (!force) {
       const cached = loadCached(lat, lon, threshold);
       if (cached) {
@@ -1021,22 +1060,23 @@
     const rows = state.data.timeline.filter(r => Number(r.day_index) === dayIndex);
 
     let focusRow = null;
-    let contextLabel = '';
+    let context = { label: 'now', showMinutes: true };
+
     if (dayIndex === 0) {
       focusRow = nearestNowRow(rows);
-      contextLabel = 'now';
+      context = { label: 'now', showMinutes: true };
     } else {
       focusRow = nearestRowToLocalHour(rows, 12);
-      contextLabel = 'tomorrow at 12:00';
+      context = { label: 'tomorrow ~12:00', showMinutes: false };
     }
-    renderDecision(focusRow, contextLabel);
+
+    renderDecision(focusRow, context);
 
     const win = state.data.next_sunny_window_by_day
       ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
       : (state.data.next_sunny_window || null);
     renderNextWindow(win);
 
-    // Sunrise / Sunset for selected day (based on elevation crossing)
     const dayWin = daylightWindow(rows, 0);
     if (sunriseEl && sunsetEl) {
       if (!dayWin) {
@@ -1053,13 +1093,20 @@
     }
 
     if (state.data.sun_minutes) {
-      if (dayIndex === 0) {
+      const todayMode = (dayIndex === 0);
+
+      if (labelSun60) labelSun60.textContent = todayMode ? 'Sunny minutes next 1h' : 'Sunny minutes (today only)';
+      if (labelSun120) labelSun120.textContent = todayMode ? 'Sunny minutes next 2h' : 'Sunny minutes (today only)';
+
+      if (boxSun60) boxSun60.classList.toggle('dim', !todayMode);
+      if (boxSun120) boxSun120.classList.toggle('dim', !todayMode);
+
+      if (todayMode) {
         sun60.textContent = state.data.sun_minutes.next_1h ?? '—';
         sun120.textContent = state.data.sun_minutes.next_2h ?? '—';
         sun60.title = 'Sunny minutes from now (today)';
         sun120.title = 'Sunny minutes from now (today)';
       } else {
-        // These backend values are computed from *now*, so they don't apply to tomorrow.
         sun60.textContent = '—';
         sun120.textContent = '—';
         sun60.title = 'Only available for Today';
@@ -1067,8 +1114,8 @@
       }
     }
 
-    renderChart(rows);
-    renderTimeline(rows);
+    renderChart(rows, dayIndex);
+    renderTimeline(rows, dayIndex);
   }
 
   function useDemo() {
@@ -1077,7 +1124,6 @@
   }
 
   function useHere() {
-    // immediate UI feedback; geolocation can take time
     setBusy(true);
     nextPaint();
 
