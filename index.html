@@ -714,7 +714,7 @@
 
     locPill.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
 
-    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=2`;
+    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=2&model=ray`;
 
     // Avoid hammering the API (and reduces hosting usage during testing)
     if (!force) {
