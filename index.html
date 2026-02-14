@@ -376,8 +376,25 @@
   </div>
 
 <script>
+  /**
+   * iwannasun (single-file frontend)
+   * Reading map:
+   * - CONFIG
+   * - DOM REFS
+   * - UI HELPERS
+   * - GEO + CITY SEARCH
+   * - CACHE + API
+   * - RENDER (decision, window, chart, timeline)
+   */
+
+  // =========================
+  // CONFIG
+  // =========================
   const API_BASE = "https://iwannasun.onrender.com";
   const DEFAULT_THRESHOLD = 70; // product tuning constant (UI removed)
+  const DAYS = 2;
+  const MODEL = 'ray';
+
 
   const locPill = document.getElementById('locPill');
   const cityInput = document.getElementById('cityInput');
@@ -404,14 +421,20 @@
     return new Promise((resolve) => requestAnimationFrame(() => resolve()));
   }
 
+  // =========================
+  // DOM REFS
+  // =========================
   const decisionWrap = document.getElementById('decisionWrap');
   const decisionContext = document.getElementById('decisionContext');
+  const whyInline = document.getElementById('whyInline');
+
   const labelScore = document.getElementById('labelScore');
   const labelConf = document.getElementById('labelConf');
   const labelSun60 = document.getElementById('labelSun60');
   const labelSun120 = document.getElementById('labelSun120');
   const boxSun60 = document.getElementById('boxSun60');
   const boxSun120 = document.getElementById('boxSun120');
+
   const decisionText = document.getElementById('decisionText');
   const scoreNow = document.getElementById('scoreNow');
   const confNow = document.getElementById('confNow');
@@ -435,6 +458,7 @@
     lat: null,
     lon: null,
     data: null,
+    days: null, // pre-split timeline by day_index for faster renders
   };
 
   function setLocation(lat, lon, label = null) {
@@ -568,6 +592,31 @@
 
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
+  // Timeline rows contain ISO strings; Date parsing is relatively expensive.
+  // Cache Date objects on the row the first time we need them.
+  function tLocal(r) {
+    if (!r) return null;
+    if (r._tLocal instanceof Date) return r._tLocal;
+    r._tLocal = new Date(r.time_local);
+    return r._tLocal;
+  }
+  function tMs(r) {
+    const d = tLocal(r);
+    return d ? d.getTime() : NaN;
+  }
+
+  function prepData(data) {
+    if (!data || !Array.isArray(data.timeline)) return;
+    const days = {};
+    for (const r of data.timeline) {
+      // Precompute Date once
+      tLocal(r);
+      const di = Number(r.day_index || 0);
+      (days[di] ||= []).push(r);
+    }
+    state.days = days;
+  }
+
   // Color mix: 0 -> cloudy blue, 1 -> sunny warm
   function mixSunColor(t, alpha = 1) {
     t = clamp(Number(t || 0), 0, 1);
@@ -587,7 +636,7 @@
   }
 
   function renderDecision(nowRow, context = { label: 'now', showMinutes: true }) {
-    const whyEl = document.getElementById('whyInline');
+    const whyEl = whyInline;
 
     if (!nowRow) {
       decisionText.textContent = '—';
@@ -683,10 +732,10 @@
     let first = null;
     let last = null;
     for (const r of rows) {
-      if (Number(r.elevation || 0) > 0) { first = new Date(r.time_local); break; }
+      if (Number(r.elevation || 0) > 0) { first = tLocal(r); break; }
     }
     for (let i = rows.length - 1; i >= 0; i--) {
-      if (Number(rows[i].elevation || 0) > 0) { last = new Date(rows[i].time_local); break; }
+      if (Number(rows[i].elevation || 0) > 0) { last = tLocal(rows[i]); break; }
     }
     if (!first || !last) return null;
     const start = new Date(first.getTime() - padMinutes * 60000);
@@ -695,68 +744,43 @@
   }
 
   function renderTimeline(dayRows, dayIndex = 0) {
-    timelineEl.innerHTML = '';
-
-    const head = document.createElement('div');
-    head.className = 'trow muted small';
-    head.style.textTransform = 'uppercase';
-    head.style.letterSpacing = '0.06em';
-    head.style.fontSize = '11px';
-    head.innerHTML = '<div>Time</div><div>Sun score</div><div>Confidence</div>';
-    timelineEl.appendChild(head);
-
     const win = daylightWindow(dayRows, 30);
-    const now = new Date();
+    const nowMs = Date.now();
+
+    // Build once (faster than creating many DOM nodes)
+    let html = '';
+    html += '<div class="trow muted small" style="text-transform:uppercase;letter-spacing:0.06em;font-size:11px">'
+          + '<div>Time</div><div>Sun score</div><div>Confidence</div></div>';
 
     const rows = (dayRows || []).filter(r => {
-      const t = new Date(r.time_local);
+      const t = tLocal(r);
       const inDaylightWindow = win ? (t >= win.start && t <= win.end) : (Number(r.elevation || 0) > 0);
       if (!inDaylightWindow) return false;
-
-      // For Today: hide times that already passed (keeps the list focused on what’s next)
-      if (Number(dayIndex) === 0 && t.getTime() < now.getTime()) return false;
+      if (Number(dayIndex) === 0 && tMs(r) < nowMs) return false; // hide past (Today)
       return true;
     });
 
     for (const r of rows) {
-      const t = fmtTime(r.time_local);
+      const t = fmtTime(tLocal(r));
       const s = Math.round(Number(r.sun_score || 0));
+      const c = Math.round(Number(r.confidence || 0) * 100);
 
-      const el = document.createElement('div');
-      el.className = 'trow';
+      const tcol = clamp(s / 100, 0, 1);
+      const w = clamp(s, 0, 100);
+      const op = (0.25 + 0.75 * tcol).toFixed(3);
+      const grad = `linear-gradient(90deg, ${mixSunColor(0, 0.6)}, ${mixSunColor(tcol, 1)})`;
 
-      const left = document.createElement('div');
-      left.textContent = t;
-      left.className = 'muted';
-
-      const mid = document.createElement('div');
-      const label = document.createElement('div');
-      label.textContent = s + '%';
-      label.className = 'scoreNum';
-
-      const bar = document.createElement('div');
-      bar.className = 'bar';
-      const fill = document.createElement('div');
-      fill.style.width = clamp(s, 0, 100) + '%';
-      const tcol = clamp(s/100,0,1);
-      fill.style.background = `linear-gradient(90deg, ${mixSunColor(0,0.6)}, ${mixSunColor(tcol,1)})`;
-      fill.style.opacity = (0.25 + 0.75*tcol).toFixed(3);
-      bar.appendChild(fill);
-
-      mid.appendChild(label);
-      mid.appendChild(bar);
-
-      const right = document.createElement('div');
-      right.textContent = Math.round(Number(r.confidence || 0) * 100) + '%';
-      right.title = 'Confidence in prediction';
-      right.className = 'muted';
-
-      el.appendChild(left);
-      el.appendChild(mid);
-      el.appendChild(right);
-
-      timelineEl.appendChild(el);
+      html += '<div class="trow">'
+           + `<div class="muted">${t}</div>`
+           + '<div>'
+           + `<div class="scoreNum">${s}%</div>`
+           + '<div class="bar"><div style="width:' + w + '%;background:' + grad + ';opacity:' + op + '"></div></div>'
+           + '</div>'
+           + `<div class="muted" title="Confidence in prediction">${c}%</div>`
+           + '</div>';
     }
+
+    timelineEl.innerHTML = html;
   }
 
   function renderChart(dayRows, dayIndex = 0) {
@@ -791,10 +815,10 @@
     let startIdx = 0;
     let endIdx = dayRows.length - 1;
     for (let i = 0; i < dayRows.length; i++) {
-      if (new Date(dayRows[i].time_local) >= win.start) { startIdx = Math.max(0, i); break; }
+      if (tLocal(dayRows[i]) >= win.start) { startIdx = Math.max(0, i); break; }
     }
     for (let i = dayRows.length - 1; i >= 0; i--) {
-      if (new Date(dayRows[i].time_local) <= win.end) { endIdx = Math.min(dayRows.length - 1, i); break; }
+      if (tLocal(dayRows[i]) <= win.end) { endIdx = Math.min(dayRows.length - 1, i); break; }
     }
 
     const rows = dayRows.slice(startIdx, endIdx + 1);
@@ -811,8 +835,8 @@
     }
 
     if (xAxisEl) {
-      const t0 = new Date(rows[0].time_local);
-      const t1 = new Date(rows[rows.length - 1].time_local);
+      const t0 = tLocal(rows[0]);
+      const t1 = tLocal(rows[rows.length - 1]);
       const steps = 4;
       const labels = [];
       for (let k = 0; k <= steps; k++) {
@@ -854,7 +878,7 @@
     // --- build elevation path ---
     const pts = rows.map((r, i) => {
       const e = Math.max(0, Number(r.elevation || 0));
-      return { x: xOf(i), y: yOf(e), e, s: Number(r.sun_score || 0), t: new Date(r.time_local) };
+      return { x: xOf(i), y: yOf(e), e, s: Number(r.sun_score || 0), t: tLocal(r) };
     });
 
     // --- soft fill under curve ---
@@ -950,12 +974,11 @@
   }
 
   function nearestNowRow(dayRows) {
-    const now = new Date();
+    const nowMs = Date.now();
     let best = null;
     let bestDt = Infinity;
     for (const r of (dayRows || [])) {
-      const t = new Date(r.time_local);
-      const dt = Math.abs(t - now);
+      const dt = Math.abs(tMs(r) - nowMs);
       if (dt < bestDt) { bestDt = dt; best = r; }
     }
     return best;
@@ -965,30 +988,30 @@
     const rows = (dayRows || []);
     if (!rows.length) return null;
 
-    const base = new Date(rows[0].time_local);
+    const base = tLocal(rows[0]);
     const target = new Date(base);
     target.setHours(hour, 0, 0, 0);
 
     let best = rows[0];
     let bestDt = Infinity;
     for (const r of rows) {
-      const t = new Date(r.time_local);
+      const t = tLocal(r);
       const dt = Math.abs(t - target);
       if (dt < bestDt) { bestDt = dt; best = r; }
     }
     return best;
   }
 
-  function cacheKey(lat, lon, threshold) {
+  function cacheKey(lat, lon, threshold, { days = 2, model = 'ray' } = {}) {
     const rlat = Number(lat).toFixed(4);
     const rlon = Number(lon).toFixed(4);
     const thr = Number(threshold);
-    return `iwannasun_day_${rlat}_${rlon}_${thr}`;
+    return `iwannasun_day_${rlat}_${rlon}_${thr}_d${days}_m${model}`;
   }
 
-  function loadCached(lat, lon, threshold, maxAgeMs = 5 * 60 * 1000) {
+  function loadCached(lat, lon, threshold, maxAgeMs = 5 * 60 * 1000, opts = {}) {
     try {
-      const key = cacheKey(lat, lon, threshold);
+      const key = cacheKey(lat, lon, threshold, opts);
       const raw = sessionStorage.getItem(key);
       if (!raw) return null;
       const obj = JSON.parse(raw);
@@ -1000,9 +1023,9 @@
     }
   }
 
-  function saveCached(lat, lon, threshold, data) {
+  function saveCached(lat, lon, threshold, data, opts = {}) {
     try {
-      const key = cacheKey(lat, lon, threshold);
+      const key = cacheKey(lat, lon, threshold, opts);
       sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
     } catch {
       // ignore quota / privacy mode
@@ -1023,12 +1046,13 @@
     }
 
     const threshold = DEFAULT_THRESHOLD;
-    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=2&model=ray`;
+    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=${DAYS}&model=${MODEL}`;
 
     if (!force) {
-      const cached = loadCached(lat, lon, threshold);
+      const cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: MODEL });
       if (cached) {
         state.data = cached;
+        prepData(state.data);
         render();
         setBusy(false);
         return;
@@ -1040,7 +1064,8 @@
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = await res.json();
       state.data = data;
-      saveCached(lat, lon, threshold, data);
+      prepData(state.data);
+      saveCached(lat, lon, threshold, data, { days: DAYS, model: MODEL });
       render();
     } catch (e) {
       showError('Failed to fetch. Try again.');
@@ -1054,7 +1079,7 @@
     if (!state.data) return;
 
     const dayIndex = Number(daySelect?.value || 0);
-    const rows = state.data.timeline.filter(r => Number(r.day_index) === dayIndex);
+    const rows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : state.data.timeline.filter(r => Number(r.day_index) === dayIndex);
 
     let focusRow = null;
     let context = { label: 'now', showMinutes: true };
@@ -1120,10 +1145,10 @@
     fetchDay();
   }
 
-  function useHere({ silent = false } = {}) {
+  async function useHere({ silent = false } = {}) {
     // immediate UI feedback; geolocation can take time
     setBusy(true);
-    nextPaint();
+    await nextPaint();
 
     if (!navigator.geolocation) {
       if (!silent) showError('Your browser doesn’t support location. Please search for a city.');
@@ -1148,7 +1173,7 @@
   }
 
   document.getElementById('btnDemo').addEventListener('click', useDemo);
-  document.getElementById('btnHere').addEventListener('click', useHere);
+  document.getElementById('btnHere').addEventListener('click', () => useHere());
   document.getElementById('btnRefresh').addEventListener('click', () => fetchDay(true));
   daySelect.addEventListener('change', () => { if (state.data) render(); });
 
