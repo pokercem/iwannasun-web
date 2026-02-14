@@ -5,27 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>iwannasun</title>
   <style>
-    :root {
-      --bg: #f9f9f7;
-      --card: #ffffff;
-      --text: #333333;
-      --muted: rgba(51,51,51,0.65);
-      --good: #333333;
-      --warn: #f4b860;
-      --bad: #f4b860;
-      --accent-blue: #9bbed9;
-      --line: rgba(51,51,51,0.10);
-      --sunset: linear-gradient(90deg, #9bbed9, #f4b860);
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      color-scheme: light;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: linear-gradient(180deg, #F9F9F7 0%, #E8DCC6 100%);
-      color: var(--text);
-    }
-    header {
+    :root{--text:#333;--muted:rgba(51,51,51,.65);--line:rgba(51,51,51,.10);--good:#333;--bad:#f4b860}
+*{box-sizing:border-box}
+    body{margin:0;color-scheme:light;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:linear-gradient(180deg,#F9F9F7 0%,#E8DCC6 100%);color:var(--text)}
+header{
       padding: 16px 18px;
       border-bottom: 1px solid var(--line);
       display: flex;
@@ -38,38 +21,23 @@
       backdrop-filter: blur(10px);
       z-index: 10;
     }
-    header h1 {
-      margin: 0;
-      font-size: 16px;
-      letter-spacing: 0.2px;
-    }
-    header .sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-    .wrap {
+    header h1{margin:0;font-size:16px;letter-spacing:.2px}
+header .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.wrap{
       max-width: 980px;
       margin: 0 auto;
       padding: 18px;
       position: relative;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 14px;
-      align-items: start; /* prevent right card stretching to match left */
-    }
-    .side {
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;align-items:start}
+.side{
       display: flex;
       flex-direction: column;
       gap: 14px;
     }
-    @media (max-width: 860px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-    .card {
+    @media (max-width:860px){.grid{grid-template-columns:1fr}}
+.card{
       background: linear-gradient(180deg, #ffffff, #F9F9F7);
       border: 1px solid var(--line);
       border-radius: 14px;
@@ -77,34 +45,20 @@
       box-shadow: 0 8px 20px rgba(0,0,0,0.08);
     }
 
-    /* Layout helpers (replacing inline styles) */
-    .cardRel { position: relative; }
-    .rowBetweenTop { justify-content: space-between; align-items: flex-start; flex-wrap: nowrap; }
-    .rowTop { align-self: flex-start; }
-
-    .decisionContext { margin-top: 4px; line-height: 1.25; }
-    .whyInline { margin-top: 4px; line-height: 1.35; max-width: 520px; }
-
-    .chartBlock { margin-top: 10px; }
-    .chartTitle { opacity: 0.85; display: flex; justify-content: space-between; }
-
-    .nextWindowSub { margin-top: 6px; }
-    .sunTimesRow { margin-top: 12px; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-    .sunTimeValue { font-size: 18px; margin-top: 4px; }
-
-    .aboutText { line-height: 1.55; margin-top: 6px; }
-
-    .trowHead { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
-    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .row > * { flex: none; }
-    .pill {
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: rgba(155,190,217,0.18);
-      color: var(--text);
-      font-size: 12px;
-    }
+    .cardRel{position:relative}
+.rowBetweenTop{justify-content:space-between;align-items:flex-start;flex-wrap:nowrap}
+.rowTop{align-self:flex-start}
+.decisionContext{margin-top:4px;line-height:1.25}
+.whyInline{margin-top:4px;line-height:1.35;max-width:520px}
+.chartBlock{margin-top:10px}
+.chartTitle{opacity:.85;display:flex;justify-content:space-between}
+.nextWindowSub{margin-top:6px}
+.sunTimesRow{margin-top:12px;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.sunTimeValue{font-size:18px;margin-top:4px}
+.aboutText{line-height:1.55;margin-top:6px}
+.trowHead{text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:none}
+.pill{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(155,190,217,.18);color:var(--text);font-size:12px}
 
     .cityWrap { position: relative; }
     .cityInput { width: 220px; }
@@ -133,17 +87,9 @@
     .suggest .item:hover { background: rgba(155,190,217,0.10); }
     .suggest .name { font-size: 13px; }
     .suggest .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    button {
-      border: 1px solid var(--line);
-      background: rgba(244,184,96,0.10);
-      color: var(--text);
-      padding: 8px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-    button:hover { background: rgba(244,184,96,0.16); }
-    input, select {
+    button{border:1px solid var(--line);background:rgba(244,184,96,.10);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer;font-size:13px}
+button:hover{background:rgba(244,184,96,.16)}
+input,select{
       border: 1px solid var(--line);
       background: rgba(249,249,247,0.9);
       color: var(--text);
@@ -169,15 +115,10 @@
     }
     .kpi .label { font-size: 11px; color: var(--muted); }
     .kpi .value { font-size: 20px; margin-top: 2px; }
-    .muted { color: var(--muted); }
-    .big {
-      font-size: 22px;
-      margin: 8px 0 0;
-      letter-spacing: 0.2px;
-    }
-    .good { color: var(--good); }
-    .warn { color: var(--warn); }
-    .bad { color: var(--bad); }
+    .muted{color:var(--muted)}
+.big{font-size:22px;margin:8px 0 0;letter-spacing:.2px}
+.good{color:var(--good)}
+.bad{color:var(--bad)}
 
     .timeline {
       margin-top: 12px;
@@ -235,20 +176,9 @@
       display: none;
     }
 
-    .loadingOverlay{
-      position:absolute; inset:0;
-      background:rgba(249,249,247,0.75);
-      backdrop-filter: blur(2px);
-      display:none; align-items:center; justify-content:center;
-      border-radius:14px;
-    }
-    .spinner{
-      width:28px; height:28px; border-radius:50%;
-      border:3px solid rgba(0,0,0,0.15);
-      border-top-color: rgba(0,0,0,0.45);
-      animation:spin 0.9s linear infinite;
-    }
-    @keyframes spin{ to{ transform:rotate(360deg);} }
+    .loadingOverlay{position:absolute;inset:0;background:rgba(249,249,247,.75);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;border-radius:14px}
+.spinner{width:28px;height:28px;border-radius:50%;border:3px solid rgba(0,0,0,.15);border-top-color:rgba(0,0,0,.45);animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
     .small { font-size: 12px; }
     .scoreNum { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -395,16 +325,6 @@
   </div>
 
 <script>
-  /**
-   * iwannasun (single-file frontend)
-   * Reading map:
-   * - CONFIG
-   * - DOM REFS
-   * - UI HELPERS
-   * - GEO + CITY SEARCH
-   * - CACHE + API
-   * - RENDER (decision, window, chart, timeline)
-   */
 
   // =========================
   // CONFIG
@@ -415,18 +335,24 @@
   const MODEL = 'ray';
 
 
+  // =========================
+  // DOM REFS (early)
+  // =========================
   const locPill = document.getElementById('locPill');
   const cityInput = document.getElementById('cityInput');
   const cityResults = document.getElementById('cityResults');
   const errBox = document.getElementById('errBox');
   const loadingOverlay = document.getElementById('loadingOverlay');
 
+  const btnHere = document.getElementById('btnHere');
+  const btnDemo = document.getElementById('btnDemo');
+  const btnRefresh = document.getElementById('btnRefresh');
+
+  // =========================
+  // UI HELPERS
+  // =========================
   function setBusy(isBusy) {
     if (loadingOverlay) loadingOverlay.style.display = isBusy ? 'flex' : 'none';
-
-    const btnHere = document.getElementById('btnHere');
-    const btnDemo = document.getElementById('btnDemo');
-    const btnRefresh = document.getElementById('btnRefresh');
 
     for (const el of [btnHere, btnDemo, btnRefresh, daySelect, cityInput].filter(Boolean)) {
       el.disabled = !!isBusy;
@@ -440,195 +366,30 @@
     return new Promise((resolve) => requestAnimationFrame(() => resolve()));
   }
 
-  // =========================
-  // DOM REFS
-  // =========================
-  const decisionWrap = document.getElementById('decisionWrap');
-  const decisionContext = document.getElementById('decisionContext');
-  const whyInline = document.getElementById('whyInline');
+  // Small helpers
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const fmtTime = (v) => (v instanceof Date ? v : new Date(v)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const showError = (msg) => { if (!errBox) return; errBox.style.display = 'block'; errBox.textContent = msg; };
+  const clearError = () => { if (!errBox) return; errBox.style.display = 'none'; errBox.textContent = ''; };
 
-  const labelScore = document.getElementById('labelScore');
-  const labelConf = document.getElementById('labelConf');
-  const labelSun60 = document.getElementById('labelSun60');
-  const labelSun120 = document.getElementById('labelSun120');
-  const boxSun60 = document.getElementById('boxSun60');
-  const boxSun120 = document.getElementById('boxSun120');
-
-  const decisionText = document.getElementById('decisionText');
-  const scoreNow = document.getElementById('scoreNow');
-  const confNow = document.getElementById('confNow');
-  const sun60 = document.getElementById('sun60');
-  const sun120 = document.getElementById('sun120');
-
-  const daySelect = document.getElementById('daySelect');
-
-  const nextWindow = document.getElementById('nextWindow');
-  const nextWindowSub = document.getElementById('nextWindowSub');
-  const sunriseEl = document.getElementById('sunriseTime');
-  const sunsetEl = document.getElementById('sunsetTime');
-
-  const timelineEl = document.getElementById('timeline');
-  const yAxisEl = document.getElementById('yAxis');
-  const xAxisEl = document.getElementById('xAxis');
-  const canvas = document.getElementById('sunChart');
-  const ctx = canvas.getContext('2d');
-
-  let state = {
-    lat: null,
-    lon: null,
-    data: null,
-    days: null, // pre-split timeline by day_index for faster renders
-  };
-
-  function setLocation(lat, lon, label = null) {
-    state.lat = lat;
-    state.lon = lon;
-
-    // Location pill: show a human label when we have one, otherwise coordinates.
-    if (label && String(label).trim().length) {
-      locPill.textContent = label;
-    } else {
-      locPill.textContent = `${Number(lat).toFixed(4)}, ${Number(lon).toFixed(4)}`;
-    }
-
-    // City input reflects manual city picks; for "Use my location" we clear it.
-    if (cityInput) {
-      if (label && label !== 'My location') cityInput.value = label;
-      else cityInput.value = '';
-    }
-  }
-
-  // --- City search (typeahead) via Open‑Meteo Geocoding ---
-  let _cityTimer = null;
-  let _lastCityQuery = '';
-  let _lastCityResults = [];
-
-  function hideCityResults() {
-    if (!cityResults) return;
-    cityResults.style.display = 'none';
-    cityResults.innerHTML = '';
-  }
-
-  function renderCityResults(list) {
-    if (!cityResults) return;
-    if (!list || !list.length) {
-      hideCityResults();
-      return;
-    }
-    cityResults.innerHTML = list.map((r, idx) => {
-      const name = r.name || '—';
-      const admin = r.admin1 ? `, ${r.admin1}` : '';
-      const country = r.country ? `, ${r.country}` : '';
-      let meta = `${admin}${country}`;
-      if (meta.startsWith(', ')) meta = meta.slice(2);
-      return `<div class="item" data-idx="${idx}">
-        <div class="name">${name}</div>
-        <div class="meta">${meta}</div>
-      </div>`;
-    }).join('');
-    cityResults.style.display = 'block';
-  }
-
-  async function searchCities(q) {
-    const query = (q || '').trim();
-    if (query.length < 2) {
-      hideCityResults();
-      return;
-    }
-    if (query === _lastCityQuery) return;
-    _lastCityQuery = query;
-
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('geocoding failed');
-      const data = await res.json();
-      const results = (data && data.results) ? data.results : [];
-      _lastCityResults = results;
-      renderCityResults(results);
-    } catch (e) {
-      hideCityResults();
-      console.warn(e);
-    }
-  }
-
-  if (cityInput) {
-    cityInput.addEventListener('input', (e) => {
-      const v = e.target.value;
-      clearTimeout(_cityTimer);
-      _cityTimer = setTimeout(() => searchCities(v), 220);
-    });
-
-    cityInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') hideCityResults();
-      if (e.key === 'Enter') {
-        if (_lastCityResults && _lastCityResults.length) {
-          const r = _lastCityResults[0];
-          const label = `${r.name}${r.country ? ', ' + r.country : ''}`;
-          setLocation(Number(r.latitude), Number(r.longitude), label);
-          cityInput.value = label;
-          hideCityResults();
-          fetchDay(true);
-        }
-      }
-    });
-  }
-
-  if (cityResults) {
-    cityResults.addEventListener('mousedown', (e) => {
-      const item = e.target.closest('.item');
-      if (!item) return;
-      const idx = Number(item.getAttribute('data-idx'));
-      const r = _lastCityResults[idx];
-      if (!r) return;
-      const label = `${r.name}${r.country ? ', ' + r.country : ''}`;
-      setLocation(Number(r.latitude), Number(r.longitude), label);
-      if (cityInput) cityInput.value = label;
-      hideCityResults();
-      fetchDay(true);
-    });
-  }
-
-  document.addEventListener('click', (e) => {
-    if (!cityResults || !cityInput) return;
-    if (e.target === cityInput || cityResults.contains(e.target)) return;
-    hideCityResults();
-  });
-
-  function showError(msg) {
-    errBox.style.display = 'block';
-    errBox.textContent = msg;
-  }
-  function clearError() {
-    errBox.style.display = 'none';
-    errBox.textContent = '';
-  }
-
-  function fmtTime(value) {
-    const d = (value instanceof Date) ? value : new Date(value);
-    return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-  }
-
-  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
   // Timeline rows contain ISO strings; Date parsing is relatively expensive.
   // Cache Date objects on the row the first time we need them.
   function tLocal(r) {
     if (!r) return null;
     if (r._tLocal instanceof Date) return r._tLocal;
-    r._tLocal = new Date(r.time_local);
-    return r._tLocal;
+    const d = new Date(r.time_local);
+    r._tLocal = d;
+    r._tMs = d.getTime();
+    return d;
   }
-  function tMs(r) {
-    const d = tLocal(r);
-    return d ? d.getTime() : NaN;
-  }
+  const tMs = (r) => (r && typeof r._tMs === 'number') ? r._tMs : (tLocal(r)?.getTime() ?? NaN);
+
 
   function prepData(data) {
-    if (!data || !Array.isArray(data.timeline)) return;
+    if (!data?.timeline) return;
     const days = {};
     for (const r of data.timeline) {
-      // Precompute Date once
       tLocal(r);
       const di = Number(r.day_index || 0);
       (days[di] ||= []).push(r);
@@ -648,13 +409,7 @@
     return `rgba(${r}, ${g}, ${bl}, ${aa})`;
   }
 
-  function windowMinutes(startIso, endIso) {
-    const a = new Date(startIso);
-    const b = new Date(endIso);
-    return Math.max(0, Math.round((b - a) / 60000));
-  }
-
-  function renderDecision(nowRow, context = { label: 'now', showMinutes: true }) {
+    function renderDecision(nowRow, context = { label: 'now', showMinutes: true }) {
     const whyEl = whyInline;
 
     if (!nowRow) {
@@ -740,7 +495,7 @@
     nextWindow.textContent = `${a} – ${b}`;
     nextWindow.className = 'big good';
 
-    const mins = (win.minutes != null) ? win.minutes : windowMinutes(win.start, win.end);
+    const mins = (win.minutes != null) ? win.minutes : Math.max(0, Math.round((new Date(win.end) - new Date(win.start)) / 60000));
     nextWindowSub.textContent = `${mins} minutes above threshold`;
   }
 
@@ -766,20 +521,16 @@
     const win = daylightWindow(dayRows, 30);
     const nowMs = Date.now();
 
-    // Build once (faster than creating many DOM nodes)
     let html = '';
     html += '<div class="trow trowHead muted small">'
           + '<div>Time</div><div>Sun score</div><div>Confidence</div></div>';
 
-    const rows = (dayRows || []).filter(r => {
+    for (const r of (dayRows || [])) {
       const t = tLocal(r);
-      const inDaylightWindow = win ? (t >= win.start && t <= win.end) : (Number(r.elevation || 0) > 0);
-      if (!inDaylightWindow) return false;
-      if (Number(dayIndex) === 0 && tMs(r) < nowMs) return false; // hide past (Today)
-      return true;
-    });
+      const inWin = win ? (t >= win.start && t <= win.end) : (Number(r.elevation || 0) > 0);
+      if (!inWin) continue;
+      if (Number(dayIndex) === 0 && tMs(r) < nowMs) continue; // hide past (Today)
 
-    for (const r of rows) {
       const t = fmtTime(tLocal(r));
       const s = Math.round(Number(r.sun_score || 0));
       const c = Math.round(Number(r.confidence || 0) * 100);
@@ -1021,6 +772,10 @@
     return best;
   }
 
+  // =========================
+  // CACHE + API
+  // =========================
+
   function cacheKey(lat, lon, threshold, { days = 2, model = 'ray' } = {}) {
     const rlat = Number(lat).toFixed(4);
     const rlon = Number(lon).toFixed(4);
@@ -1094,20 +849,29 @@
     }
   }
 
+  // =========================
+  // RENDER
+  // =========================
+
   function render() {
     if (!state.data) return;
 
     const dayIndex = Number(daySelect?.value || 0);
-    const rows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : state.data.timeline.filter(r => Number(r.day_index) === dayIndex);
+    let dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : null;
+    if (!dayRows) {
+      // Safety fallback (shouldn't happen): build the day bucket once.
+      prepData(state.data);
+      dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : [];
+    }
 
     let focusRow = null;
     let context = { label: 'now', showMinutes: true };
 
     if (dayIndex === 0) {
-      focusRow = nearestNowRow(rows);
+      focusRow = nearestNowRow(dayRows);
       context = { label: 'now', showMinutes: true };
     } else {
-      focusRow = nearestRowToLocalHour(rows, 12);
+      focusRow = nearestRowToLocalHour(dayRows, 12);
       context = { label: 'tomorrow ~12:00', showMinutes: false };
     }
 
@@ -1118,7 +882,7 @@
       : (state.data.next_sunny_window || null);
     renderNextWindow(win);
 
-    const dayWin = daylightWindow(rows, 0);
+    const dayWin = daylightWindow(dayRows, 0);
     if (sunriseEl && sunsetEl) {
       if (!dayWin) {
         sunriseEl.textContent = '—';
@@ -1155,8 +919,8 @@
       }
     }
 
-    renderChart(rows, dayIndex);
-    renderTimeline(rows, dayIndex);
+    renderChart(dayRows, dayIndex);
+    renderTimeline(dayRows, dayIndex);
   }
 
   function useDemo() {
@@ -1190,10 +954,9 @@
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
-
-  document.getElementById('btnDemo').addEventListener('click', useDemo);
-  document.getElementById('btnHere').addEventListener('click', () => useHere());
-  document.getElementById('btnRefresh').addEventListener('click', () => fetchDay(true));
+  btnDemo.addEventListener('click', useDemo);
+  btnHere.addEventListener('click', () => useHere());
+  btnRefresh.addEventListener('click', () => fetchDay(true));
   daySelect.addEventListener('change', () => { if (state.data) render(); });
 
   // On start: try user location first.
