@@ -1120,22 +1120,28 @@
     fetchDay();
   }
 
-  function useHere() {
+  function useHere({ silent = false } = {}) {
+    // immediate UI feedback; geolocation can take time
     setBusy(true);
     nextPaint();
 
     if (!navigator.geolocation) {
-      showError('Geolocation not supported');
+      if (!silent) showError('Your browser doesn’t support location. Please search for a city.');
+      setBusy(false);
+      if (cityInput) cityInput.focus();
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLocation(pos.coords.latitude, pos.coords.longitude, null);
+        setLocation(pos.coords.latitude, pos.coords.longitude, 'My location');
         fetchDay();
       },
       () => {
-        showError('Location permission denied');
+        // Don’t block the app — just ask for manual location.
+        if (!silent) showError('Please allow location, or search for a city above.');
         setBusy(false);
+        if (cityInput) cityInput.focus();
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -1146,8 +1152,19 @@
   document.getElementById('btnRefresh').addEventListener('click', () => fetchDay(true));
   daySelect.addEventListener('change', () => { if (state.data) render(); });
 
-  // load demo on start
-  useDemo();
+  // On start: try user location first.
+  // If permission is denied, we keep the page calm and let the user type a city.
+  (function init() {
+    // Clear the old demo default.
+    state.lat = null;
+    state.lon = null;
+    state.data = null;
+
+    if (locPill) locPill.textContent = 'Choose a location';
+
+    // Attempt geolocation once.
+    useHere({ silent: false });
+  })();
 </script>
 </body>
 </html>
