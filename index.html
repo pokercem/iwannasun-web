@@ -534,9 +534,10 @@
     errBox.textContent = '';
   }
 
-  function fmtTime(iso) {
-    const d = new Date(iso);
+  function fmtTime(value) {
+    const d = (value instanceof Date) ? value : new Date(value);
     return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  });
   }
 
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
@@ -547,7 +548,7 @@
     return Math.max(0, Math.round((b - a) / 60000));
   }
 
-  function renderDecision(nowRow) {
+  function renderDecision(nowRow, contextLabel = '') {
     const whyEl = document.getElementById('whyInline');
 
     if (!nowRow) {
@@ -569,13 +570,13 @@
     confNow.title = 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
 
     if (s >= DEFAULT_THRESHOLD) {
-      decisionText.textContent = 'Go now';
+      decisionText.textContent = contextLabel ? `Go ${contextLabel}` : 'Go now';
       if (decisionWrap) decisionWrap.className = 'big good';
     } else if (s >= DEFAULT_THRESHOLD - 15) {
-      decisionText.textContent = 'Maybe soon';
+      decisionText.textContent = contextLabel ? `Maybe ${contextLabel}` : 'Maybe soon';
       if (decisionWrap) decisionWrap.className = 'big warn';
     } else {
-      decisionText.textContent = 'Wait';
+      decisionText.textContent = contextLabel ? `Wait ${contextLabel}` : 'Wait';
       if (decisionWrap) decisionWrap.className = 'big bad';
     }
 
@@ -923,6 +924,25 @@
     return best;
   }
 
+  function nearestRowToLocalHour(dayRows, hour = 12) {
+    // Pick a stable representative row for future days (defaults to ~midday).
+    const rows = (dayRows || []);
+    if (!rows.length) return null;
+
+    const base = new Date(rows[0].time_local);
+    const target = new Date(base);
+    target.setHours(hour, 0, 0, 0);
+
+    let best = rows[0];
+    let bestDt = Infinity;
+    for (const r of rows) {
+      const t = new Date(r.time_local);
+      const dt = Math.abs(t - target);
+      if (dt < bestDt) { bestDt = dt; best = r; }
+    }
+    return best;
+  }
+
   function cacheKey(lat, lon, threshold) {
     const rlat = Number(lat).toFixed(4);
     const rlon = Number(lon).toFixed(4);
@@ -1001,8 +1021,16 @@
     const dayIndex = Number(daySelect?.value || 0);
     const rows = state.data.timeline.filter(r => Number(r.day_index) === dayIndex);
 
-    const nowRow = nearestNowRow(rows);
-    renderDecision(nowRow);
+    let focusRow = null;
+    let contextLabel = '';
+    if (dayIndex === 0) {
+      focusRow = nearestNowRow(rows);
+      contextLabel = 'now';
+    } else {
+      focusRow = nearestRowToLocalHour(rows, 12);
+      contextLabel = 'tomorrow at 12:00';
+    }
+    renderDecision(focusRow, contextLabel);
 
     const win = state.data.next_sunny_window_by_day
       ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
@@ -1018,16 +1046,26 @@
         sunriseEl.title = 'No sunrise (sun stays below horizon)';
         sunsetEl.title = 'No sunset (sun stays below horizon)';
       } else {
-        sunriseEl.textContent = fmtTime(dayWin.start.toISOString());
-        sunsetEl.textContent = fmtTime(dayWin.end.toISOString());
+        sunriseEl.textContent = fmtTime(dayWin.start);
+        sunsetEl.textContent = fmtTime(dayWin.end);
         sunriseEl.title = dayWin.start.toLocaleString();
         sunsetEl.title = dayWin.end.toLocaleString();
       }
     }
 
     if (state.data.sun_minutes) {
-      sun60.textContent = state.data.sun_minutes.next_1h ?? '—';
-      sun120.textContent = state.data.sun_minutes.next_2h ?? '—';
+      if (dayIndex === 0) {
+        sun60.textContent = state.data.sun_minutes.next_1h ?? '—';
+        sun120.textContent = state.data.sun_minutes.next_2h ?? '—';
+        sun60.title = 'Sunny minutes from now (today)';
+        sun120.title = 'Sunny minutes from now (today)';
+      } else {
+        // These backend values are computed from *now*, so they don't apply to tomorrow.
+        sun60.textContent = '—';
+        sun120.textContent = '—';
+        sun60.title = 'Only available for Today';
+        sun120.title = 'Only available for Today';
+      }
     }
 
     renderChart(rows);
