@@ -537,7 +537,6 @@
   function fmtTime(value) {
     const d = (value instanceof Date) ? value : new Date(value);
     return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-  });
   }
 
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
