@@ -259,7 +259,7 @@
         </div>
 
         <div class="chartBlock" style="margin-top:10px">
-          <div class="small" id="chartTitle" style="opacity:0.85">Elevation (°) — sunny segments ≥ 70</div>
+          <div class="small" id="chartTitle" style="opacity:0.85">Elevation (°) — color intensity = sun score</div>
           <div class="chartWrap">
             <div class="yAxis" id="yAxis"></div>
             <canvas id="sunChart" width="900" height="250"></canvas>
@@ -633,28 +633,31 @@
     ctx.strokeStyle = 'rgba(0,0,0,0.42)';
     ctx.stroke();
 
-    // Sunny segments on top
-    ctx.lineWidth = 6;
+    // Color intensity based on sun score
+    ctx.lineWidth = 4;
     for (let i = 1; i < rows.length; i++) {
       const a = rows[i - 1], b = rows[i];
-      const sunny = (a.sun_score >= threshold) && (b.sun_score >= threshold) && (a.elevation > 0 || b.elevation > 0);
-      if (!sunny) continue;
+      if (a.elevation <= 0 && b.elevation <= 0) continue;
+      const avg = ((a.sun_score || 0) + (b.sun_score || 0)) / 2;
+      const alpha = 0.15 + 0.85 * clamp(avg / 100, 0, 1);
 
       ctx.beginPath();
       ctx.moveTo(xOf(i - 1), yOf(Math.max(0, a.elevation)));
       ctx.lineTo(xOf(i), yOf(Math.max(0, b.elevation)));
 
-      const gradTop = ctx.createLinearGradient(0, 0, w, 0);
-      gradTop.addColorStop(0, '#ff8c72');
-      gradTop.addColorStop(0.5, '#f4b860');
-      gradTop.addColorStop(1, '#ff8c72');
-      ctx.strokeStyle = gradTop;
+      const grad = ctx.createLinearGradient(0, 0, w, 0);
+      grad.addColorStop(0, '#ff8c72');
+      grad.addColorStop(0.5, '#f4b860');
+      grad.addColorStop(1, '#ff8c72');
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = grad;
       ctx.stroke();
+      ctx.restore();
     }
 
-    // update chart title in DOM
     const titleEl = document.getElementById('chartTitle');
-    if (titleEl) titleEl.textContent = `Elevation (°) — sunny segments ≥ ${threshold}`;
+    if (titleEl) titleEl.textContent = 'Elevation (°) — color intensity = sun score';
   }
 
   function nearestNowRow(dayRows) {
