@@ -127,6 +127,9 @@ input,select{
       max-height: 460px;
       overflow-y: auto;
       overflow-x: hidden;
+      /* Reserve space so the vertical scrollbar doesn't cover the last column */
+      padding-right: 14px;
+      scrollbar-gutter: stable;
     }
     .trow {
       display: grid;
