@@ -1041,7 +1041,19 @@ input,select{
     }
 
     renderChart(dayRows, dayIndex);
-    renderTimeline(dayRows, dayIndex);
+
+    // Hide timeline list when there's no remaining daylight ahead (e.g. after sunset today)
+    const nowMs = Date.now();
+    const hasDaylightAhead = (dayIndex === 0)
+      ? (dayRows || []).some(r => Number(r.elevation || 0) > 0 && tMs(r) >= nowMs)
+      : (dayRows || []).some(r => Number(r.elevation || 0) > 0);
+
+    if (!hasDaylightAhead) {
+      if (timelineEl) { timelineEl.style.display = 'none'; timelineEl.innerHTML = ''; }
+    } else {
+      if (timelineEl) timelineEl.style.display = 'block';
+      renderTimeline(dayRows, dayIndex);
+    }
   }
 
   function useDemo() {
