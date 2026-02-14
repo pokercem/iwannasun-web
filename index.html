@@ -76,6 +76,25 @@
       padding: 14px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.08);
     }
+
+    /* Layout helpers (replacing inline styles) */
+    .cardRel { position: relative; }
+    .rowBetweenTop { justify-content: space-between; align-items: flex-start; flex-wrap: nowrap; }
+    .rowTop { align-self: flex-start; }
+
+    .decisionContext { margin-top: 4px; line-height: 1.25; }
+    .whyInline { margin-top: 4px; line-height: 1.35; max-width: 520px; }
+
+    .chartBlock { margin-top: 10px; }
+    .chartTitle { opacity: 0.85; display: flex; justify-content: space-between; }
+
+    .nextWindowSub { margin-top: 6px; }
+    .sunTimesRow { margin-top: 12px; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .sunTimeValue { font-size: 18px; margin-top: 4px; }
+
+    .aboutText { line-height: 1.55; margin-top: 6px; }
+
+    .trowHead { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .row > * { flex: none; }
     .pill {
@@ -280,16 +299,16 @@
 
   <div class="wrap">
     <div class="grid">
-      <div class="card" style="position:relative;">
+      <div class="card cardRel">
         <div id="loadingOverlay" class="loadingOverlay"><div class="spinner"></div></div>
-        <div class="row" style="justify-content: space-between; align-items:flex-start; flex-wrap:nowrap;">
+        <div class="row rowBetweenTop">
           <div>
             <div class="muted small">Decision</div>
             <div class="big" id="decisionWrap"><span id="decisionText">—</span></div>
-            <div class="muted small" id="decisionContext" style="margin-top:4px; line-height:1.25;"></div>
-            <div class="muted small" id="whyInline" style="margin-top:4px; line-height:1.35; max-width:520px;"></div>
+            <div class="muted small decisionContext" id="decisionContext"></div>
+            <div class="muted small whyInline" id="whyInline"></div>
           </div>
-          <div class="row" style="align-self:flex-start;">
+          <div class="row rowTop">
             <select id="daySelect">
               <option value="0">Today</option>
               <option value="1">Tomorrow</option>
@@ -317,8 +336,8 @@
           </div>
         </div>
 
-        <div class="chartBlock" style="margin-top:10px">
-          <div class="small" id="chartTitle" style="opacity:0.85; display:flex; justify-content:space-between;"><span>Elevation (°)</span><span>line intensity = sun score</span></div>
+        <div class="chartBlock">
+          <div class="small chartTitle" id="chartTitle"><span>Elevation (°)</span><span>line intensity = sun score</span></div>
           <div class="chartWrap">
             <div class="yAxis" id="yAxis"></div>
             <canvas id="sunChart" width="900" height="250"></canvas>
@@ -334,23 +353,23 @@
         <div class="card">
           <div class="muted small">Next sunny window</div>
           <div class="big" id="nextWindow">—</div>
-          <div class="muted" id="nextWindowSub" style="margin-top:6px">—</div>
+          <div class="muted nextWindowSub" id="nextWindowSub">—</div>
 
-          <div style="margin-top: 12px; display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+          <div class="sunTimesRow">
             <div>
               <div class="muted small">Sunrise</div>
-              <div class="big" id="sunriseTime" style="font-size:18px; margin-top:4px;">—</div>
+              <div class="big sunTimeValue" id="sunriseTime">—</div>
             </div>
             <div>
               <div class="muted small">Sunset</div>
-              <div class="big" id="sunsetTime" style="font-size:18px; margin-top:4px;">—</div>
+              <div class="big sunTimeValue" id="sunsetTime">—</div>
             </div>
           </div>
         </div>
 
         <div class="card notes">
           <div class="muted small"><b>About</b></div>
-          <div class="muted small" style="line-height:1.55; margin-top:6px">
+          <div class="muted small aboutText">
             This app tells you if the sun will actually reach you.<br><br>
 
             Not whether it’s warm.<br>
@@ -749,7 +768,7 @@
 
     // Build once (faster than creating many DOM nodes)
     let html = '';
-    html += '<div class="trow muted small" style="text-transform:uppercase;letter-spacing:0.06em;font-size:11px">'
+    html += '<div class="trow trowHead muted small">'
           + '<div>Time</div><div>Sun score</div><div>Confidence</div></div>';
 
     const rows = (dayRows || []).filter(r => {
