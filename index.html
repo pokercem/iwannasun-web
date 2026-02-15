@@ -101,7 +101,7 @@ input,select{
     .kpi {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 8px;
       margin-top: 10px;
     }
     .kpi .box {
@@ -129,8 +129,8 @@ input,select{
       overflow-x: hidden;    }
     .trow {
       display: grid;
-      grid-template-columns: 70px minmax(0,1fr) 60px;
-      gap: 10px;
+      grid-template-columns: 70px 52px minmax(0,1fr);
+      gap: 7px;
       padding: 8px 0;
       border-bottom: 1px solid var(--line);
       font-size: 13px;
@@ -644,7 +644,7 @@ input,select{
 
     let html = '';
     html += '<div class="trow trowHead muted small">'
-          + '<div>Time</div><div>Sun score</div><div>Confidence</div></div>';
+          + '<div>Time</div><div title="Confidence">Conf.</div><div>Sun score</div></div>';
 
     for (const r of (dayRows || [])) {
       const dt = tLocal(r);
@@ -659,15 +659,16 @@ input,select{
       const tcol = clamp(s / 100, 0, 1);
       const w = clamp(s, 0, 100);
       const op = (0.25 + 0.75 * tcol).toFixed(3);
-      const grad = `linear-gradient(90deg, ${mixSunColor(0, 0.6)}, ${mixSunColor(tcol, 1)})`;
+      const color = mixSunColor(tcol,1);
+      const grad = `linear-gradient(90deg, ${mixSunColor(0, 0.6)}, ${color})`;
 
       html += '<div class="trow">'
            + `<div class="muted">${t}</div>`
+           + `<div class="muted" title="Confidence in prediction">${c}%</div>`
            + '<div>'
-           + `<div class="scoreNum">${s}%</div>`
+           + `<div class="scoreNum" style="color:${color}">${s}%</div>`
            + '<div class="bar"><div style="width:' + w + '%;background:' + grad + ';opacity:' + op + '"></div></div>'
            + '</div>'
-           + `<div class="muted" title="Confidence in prediction">${c}%</div>`
            + '</div>';
     }
 
