@@ -83,11 +83,11 @@
 
           <div class="sunTimesRow">
             <div>
-              <div class="muted small">Sunrise</div>
+              <div class="muted small" title="Approximate (10-minute grid)">Sunrise (approx)</div>
               <div class="big sunTimeValue" id="sunriseTime">—</div>
             </div>
             <div>
-              <div class="muted small">Sunset</div>
+              <div class="muted small" title="Approximate (10-minute grid)">Sunset (approx)</div>
               <div class="big sunTimeValue" id="sunsetTime">—</div>
             </div>
           </div>
@@ -176,21 +176,36 @@
 
   // CITY SEARCH
   let _cityTimer = null;
+  let _cityReqId = 0; // prevents stale (out-of-order) suggestion renders
   let _lastCityQuery = '';
   let _lastCityResults = [];
 
   const hideCityResults = () => { if (!cityResults) return; cityResults.style.display = 'none'; cityResults.innerHTML = ''; };
+  // Minimal HTML escaping for safe suggestion rendering
+  function escHtml(s) {
+    return String(s ?? '').replace(/[&<>"]+/g, (ch) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;'
+    }[ch] || ch));
+  }
+
   const renderCityResults = (list) => {
     if (!cityResults) return;
     if (!list?.length) return hideCityResults();
+  
     cityResults.innerHTML = list.map((r, idx) => {
-      const name = r.name || '—';
-      const admin = r.admin1 ? `, ${r.admin1}` : '';
-      const country = r.country ? `, ${r.country}` : '';
+      const name = escHtml(r.name || '—');
+      const admin = r.admin1 ? `, ${escHtml(r.admin1)}` : '';
+      const country = r.country ? `, ${escHtml(r.country)}` : '';
+  
       let meta = `${admin}${country}`;
       if (meta.startsWith(', ')) meta = meta.slice(2);
+  
       return `<div class="item" data-idx="${idx}"><div class="name">${name}</div><div class="meta">${meta}</div></div>`;
     }).join('');
+  
     cityResults.style.display = 'block';
   };
 
@@ -199,13 +214,17 @@
     if (query.length < 2) return hideCityResults();
     if (query === _lastCityQuery) return;
     _lastCityQuery = query;
-
+    const reqId = ++_cityReqId;
+    
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
+    ;
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error('geocoding failed');
       const data = await res.json();
       const results = data?.results || [];
+      // Ignore out-of-order responses (stale suggestions)
+      if (reqId !== _cityReqId) return;
       _lastCityResults = results;
       renderCityResults(results);
     } catch {
@@ -398,12 +417,17 @@
         }
         if (main) parts.push(main);
 
+        const isRay = (state?.data?.model === 'ray');
+
         if (!parts.length) {
-          whyEl.textContent = 'Clear sky and sun above the horizon.';
+          whyEl.textContent = isRay ? 'Clear sun path and sun above the horizon.' : 'Clear sky and sun above the horizon.';
         } else {
-          const prefix = (s >= DEFAULT_THRESHOLD) ? 'Clear despite ' : 'Mostly blocked by ';
+          const prefix = (s >= DEFAULT_THRESHOLD)
+            ? (isRay ? 'Sun visible despite ' : 'Clear despite ')
+            : (isRay ? 'Blocked along the sun path by ' : 'Mostly blocked by ');
           whyEl.textContent = prefix + parts.join(' + ') + '.';
         }
+
       }
     }
   }
@@ -692,12 +716,21 @@
     const nowMs = Date.now();
     let best = null;
     let bestDt = Infinity;
+  
     for (const r of (dayRows || [])) {
-      const dt = Math.abs(tMs(r) - nowMs);
-      if (dt < bestDt) { bestDt = dt; best = r; }
+      const ms = tMs(r);
+      if (!Number.isFinite(ms)) continue;
+  
+      const dt = Math.abs(ms - nowMs);
+      if (dt < bestDt) {
+        bestDt = dt;
+        best = r;
+      }
     }
+  
     return best;
   }
+
 
   function nearestRowToLocalHour(dayRows, hour = 12) {
     const rows = (dayRows || []);
