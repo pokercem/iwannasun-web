@@ -559,8 +559,8 @@
       const labels = [];
       for (let k = 0; k <= steps; k++) {
         const tt = new Date(t0.getTime() + (k / steps) * (t1 - t0));
-        const hh = fmtHour(tt);
-        labels.push(`${hh}:00`);
+        tt.setMinutes(0, 0, 0);
+        labels.push(fmtTime(tt));
       }
       xAxisEl.innerHTML = labels.map(t => `<div>${t}</div>`).join('');
     }
