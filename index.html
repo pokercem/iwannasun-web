@@ -755,8 +755,16 @@
     }
 
     const threshold = DEFAULT_THRESHOLD;
-    const url = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&threshold=${encodeURIComponent(threshold)}&days=${DAYS}&model=${MODEL}`;
 
+    // Patch: try ray first, but if it fails (often 502), fall back to local.
+    // Patch: use mode=quick to reduce backend work (more stable).
+    const base = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
+      + `&threshold=${encodeURIComponent(threshold)}&days=${DAYS}&mode=quick`;
+
+    const urlRay = base + `&model=ray`;
+    const urlLocal = base + `&model=local`;
+
+    // Cache: keep the existing cache behavior, but if ray fails we may still use local.
     if (!force) {
       const cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: MODEL });
       if (cached) {
@@ -770,16 +778,37 @@
     }
 
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`API error ${res.status}`);
+      // Try ray
+      let res = await fetch(urlRay);
+
+      // If ray fails, try local
+      if (!res.ok) {
+        res = await fetch(urlLocal);
+      }
+
+      if (!res.ok) {
+        // Show backend-provided error detail if available.
+        let msg = `API error ${res.status}`;
+        try {
+          const j = await res.json();
+          if (j?.detail) msg = String(j.detail);
+        } catch {
+          // ignore
+        }
+        showError(msg);
+        return;
+      }
+
       const data = await res.json();
       state.data = data;
       state.tzName = data?.meta?.tz_name || null;
       prepData(state.data);
+
+      // Save to cache under the configured MODEL key (simple; avoids extra cache complexity).
       saveCached(lat, lon, threshold, data, { days: DAYS, model: MODEL });
       render();
     } catch (e) {
-      showError('Failed to fetch. Try again.');
+      showError('Network error (could not reach API).');
       console.error(e);
     } finally {
       setBusy(false);
