@@ -272,7 +272,23 @@
 
   // Small helpers
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-  const fmtTime = (v) => (v instanceof Date ? v : new Date(v)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Format times in the *location* timezone (not the viewer's browser timezone).
+  function _safeFormatter(opts) {
+    try {
+      const tz = state?.tzName;
+      return new Intl.DateTimeFormat([], tz ? { ...opts, timeZone: tz } : opts);
+    } catch {
+      return new Intl.DateTimeFormat([], opts);
+    }
+  }
+  const _fmtHM = () => _safeFormatter({ hour: '2-digit', minute: '2-digit' });
+  const _fmtH  = () => _safeFormatter({ hour: '2-digit' });
+  const _fmtFull = () => _safeFormatter({ year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+  const fmtTime = (v) => _fmtHM().format(v instanceof Date ? v : new Date(v));
+  const fmtHour = (v) => _fmtH().format(v instanceof Date ? v : new Date(v));
+  const fmtDateTime = (v) => _fmtFull().format(v instanceof Date ? v : new Date(v));
   const isDaylight = (r) => {
     if (!r) return false;
     if (typeof r.is_daylight === 'boolean') return r.is_daylight;
@@ -543,7 +559,7 @@
       const labels = [];
       for (let k = 0; k <= steps; k++) {
         const tt = new Date(t0.getTime() + (k / steps) * (t1 - t0));
-        const hh = tt.getHours().toString().padStart(2, '0');
+        const hh = fmtHour(tt);
         labels.push(`${hh}:00`);
       }
       xAxisEl.innerHTML = labels.map(t => `<div>${t}</div>`).join('');
@@ -756,6 +772,7 @@
       const cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: MODEL });
       if (cached) {
         state.data = cached;
+        state.tzName = cached?.meta?.tz_name || null;
         prepData(state.data);
         render();
         setBusy(false);
@@ -768,6 +785,7 @@
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = await res.json();
       state.data = data;
+      state.tzName = data?.meta?.tz_name || null;
       prepData(state.data);
       saveCached(lat, lon, threshold, data, { days: DAYS, model: MODEL });
       render();
@@ -833,8 +851,8 @@
       } else {
         sunriseEl.textContent = fmtTime(dayWin.start);
         sunsetEl.textContent = fmtTime(dayWin.end);
-        sunriseEl.title = dayWin.start.toLocaleString();
-        sunsetEl.title = dayWin.end.toLocaleString();
+        sunriseEl.title = fmtDateTime(dayWin.start);
+        sunsetEl.title = fmtDateTime(dayWin.end);
       }
     }
 
