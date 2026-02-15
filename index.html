@@ -180,13 +180,21 @@
   let _lastCityResults = [];
 
   const hideCityResults = () => { if (!cityResults) return; cityResults.style.display = 'none'; cityResults.innerHTML = ''; };
+
+  // PATCH: prevent HTML injection in city dropdown
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
   const renderCityResults = (list) => {
     if (!cityResults) return;
     if (!list?.length) return hideCityResults();
     cityResults.innerHTML = list.map((r, idx) => {
-      const name = r.name || '—';
-      const admin = r.admin1 ? `, ${r.admin1}` : '';
-      const country = r.country ? `, ${r.country}` : '';
+      const name = esc(r.name || '—');
+      const admin = r.admin1 ? `, ${esc(r.admin1)}` : '';
+      const country = r.country ? `, ${esc(r.country)}` : '';
       let meta = `${admin}${country}`;
       if (meta.startsWith(', ')) meta = meta.slice(2);
       return `<div class="item" data-idx="${idx}"><div class="name">${name}</div><div class="meta">${meta}</div></div>`;
@@ -331,7 +339,7 @@
     return `rgba(${r}, ${g}, ${bl}, ${aa})`;
   }
 
-    function renderDecision(nowRow, context = { label: 'now', showMinutes: true }) {
+  function renderDecision(nowRow, context = { label: 'now', showMinutes: true }) {
     const whyEl = whyInline;
 
     if (!nowRow) {
@@ -421,14 +429,12 @@
 
     nextWindow.textContent = `${a} – ${b}`;
 
-    // Optional label (used when we show tomorrow's window while viewing Today)
     if (label) {
       nextWindowSub.textContent = label;
     }
     nextWindow.className = 'big good';
 
     const mins = (win.minutes != null) ? win.minutes : Math.max(0, Math.round((new Date(win.end) - new Date(win.start)) / 60000));
-    // If we didn't set a label above, show duration.
     if (!label) {
       nextWindowSub.textContent = `${mins} minutes above threshold`;
     }
@@ -499,7 +505,6 @@
   function renderChart(dayRows, dayIndex = 0, win = null) {
     if (!canvas || !ctx) return;
 
-    // Make canvas crisp on high-DPI screens
     const cssW = canvas.clientWidth || 900;
     const cssH = canvas.clientHeight || 220;
     const dpr = window.devicePixelRatio || 1;
@@ -518,7 +523,6 @@
       return;
     }
 
-    // Trim to (sunrise - 30m) .. (sunset + 30m)
     win = win || daylightWindow(dayRows, 30);
     if (!win) {
       if (yAxisEl) yAxisEl.innerHTML = '';
@@ -526,7 +530,6 @@
       return;
     }
 
-    // Find indices within padded window
     let startIdx = 0;
     let endIdx = dayRows.length - 1;
     for (let i = 0; i < dayRows.length; i++) {
@@ -540,9 +543,8 @@
 
     const elevs = rows.map(r => Math.max(0, Number(r.elevation || 0)));
     const maxElevRaw = Math.max(...elevs, 1);
-    const maxElev = Math.max(10, Math.ceil(maxElevRaw / 10) * 10); // nice round top
+    const maxElev = Math.max(10, Math.ceil(maxElevRaw / 10) * 10);
 
-    // Axes labels outside canvas
     if (yAxisEl) {
       const ticks = [];
       for (let d = maxElev; d >= 0; d -= 10) ticks.push(d);
@@ -577,7 +579,6 @@
       return padX + (i / (rows.length - 1)) * (w - 2 * padX);
     }
 
-    // --- subtle gridlines ---
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
     ctx.strokeStyle = 'rgba(0,0,0,0.10)';
@@ -590,18 +591,15 @@
     }
     ctx.setLineDash([]);
 
-    // --- build elevation path ---
     const pts = rows.map((r, i) => {
       const e = Math.max(0, Number(r.elevation || 0));
       return { x: xOf(i), y: yOf(e), e, s: Number(r.sun_score || 0), t: tLocal(r) };
     });
 
-    // --- soft fill under curve ---
     const avgScore = pts.reduce((acc, p) => acc + p.s, 0) / Math.max(1, pts.length);
     const tAvg = clamp(avgScore / 100, 0, 1);
     const fillAlpha = 0.04 + 0.14 * tAvg;
 
-    // Band: 0% = blue, 100% = warm (and fades down to transparent)
     const fillGrad = ctx.createLinearGradient(0, padTop, 0, h);
     fillGrad.addColorStop(0, mixSunColor(tAvg, fillAlpha));
     fillGrad.addColorStop(1, mixSunColor(tAvg, 0));
@@ -614,7 +612,6 @@
     ctx.fillStyle = fillGrad;
     ctx.fill();
 
-    // --- base elevation line ---
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -625,14 +622,12 @@
     ctx.strokeStyle = 'rgba(0,0,0,0.26)';
     ctx.stroke();
 
-    // --- sun score overlay ---
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i];
       if (!isDaylight({ elevation: a.e, is_daylight: a.e > 0 }) || !isDaylight({ elevation: b.e, is_daylight: b.e > 0 })) continue;
 
       const t = clamp(((a.s + b.s) / 2) / 100, 0, 1);
       const elev = (a.e + b.e) / 2;
-      // Cloudy = thinner + more transparent
       const alpha = 0.05 + 0.95 * t;
 
       const thinNearHorizon = 0.55 + 0.45 * clamp(elev / 6, 0, 1);
@@ -640,7 +635,6 @@
 
       const glowFade = clamp(elev / 8, 0, 1);
 
-      // Glow pass
       ctx.save();
       ctx.globalAlpha = alpha * 0.25 * glowFade;
       ctx.lineWidth = lw + 5;
@@ -651,7 +645,6 @@
       ctx.stroke();
       ctx.restore();
 
-      // Main pass
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.lineWidth = lw;
@@ -663,7 +656,6 @@
       ctx.restore();
     }
 
-    // Now marker
     const now = Date.now();
     const t0ms = pts[0].t.getTime();
     const t1ms = pts[pts.length - 1].t.getTime();
@@ -799,7 +791,6 @@
   function render() {
     if (!state.data) return;
 
-    // Current time at the chosen location (timezone from backend)
     if (timePill) {
       if (state.tzName) {
         timePill.textContent = fmtTime(new Date());
@@ -813,7 +804,6 @@
     const dayIndex = Number(daySelect?.value || 0);
     let dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : null;
     if (!dayRows) {
-      // Safety fallback (shouldn't happen): build the day bucket once.
       prepData(state.data);
       dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : [];
     }
@@ -835,8 +825,6 @@
       ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
       : (state.data.next_sunny_window || null);
 
-    // Calm fallback: if viewing Today but there is no remaining window, show Tomorrow's next window.
-    // This avoids "No sunny window" right after sunset when tomorrow is clearly sunny.
     if (dayIndex === 0 && !win && state.data.next_sunny_window_by_day) {
       const w1 = state.data.next_sunny_window_by_day["1"] || null;
       if (w1) {
@@ -890,7 +878,6 @@
 
     renderChart(dayRows, dayIndex, dayWin30);
 
-    // Hide timeline list when there's no remaining daylight ahead (e.g. after sunset today)
     const nowMs = Date.now();
     const hasDaylightAhead = (dayIndex === 0)
       ? (dayRows || []).some(r => isDaylight(r) && tMs(r) >= nowMs)
@@ -910,7 +897,6 @@
   }
 
   async function useHere({ silent = false } = {}) {
-    // immediate UI feedback; geolocation can take time
     setBusy(true);
     await nextPaint();
 
@@ -927,7 +913,6 @@
         fetchDay();
       },
       () => {
-        // Don’t block the app — just ask for manual location.
         if (!silent) showError('Please allow location, or search for a city above.');
         setBusy(false);
         if (cityInput) cityInput.focus();
@@ -940,30 +925,25 @@
   btnRefresh.addEventListener('click', () => fetchDay(true));
   daySelect.addEventListener('change', () => { if (state.data) render(); });
 
-  // Keep the "now" marker + decision fresh without refetching.
-  // (Otherwise the chart can look stuck if you keep the page open.)
   let _uiTick = null;
   let _lastUiMinute = null;
   function uiRefresh() {
     if (!state.data || state.isBusy) return;
     const m = Math.floor(Date.now() / 60000);
-    if (_lastUiMinute === m) return; // only once per minute
+    if (_lastUiMinute === m) return;
     _lastUiMinute = m;
     render();
   }
   function startUiTick() {
     if (_uiTick) return;
     uiRefresh();
-    _uiTick = setInterval(uiRefresh, 15 * 1000); // tolerant to timer throttling
+    _uiTick = setInterval(uiRefresh, 15 * 1000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) uiRefresh(); });
     window.addEventListener('focus', uiRefresh);
   }
   startUiTick();
 
-  // On start: try user location first.
-  // If permission is denied, we keep the page calm and let the user type a city.
   (function init() {
-    // Clear the old demo default.
     state.lat = null;
     state.lon = null;
     state.data = null;
@@ -971,7 +951,6 @@
     if (locPill) locPill.textContent = 'Choose a location';
     if (timePill) { timePill.textContent = '—'; timePill.title = ''; }
 
-    // Attempt geolocation once.
     useHere({ silent: false });
   })();
 </script>
