@@ -18,6 +18,8 @@
         <div id="cityResults" class="suggest"></div>
       </div>
       <span class="pill" id="locPill">—</span>
+      <span class="pill" id="timePill">—</span>
+      <span class="pill" id="timePill">—</span>
       <button id="btnHere">Use my location</button>
       <button id="btnDemo">Demo</button>
     </div>
@@ -122,10 +124,9 @@
 
   // Timeline limits (less clutter, faster)
   // timeline capped by sunset for Today
-  const TIMELINE_MAX_ROWS = 84; // hard cap (10-min rows)
-
-  // DOM REFS
-  const locPill = document.getElementById('locPill');
+  const TIMELINE_MAX_ROWS =const locPill = document.getElementById('locPill');
+  const timePill = document.getElementById('timePill');st locPill = document.getElementById('locPill');
+  const timePill = document.getElementById('timePil
   const cityInput = document.getElementById('cityInput');
   const cityResults = document.getElementById('cityResults');
   const errBox = document.getElementById('errBox');
@@ -162,19 +163,17 @@
   const timelineEl = document.getElementById('timeline');
   const yAxisEl = document.getElementById('yAxis');
   const xAxisEl = document.getElementById('xAxis');
-  const canvas = document.getElementById('sunChart');
-  const ctx = canvas ? canvas.getContext('2d') : null;
-
-  // App state
-  let state = { lat: null, lon: null, data: null, days: null };
-
-  function setLocation(lat, lon, label = null) {
+  const canvas = document.glet state = { lat: null, lon: null, data: null, days: null, tzName: null, isBusy: false };ontefunction setLocation(lat, lon, label = null) {
     state.lat = Number(lat);
     state.lon = Number(lon);
     state.data = null;
     state.days = null;
+    state.tzName = null;
 
     if (locPill) locPill.textContent = (label && String(label).trim()) ? label : `${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}`;
+    if (timePill) { timePill.textContent = '—'; timePill.title = ''; }
+    if (cityInput) cityInput.value = (label && label !== 'My location') ? label : '';
+  }ixed(4)}`;
     if (cityInput) cityInput.value = (label && label !== 'My location') ? label : '';
   }
 
@@ -791,9 +790,19 @@
       saveCached(lat, lon, threshold, data, { days: DAYS, model: MODEL });
       render();
     } catch (e) {
-      showError('Failed to fetch. Try again.');
-      console.error(e);
-    } finally {
+      showError('Failed to fetch. Trfunction render() {
+    if (!state.data) return;
+
+    // Current time at the chosen location (timezone from backend)
+    if (timePill) {
+      if (state.tzName) {
+        timePill.textContent = fmtTime(new Date());
+        timePill.title = `Local time (${state.tzName})`;
+      } else {
+        timePill.textContent = '—';
+        timePill.title = '';
+      }
+    }y {
       setBusy(false);
     }
   }
@@ -936,10 +945,9 @@
   // Keep the "now" marker + decision fresh without refetching.
   // (Otherwise the chart can look stuck if you keep the page open.)
   let _uiTick = null;
-  let _lastUiMinute = null;
-  function uiRefresh() {
-    if (!state.data || state.isBusy) return;
-    const m = new Date().getMinutes();
+  const m = Math.floor(Date.now() / 60000);
+    if (_lastUiMinute === m) return; // only once per minute
+    _lastUiMinute = m;().getMinutes();
     if (_lastUiMinute === m) return; // only once per minute
     _lastUiMinute = m;
     render();
@@ -956,9 +964,8 @@
   // On start: try user location first.
   // If permission is denied, we keep the page calm and let the user type a city.
   (function init() {
-    // Clear the old demo default.
-    state.lat = null;
-    state.lon = null;
+    // if (locPill) locPill.textContent = 'Choose a location';
+    if (timePill) { timePill.textContent = '—'; timePill.title = ''; }tate.lon = null;
     state.data = null;
 
     if (locPill) locPill.textContent = 'Choose a location';
