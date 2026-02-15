@@ -490,6 +490,11 @@ input,select{
   // Small helpers
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const fmtTime = (v) => (v instanceof Date ? v : new Date(v)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const isDaylight = (r) => {
+    if (!r) return false;
+    if (typeof r.is_daylight === 'boolean') return r.is_daylight;
+    return Number(r.elevation || 0) > 0;
+  };
   const showError = (msg) => { if (!errBox) return; errBox.style.display = 'block'; errBox.textContent = msg; };
   const clearError = () => { if (!errBox) return; errBox.style.display = 'none'; errBox.textContent = ''; };
 
@@ -552,7 +557,7 @@ input,select{
     const s = Number(nowRow.sun_score || 0);
     const c = Number(nowRow.confidence || 0);
 
-    scoreNow.textContent = Math.round(s);
+    scoreNow.textContent = Math.round(s) + '%';
     scoreNow.className = 'value';
 
     confNow.textContent = Math.round(c * 100) + '%';
@@ -602,7 +607,7 @@ input,select{
     }
   }
 
-  function renderNextWindow(win) {
+  function renderNextWindow(win, label = null) {
     if (!win) {
       nextWindow.textContent = 'No sunny window';
       nextWindow.className = 'big bad';
@@ -614,10 +619,18 @@ input,select{
     const b = fmtTime(win.end);
 
     nextWindow.textContent = `${a} – ${b}`;
+
+    // Optional label (used when we show tomorrow's window while viewing Today)
+    if (label) {
+      nextWindowSub.textContent = label;
+    }
     nextWindow.className = 'big good';
 
     const mins = (win.minutes != null) ? win.minutes : Math.max(0, Math.round((new Date(win.end) - new Date(win.start)) / 60000));
-    nextWindowSub.textContent = `${mins} minutes above threshold`;
+    // If we didn't set a label above, show duration.
+    if (!label) {
+      nextWindowSub.textContent = `${mins} minutes above threshold`;
+    }
   }
 
   function daylightWindow(dayRows, padMinutes = 30) {
@@ -627,10 +640,10 @@ input,select{
     let first = null;
     let last = null;
     for (const r of rows) {
-      if (Number(r.elevation || 0) > 0) { first = tLocal(r); break; }
+      if (isDaylight(r)) { first = tLocal(r); break; }
     }
     for (let i = rows.length - 1; i >= 0; i--) {
-      if (Number(rows[i].elevation || 0) > 0) { last = tLocal(rows[i]); break; }
+      if (isDaylight(rows[i])) { last = tLocal(rows[i]); break; }
     }
     if (!first || !last) return null;
     const start = new Date(first.getTime() - padMinutes * 60000);
@@ -648,7 +661,7 @@ input,select{
 
     for (const r of (dayRows || [])) {
       const dt = tLocal(r);
-      const inWin = win ? (dt >= win.start && dt <= win.end) : (Number(r.elevation || 0) > 0);
+      const inWin = win ? (dt >= win.start && dt <= win.end) : isDaylight(r);
       if (!inWin) continue;
       if (Number(dayIndex) === 0 && tMs(r) < nowMs) continue; // hide past (Today)
 
@@ -676,9 +689,11 @@ input,select{
   }
 
   function renderChart(dayRows, dayIndex = 0) {
+    if (!canvas || !ctx) return;
+
     // Make canvas crisp on high-DPI screens
     const cssW = canvas.clientWidth || 900;
-    const cssH = 250; // keep in sync with <canvas height>
+    const cssH = canvas.clientHeight || 220;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
@@ -805,7 +820,7 @@ input,select{
     // --- sun score overlay ---
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i];
-      if (a.e <= 0 || b.e <= 0) continue;
+      if (!isDaylight({ elevation: a.e, is_daylight: a.e > 0 }) || !isDaylight({ elevation: b.e, is_daylight: b.e > 0 })) continue;
 
       const t = clamp(((a.s + b.s) / 2) / 100, 0, 1);
       const elev = (a.e + b.e) / 2;
@@ -999,10 +1014,23 @@ input,select{
 
     renderDecision(focusRow, context);
 
-    const win = state.data.next_sunny_window_by_day
+    let win = state.data.next_sunny_window_by_day
       ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
       : (state.data.next_sunny_window || null);
-    renderNextWindow(win);
+
+    // Calm fallback: if viewing Today but there is no remaining window, show Tomorrow's next window.
+    // This avoids "No sunny window" right after sunset when tomorrow is clearly sunny.
+    if (dayIndex === 0 && !win && state.data.next_sunny_window_by_day) {
+      const w1 = state.data.next_sunny_window_by_day["1"] || null;
+      if (w1) {
+        win = w1;
+        renderNextWindow(win, 'Tomorrow');
+      } else {
+        renderNextWindow(null);
+      }
+    } else {
+      renderNextWindow(win);
+    }
 
     const dayWin = daylightWindow(dayRows, 0);
     if (sunriseEl && sunsetEl) {
@@ -1046,8 +1074,8 @@ input,select{
     // Hide timeline list when there's no remaining daylight ahead (e.g. after sunset today)
     const nowMs = Date.now();
     const hasDaylightAhead = (dayIndex === 0)
-      ? (dayRows || []).some(r => Number(r.elevation || 0) > 0 && tMs(r) >= nowMs)
-      : (dayRows || []).some(r => Number(r.elevation || 0) > 0);
+      ? (dayRows || []).some(r => isDaylight(r) && tMs(r) >= nowMs)
+      : (dayRows || []).some(r => isDaylight(r));
 
     if (!hasDaylightAhead) {
       if (timelineEl) { timelineEl.style.display = 'none'; timelineEl.innerHTML = ''; }
