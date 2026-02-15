@@ -121,7 +121,7 @@
   const MODEL = 'ray';
 
   // Timeline limits (less clutter, faster)
-  const TIMELINE_HOURS_AHEAD_TODAY = 6; // show next N hours for Today
+  // timeline capped by sunset for Today
   const TIMELINE_MAX_ROWS = 84; // hard cap (10-min rows)
 
   // DOM REFS
@@ -441,7 +441,7 @@
 
   function renderTimeline(dayRows, dayIndex = 0, win = null) {
     const nowMs = Date.now();
-    const endMsToday = nowMs + (TIMELINE_HOURS_AHEAD_TODAY * 60 * 60 * 1000);
+    const endMsToday = win ? win.end.getTime() : Infinity;
     win = win || daylightWindow(dayRows, 30);
 
     let html = '';
@@ -455,7 +455,7 @@
       if (!inWin) continue;
       const ms = tMs(r);
       if (Number(dayIndex) === 0 && ms < nowMs) continue; // hide past (Today)
-      if (Number(dayIndex) === 0 && ms > endMsToday) continue; // limit clutter (Today)
+      if (Number(dayIndex) === 0 && ms > endMsToday) continue; // stop at sunset (Today)
       if (shown >= TIMELINE_MAX_ROWS) break; // hard cap
 
       const t = fmtTime(dt);
