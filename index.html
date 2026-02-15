@@ -97,14 +97,14 @@
         <div class="card notes">
           <div class="muted small"><b>About</b></div>
           <div class="muted small aboutText">
-            Tells you one thing: will direct sunlight reach you here?
+            Sometimes the sky looks bright but the sun never appears. This app answers one simple question: will the sun actually reach you here?
             <br><br>
-            <b>Sun Score</b> = chance the sun disk is visible.
-            <br>
-            <b>Confidence</b> = how stable that estimate is.
+            We don’t forecast comfort or temperature. We follow the sun’s path and the height of clouds to see if its rays have a clear line to you.
             <br><br>
-            Low sun means far clouds can block it.
-            High sun means mostly nearby clouds matter.
+            <b>Sun Score</b> = chance the sun disk is visible.<br>
+            <b>Confidence</b> = how steady that situation is likely to be.
+            <br><br>
+            Made by sun lovers, for sun lovers ☀️
           </div>
         </div>
       </div>
@@ -462,8 +462,8 @@
 
   function renderTimeline(dayRows, dayIndex = 0, win = null) {
     const nowMs = Date.now();
-    const endMsToday = win ? win.end.getTime() : Infinity;
     win = win || daylightWindow(dayRows, 30);
+    const endMsToday = win ? win.end.getTime() : Infinity;
 
     let html = '';
     html += '<div class="trow trowHead muted small">'
