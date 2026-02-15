@@ -932,6 +932,17 @@
   btnRefresh.addEventListener('click', () => fetchDay(true));
   daySelect.addEventListener('change', () => { if (state.data) render(); });
 
+  // Keep the "now" marker + decision fresh without refetching.
+  // (Otherwise the chart can look stuck if you keep the page open.)
+  let _uiTick = null;
+  function startUiTick() {
+    if (_uiTick) return;
+    _uiTick = setInterval(() => {
+      if (state.data && (!btnRefresh || !btnRefresh.disabled)) render();
+    }, 60 * 1000);
+  }
+  startUiTick();
+
   // On start: try user location first.
   // If permission is denied, we keep the page calm and let the user type a city.
   (function init() {
