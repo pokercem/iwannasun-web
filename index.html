@@ -256,6 +256,7 @@
 
   // UI HELPERS
   function setBusy(isBusy) {
+    state.isBusy = !!isBusy;
     if (loadingOverlay) loadingOverlay.style.display = isBusy ? 'flex' : 'none';
 
     for (const el of [btnHere, btnDemo, btnRefresh, daySelect, cityInput].filter(Boolean)) {
@@ -935,11 +936,20 @@
   // Keep the "now" marker + decision fresh without refetching.
   // (Otherwise the chart can look stuck if you keep the page open.)
   let _uiTick = null;
+  let _lastUiMinute = null;
+  function uiRefresh() {
+    if (!state.data || state.isBusy) return;
+    const m = new Date().getMinutes();
+    if (_lastUiMinute === m) return; // only once per minute
+    _lastUiMinute = m;
+    render();
+  }
   function startUiTick() {
     if (_uiTick) return;
-    _uiTick = setInterval(() => {
-      if (state.data && (!btnRefresh || !btnRefresh.disabled)) render();
-    }, 60 * 1000);
+    uiRefresh();
+    _uiTick = setInterval(uiRefresh, 15 * 1000); // tolerant to timer throttling
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) uiRefresh(); });
+    window.addEventListener('focus', uiRefresh);
   }
   startUiTick();
 
