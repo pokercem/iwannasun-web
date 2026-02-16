@@ -888,10 +888,13 @@
           if (res.ok) {
             const j = await res.json();
             const city =
-              j.city || j.locality || j.principalSubdivision || j.localityInfo?.administrative?.[0]?.name || '';
-            const country = j.countryName || '';
-            const label = [city, country].filter(Boolean).join(', ');
-            if (label) setLocation(lat, lon, label);
+              j.city ||
+              j.locality ||
+              j.principalSubdivision ||
+              j.localityInfo?.administrative?.[0]?.name ||
+              '';
+            
+            if (city) setLocation(lat, lon, city);
           }
         } catch {
           // ignore, keep "My location"
