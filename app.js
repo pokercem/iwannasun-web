@@ -670,7 +670,7 @@
 
     // Patch: try ray first, but if it fails (often 502), fall back to local.
     // Patch: use mode=quick for Today (lightweight). For Tomorrow, use mode=full so the chart has daylight.
-    const wantedMode = (Number(daySelect?.value || 0) === 0) ? 'quick' : 'full';
+    const wantedMode = 'full';
 
     const base = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
       + `&threshold=${encodeURIComponent(threshold)}&days=${DAYS}&mode=${encodeURIComponent(wantedMode)}`;
