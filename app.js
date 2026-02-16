@@ -892,7 +892,7 @@
           // ignore, keep "My location"
         }
       
-        fetchDay();
+        await fetchDay();
       },
       () => {
         if (!silent) showError('Please allow location, or search for a city above.');
