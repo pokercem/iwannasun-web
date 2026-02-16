@@ -876,17 +876,22 @@
         // temporary label so UI updates immediately
         setLocation(lat, lon, 'My location');
       
-        // try to turn coordinates into a city name
+        // turn coordinates into a place label (reverse geocode)
         try {
-          const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&language=en&format=json`;
+          const url =
+            `https://api.bigdatacloud.net/data/reverse-geocode-client` +
+            `?latitude=${encodeURIComponent(lat)}` +
+            `&longitude=${encodeURIComponent(lon)}` +
+            `&localityLanguage=en`;
+        
           const res = await fetch(url);
           if (res.ok) {
             const j = await res.json();
-            const r = j?.results?.[0];
-            if (r) {
-              const label = `${r.name || ''}${r.country ? ', ' + r.country : ''}`.trim();
-              if (label) setLocation(lat, lon, label);
-            }
+            const city =
+              j.city || j.locality || j.principalSubdivision || j.localityInfo?.administrative?.[0]?.name || '';
+            const country = j.countryName || '';
+            const label = [city, country].filter(Boolean).join(', ');
+            if (label) setLocation(lat, lon, label);
           }
         } catch {
           // ignore, keep "My location"
