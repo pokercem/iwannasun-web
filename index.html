@@ -14,8 +14,20 @@
     </div>
     <div class="row">
       <div class="cityWrap">
-        <input id="cityInput" class="cityInput" type="text" inputmode="search" autocomplete="off" placeholder="Search city…" />
-        <div id="cityResults" class="suggest"></div>
+        <label for="cityInput" class="srOnly">Search city</label>
+        <input
+          id="cityInput"
+          class="cityInput"
+          type="text"
+          inputmode="search"
+          autocomplete="off"
+          placeholder="Search city…"
+          aria-label="Search city"
+          aria-autocomplete="list"
+          aria-controls="cityResults"
+          aria-expanded="false"
+        />
+        <div id="cityResults" class="suggest" role="listbox"></div>
       </div>
       <span class="pill" id="locPill">—</span>
       <span class="pill" id="timePill">—</span>
@@ -66,12 +78,12 @@
           <div class="small chartTitle" id="chartTitle"><span>Elevation (°)</span><span>line intensity = sun score</span></div>
           <div class="chartWrap">
             <div class="yAxis" id="yAxis"></div>
-            <canvas id="sunChart" width="900" height="250"></canvas>
+            <canvas id="sunChart" width="900" height="250" aria-label="Sun elevation chart with sun score intensity"></canvas>
           </div>
           <div class="xAxis" id="xAxis"></div>
         </div>
 
-        <div class="timeline" id="timeline"></div>
+        <div class="timeline" id="timeline" aria-label="Sun score timeline"></div>
         <div class="err" id="errBox"></div>
       </div>
 
@@ -94,7 +106,7 @@
         </div>
 
         <div class="card notes">
-          <div class="muted small"><b>About</b></div>
+          <div class="muted small"><b id="about">About</b></div>
           <div class="muted small aboutText">
             You’ve probably noticed that sometimes the forecast says sunny, but the sun never shows.<br>Or it says cloudy, yet you still feel sunlight on your face or see it lighting up the world from your window.<br><br>That’s because sunlight reaching you is not really about how cloudy your area is.<br>What matters is whether there is a clear line between you and the sun.<br><br>Local forecasts give a general idea, but they struggle near sunset, sunrise, and in northern regions where the sun stays low. In those cases, distant clouds near the horizon often matter more than the clouds above you.<br><br>This app follows the path the sun takes across the sky and checks the clouds along that path.<br><br><b>Sun Score</b> means how likely the sun itself is visible.<br><b>Confidence</b> means how steady that situation is likely to stay.<br><br>Made by sun lovers, for sun lovers ☀️
           </div>
@@ -102,7 +114,7 @@
       </div>
     </div>
 
-    <div class="footer">Data: Open‑Meteo • Model: iwannasun</div>
+    <div class="footer">Data: Open‑Meteo • Model: iwannasun • <a href="#about">What is Sun score?</a></div>
   </div>
 
 <script src="./app.js" defer></script>
