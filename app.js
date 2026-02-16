@@ -869,8 +869,29 @@
     }
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation(pos.coords.latitude, pos.coords.longitude, 'My location');
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+      
+        // temporary label so UI updates immediately
+        setLocation(lat, lon, 'My location');
+      
+        // try to turn coordinates into a city name
+        try {
+          const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&language=en&format=json`;
+          const res = await fetch(url);
+          if (res.ok) {
+            const j = await res.json();
+            const r = j?.results?.[0];
+            if (r) {
+              const label = `${r.name || ''}${r.country ? ', ' + r.country : ''}`.trim();
+              if (label) setLocation(lat, lon, label);
+            }
+          }
+        } catch {
+          // ignore, keep "My location"
+        }
+      
         fetchDay();
       },
       () => {
