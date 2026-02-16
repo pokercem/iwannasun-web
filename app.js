@@ -700,9 +700,17 @@
 
       let usedModel = 'ray';
       let res = await fetch(urlRay, { signal });
-
-      // If ray fails, try local
+      
       if (!res.ok) {
+        // If backend says rate-limited, don't immediately hit it again with local.
+        let msg = '';
+        try { msg = (await res.json())?.detail || ''; } catch {}
+        if (res.status === 503 && msg.toLowerCase().includes('rate limited')) {
+          showError(msg);
+          return;
+        }
+      
+        // Otherwise fallback to local
         usedModel = 'local';
         res = await fetch(urlLocal, { signal });
       }
