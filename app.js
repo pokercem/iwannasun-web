@@ -1,10 +1,12 @@
 'use strict';
 
   // CONFIG
-  const API_BASE = "https://iwannasun.onrender.com";
+  // Use same-origin in production (iwannasun.com) and fall back to a hosted API in dev.
+  const API_BASE = 'https://iwannasun.onrender.com';
+
   const DEFAULT_THRESHOLD = 70; // product tuning constant (UI removed)
   const DAYS = 2;
-  const MODEL = 'ray';
+  const DEFAULT_MODEL = 'ray';
 
   // Timeline limits (less clutter, faster)
   // timeline capped by sunset for Today
@@ -54,6 +56,9 @@
 
   // App state
   let state = { lat: null, lon: null, data: null, days: null, tzName: null, isBusy: false };
+
+  // Abort in-flight /day requests when the user changes location rapidly.
+  let _dayAbort = null;
 
   function setLocation(lat, lon, label = null) {
     state.lat = Number(lat);
@@ -172,21 +177,31 @@
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
   // Format times in the *location* timezone (not the viewer's browser timezone).
-  function _safeFormatter(opts) {
-    try {
-      const tz = state?.tzName;
-      return new Intl.DateTimeFormat([], tz ? { ...opts, timeZone: tz } : opts);
-    } catch {
-      return new Intl.DateTimeFormat([], opts);
-    }
-  }
-  const _fmtHM = () => _safeFormatter({ hour: '2-digit', minute: '2-digit' });
-  const _fmtH  = () => _safeFormatter({ hour: '2-digit' });
-  const _fmtFull = () => _safeFormatter({ year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  // Cache Intl.DateTimeFormat instances per timezone to avoid re-creating them on every render.
+  const _fmtCache = new Map();
 
-  const fmtTime = (v) => _fmtHM().format(v instanceof Date ? v : new Date(v));
-  const fmtHour = (v) => _fmtH().format(v instanceof Date ? v : new Date(v));
-  const fmtDateTime = (v) => _fmtFull().format(v instanceof Date ? v : new Date(v));
+  function _getFormatters() {
+    const tz = state?.tzName || '';
+    if (_fmtCache.has(tz)) return _fmtCache.get(tz);
+    const make = (opts) => {
+      try {
+        return new Intl.DateTimeFormat([], tz ? { ...opts, timeZone: tz } : opts);
+      } catch {
+        return new Intl.DateTimeFormat([], opts);
+      }
+    };
+    const obj = {
+      hm: make({ hour: '2-digit', minute: '2-digit' }),
+      h: make({ hour: '2-digit' }),
+      full: make({ year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+    };
+    _fmtCache.set(tz, obj);
+    return obj;
+  }
+
+  const fmtTime = (v) => _getFormatters().hm.format(v instanceof Date ? v : new Date(v));
+  const fmtHour = (v) => _getFormatters().h.format(v instanceof Date ? v : new Date(v));
+  const fmtDateTime = (v) => _getFormatters().full.format(v instanceof Date ? v : new Date(v));
   const isDaylight = (r) => {
     if (!r) return false;
     if (typeof r.is_daylight === 'boolean') return r.is_daylight;
@@ -356,9 +371,11 @@
     win = win || daylightWindow(dayRows, 30);
     const endMsToday = win ? win.end.getTime() : Infinity;
 
-    let html = '';
-    html += '<div class="trow trowHead muted small">'
-          + '<div>Time</div><div title="Confidence">Conf.</div><div>Sun score</div></div>';
+    const parts = [];
+    parts.push(
+      '<div class="trow trowHead muted small">'
+        + '<div>Time</div><div title="Confidence">Conf.</div><div>Sun score</div></div>'
+    );
 
     let shown = 0;
     for (const r of (dayRows || [])) {
@@ -377,22 +394,24 @@
       const tcol = clamp(s / 100, 0, 1);
       const w = clamp(s, 0, 100);
       const op = (0.25 + 0.75 * tcol).toFixed(3);
-      const color = mixSunColor(tcol,1);
+      const color = mixSunColor(tcol, 1);
       const grad = `linear-gradient(90deg, ${mixSunColor(0, 0.6)}, ${color})`;
 
-      html += '<div class="trow">'
-           + `<div class="muted">${t}</div>`
-           + `<div class="muted" title="Confidence in prediction">${c == null ? '—' : (c + '%')}</div>`
-           + '<div>'
-           + `<div class="scoreNum" style="color:${color}">${s}%</div>`
-           + '<div class="bar"><div style="width:' + w + '%;background:' + grad + ';opacity:' + op + '"></div></div>'
-           + '</div>'
-           + '</div>';
+      parts.push(
+        '<div class="trow">'
+          + `<div class="muted">${t}</div>`
+          + `<div class="muted" title="Confidence in prediction">${c == null ? '—' : (c + '%')}</div>`
+          + '<div>'
+          + `<div class="scoreNum" style="color:${color}">${s}%</div>`
+          + '<div class="bar"><div style="width:' + w + '%;background:' + grad + ';opacity:' + op + '"></div></div>'
+          + '</div>'
+          + '</div>'
+      );
 
       shown += 1;
     }
 
-    timelineEl.innerHTML = html;
+    timelineEl.innerHTML = parts.join('');
   }
 
   function renderChart(dayRows, dayIndex = 0, win = null) {
@@ -604,7 +623,7 @@
 
   // CACHE + API
 
-  function cacheKey(lat, lon, threshold, { days = 2, model = 'ray' } = {}) {
+  function cacheKey(lat, lon, threshold, { days = 2, model = DEFAULT_MODEL } = {}) {
     const rlat = Number(lat).toFixed(4);
     const rlon = Number(lon).toFixed(4);
     const thr = Number(threshold);
@@ -661,7 +680,8 @@
 
     // Cache: keep the existing cache behavior, but if ray fails we may still use local.
     if (!force) {
-      const cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: MODEL });
+      let cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'ray' });
+      if (!cached) cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'local' });
       if (cached) {
         state.data = cached;
         state.tzName = cached?.meta?.tz_name || null;
@@ -673,12 +693,18 @@
     }
 
     try {
-      // Try ray
-      let res = await fetch(urlRay);
+      // Abort any previous request.
+      if (_dayAbort) _dayAbort.abort();
+      _dayAbort = new AbortController();
+      const { signal } = _dayAbort;
+
+      let usedModel = 'ray';
+      let res = await fetch(urlRay, { signal });
 
       // If ray fails, try local
       if (!res.ok) {
-        res = await fetch(urlLocal);
+        usedModel = 'local';
+        res = await fetch(urlLocal, { signal });
       }
 
       if (!res.ok) {
@@ -700,9 +726,12 @@
       prepData(state.data);
 
       // Save to cache under the configured MODEL key (simple; avoids extra cache complexity).
-      saveCached(lat, lon, threshold, data, { days: DAYS, model: MODEL });
+      saveCached(lat, lon, threshold, data, { days: DAYS, model: usedModel });
       render();
     } catch (e) {
+      if (e && (e.name === 'AbortError' || e.code === 20)) {
+        return;
+      }
       showError('Network error (could not reach API).');
       console.error(e);
     } finally {
@@ -844,10 +873,10 @@
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
-  btnDemo.addEventListener('click', useDemo);
-  btnHere.addEventListener('click', () => useHere());
-  btnRefresh.addEventListener('click', () => fetchDay(true));
-  daySelect.addEventListener('change', () => { if (state.data) render(); });
+  if (btnDemo) btnDemo.addEventListener('click', useDemo);
+  if (btnHere) btnHere.addEventListener('click', () => useHere());
+  if (btnRefresh) btnRefresh.addEventListener('click', () => fetchDay(true));
+  if (daySelect) daySelect.addEventListener('change', () => { if (state.data) render(); });
 
   let _uiTick = null;
   let _lastUiMinute = null;
