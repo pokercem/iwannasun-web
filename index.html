@@ -7,12 +7,13 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <header>
-    <div>
+  <header class="topbar">
+    <div class="brand">
       <h1>iwannasun</h1>
       <div class="sub">Will I get direct sunlight here?</div>
     </div>
-    <div class="row">
+
+    <div class="controls" aria-label="Location and controls">
       <div class="cityWrap">
         <label for="cityInput" class="srOnly">Search city</label>
         <input
@@ -29,45 +30,72 @@
         />
         <div id="cityResults" class="suggest" role="listbox"></div>
       </div>
-      <span class="pill" id="locPill">—</span>
-      <span class="pill" id="timePill">—</span>
-      <button id="btnHere">Use my location</button>
-      <button id="btnDemo">Demo</button>
+
+      <div class="pillRow">
+        <span class="pill" id="locPill" title="Location">—</span>
+        <span class="pill" id="timePill" title="Local time">—</span>
+      </div>
+
+      <div class="btnRow">
+        <button id="btnHere" class="btn">Use my location</button>
+        <button id="btnDemo" class="btn">Demo</button>
+      </div>
     </div>
   </header>
 
   <div class="wrap">
     <div class="grid">
       <div class="card cardRel">
-        <div id="loadingOverlay" class="loadingOverlay"><div class="spinner"></div></div>
+        <div id="loadingOverlay" class="loadingOverlay" aria-live="polite" aria-busy="true">
+          <div class="loadingInner">
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="loadingText">
+              <div class="loadingTitle">Loading forecast…</div>
+              <div class="muted small">Fetching clouds + sun path</div>
+            </div>
+          </div>
+        </div>
+
         <div class="row rowBetweenTop">
-          <div>
+          <div class="decisionBlock">
             <div class="big" id="decisionWrap"><span id="decisionText">—</span></div>
             <div class="muted small decisionContext" id="decisionContext"></div>
             <div class="muted small whyInline" id="whyInline"></div>
           </div>
-          <div class="row rowTop">
-            <select id="daySelect">
+
+          <div class="row rowTop rightControls">
+            <select id="daySelect" aria-label="Select day">
               <option value="0">Today</option>
               <option value="1">Tomorrow</option>
             </select>
-            <button id="btnRefresh">Refresh</button>
+            <button id="btnRefresh" class="btn">Refresh</button>
           </div>
         </div>
 
         <div class="kpi">
           <div class="box">
             <div class="label" id="labelScore">Sun score now</div>
-            <div class="value" id="scoreNow">—</div>
+            <div class="valueRow">
+              <div class="value" id="scoreNow">—</div>
+              <div class="meter" aria-hidden="true"><div class="fill" id="meterScore"></div></div>
+            </div>
           </div>
+
           <div class="box">
-            <div class="label" id="labelConf">Confidence now <span class="muted">ⓘ</span></div>
-            <div class="value" id="confNow">—</div>
+            <div class="label" id="labelConf">
+              Confidence now <span class="help" title="Confidence = how stable/reliable the sun score estimate is.">ⓘ</span>
+            </div>
+            <div class="valueRow">
+              <div class="value" id="confNow">—</div>
+              <div class="meter" aria-hidden="true"><div class="fill" id="meterConf"></div></div>
+            </div>
           </div>
+
           <div class="box" id="boxSun60">
             <div class="label" id="labelSun60">Sunny minutes next 1h</div>
             <div class="value" id="sun60">—</div>
           </div>
+
           <div class="box" id="boxSun120">
             <div class="label" id="labelSun120">Sunny minutes next 2h</div>
             <div class="value" id="sun120">—</div>
@@ -75,7 +103,9 @@
         </div>
 
         <div class="chartBlock">
-          <div class="small chartTitle" id="chartTitle"><span>Elevation (°)</span><span>line intensity = sun score</span></div>
+          <div class="small chartTitle" id="chartTitle">
+            <span>Elevation (°)</span><span>line intensity = sun score</span>
+          </div>
           <div class="chartWrap">
             <div class="yAxis" id="yAxis"></div>
             <canvas id="sunChart" width="900" height="250" aria-label="Sun elevation chart with sun score intensity"></canvas>
@@ -84,7 +114,7 @@
         </div>
 
         <div class="timeline" id="timeline" aria-label="Sun score timeline"></div>
-        <div class="err" id="errBox"></div>
+        <div class="err" id="errBox" role="status"></div>
       </div>
 
       <div class="side">
@@ -108,16 +138,24 @@
         <div class="card notes">
           <div class="muted small"><b id="about">About</b></div>
           <div class="muted small aboutText">
-            You’ve probably noticed that sometimes the forecast says sunny, but the sun never shows.<br>Or it says cloudy, yet you still feel sunlight on your face or see it lighting up the world from your window.<br><br>That’s because sunlight reaching you is not really about how cloudy your area is.<br>What matters is whether there is a clear line between you and the sun.<br><br>Local forecasts give a general idea, but they struggle near sunset, sunrise, and in northern regions where the sun stays low. In those cases, distant clouds near the horizon often matter more than the clouds above you.<br><br>This app follows the path the sun takes across the sky and checks the clouds along that path.<br><br><b>Sun Score</b> means how likely the sun itself is visible.<br><b>Confidence</b> means how steady that situation is likely to stay.<br><br>Made by sun lovers, for sun lovers ☀️
+            You’ve probably noticed that sometimes the forecast says sunny, but the sun never shows.<br>
+            Or it says cloudy, yet you still feel sunlight on your face or see it lighting up the world from your window.<br><br>
+            That’s because sunlight reaching you is not really about how cloudy your area is.<br>
+            What matters is whether there is a clear line between you and the sun.<br><br>
+            Local forecasts give a general idea, but they struggle near sunset, sunrise, and in northern regions where the sun stays low.
+            In those cases, distant clouds near the horizon often matter more than the clouds above you.<br><br>
+            This app follows the path the sun takes across the sky and checks the clouds along that path.<br><br>
+            <b>Sun Score</b> means how likely the sun itself is visible.<br>
+            <b>Confidence</b> means how steady that situation is likely to stay.<br><br>
+            Made by sun lovers, for sun lovers ☀️
           </div>
         </div>
       </div>
     </div>
 
-    <div class="footer">Data: Open‑Meteo • Model: iwannasun • <a href="#about">What is Sun score?</a></div>
+    <div class="footer">Data: Open-Meteo • Model: iwannasun • <a href="#about">What is Sun score?</a></div>
   </div>
 
-<script src="./app.js" defer></script>
-
+  <script src="./app.js" defer></script>
 </body>
 </html>
