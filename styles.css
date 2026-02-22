@@ -40,6 +40,10 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Prevent any "bottom band" where the page background shows through */
+html, body { min-height: 100%; }
+html { background: var(--bg1); }
+
 body {
   margin: 0;
   color-scheme: light;
@@ -53,6 +57,7 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  min-height: 100vh;
   transition: background 600ms var(--ease);
 }
 
