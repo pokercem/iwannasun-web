@@ -366,10 +366,10 @@ input:focus, select:focus {
 }
 
 .kpi .value {
-  font-size: 20px;
+  font-size: 19px;
   margin-top: 4px;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .meter {
@@ -400,8 +400,9 @@ input:focus, select:focus {
 }
 
 .sunTimeValue {
-  font-size: 18px;
+  font-size: 17px;
   margin-top: 4px;
+  font-weight: 600;
 }
 
 .aboutText {
@@ -415,10 +416,10 @@ input:focus, select:focus {
 .muted { color: var(--muted); }
 
 .big {
-  font-size: 24px;
+  font-size: 22px;
   margin: 2px 0 0;
   letter-spacing: 0.2px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .good { color: var(--good); }
