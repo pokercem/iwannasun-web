@@ -5,6 +5,11 @@
  * - clearer separation of Sun Score vs Confidence (small meters)
  * - better mobile behavior
  * - keep backend assumptions exactly the same
+ *
+ * Key fixes in this revision:
+ * - Parse timeline timestamps using time_utc (authoritative) to avoid viewer-timezone bugs.
+ * - Add 503 rate-limit cooldown (respects Retry-After when present) and block repeated refresh spam.
+ * - Persist cooldown across reloads (sessionStorage).
  */
 
 // CONFIG
@@ -14,6 +19,10 @@ const DAYS = 2;
 
 // Timeline limits (less clutter, faster)
 const TIMELINE_MAX_ROWS = 84;
+
+// Rate-limit handling
+const RL_STORAGE_KEY = 'iwannasun_rate_limit_until';
+const RL_DEFAULT_COOLDOWN_S = 10;
 
 // DOM
 const $ = (id) => document.getElementById(id);
@@ -73,7 +82,17 @@ const state = {
   days: null,
   tzName: null,
   isBusy: false,
+  rateLimitUntil: 0,
 };
+
+// --- Mood (wellness tone shift)
+function setMood(mood) {
+  const b = document.body;
+  if (!b) return;
+  b.classList.remove('mood-sunny', 'mood-mixed', 'mood-blocked');
+  if (mood) b.classList.add(`mood-${mood}`);
+}
+
 
 // Abort in-flight /day requests
 let _dayAbort = null;
@@ -103,6 +122,9 @@ function setBusy(isBusy) {
 
   const disable = [els.btnHere, els.btnDemo, els.btnRefresh, els.daySelect, els.cityInput].filter(Boolean);
   for (const el of disable) el.disabled = !!isBusy;
+
+  // rate-limit cooldown can also disable refresh (even when not busy)
+  applyRateLimitUi();
 
   const fade = [els.btnHere, els.btnDemo, els.btnRefresh].filter(Boolean);
   for (const el of fade) el.style.opacity = isBusy ? '0.65' : '1';
@@ -144,25 +166,33 @@ function isDaylightRow(r) {
   return Number(r.elevation || 0) > 0;
 }
 
-// Timeline rows contain ISO strings; cache parsed Date
-function tLocal(r) {
+// Timeline rows contain ISO strings.
+// IMPORTANT: Use time_utc (authoritative) for Date parsing/comparisons.
+// - If time_local has no timezone offset, new Date(time_local) would be interpreted in viewer timezone.
+// - time_utc is safe to parse everywhere and we format it into meta.tz_name for display.
+function tUtc(r) {
   if (!r) return null;
-  if (r._tLocal instanceof Date) return r._tLocal;
-  const d = new Date(r.time_local);
-  r._tLocal = d;
+  if (r._tUtc instanceof Date) return r._tUtc;
+  const src = r.time_utc || r.time_local;
+  const d = new Date(src);
+  r._tUtc = d;
   r._tMs = d.getTime();
   return d;
 }
-const tMs = (r) => (r && typeof r._tMs === 'number') ? r._tMs : (tLocal(r)?.getTime() ?? NaN);
+const tMs = (r) => (r && typeof r._tMs === 'number') ? r._tMs : (tUtc(r)?.getTime() ?? NaN);
 
 // Build day buckets
 function prepData(data) {
   if (!data?.timeline) return;
   const days = {};
   for (const r of data.timeline) {
-    tLocal(r);
+    tUtc(r);
     const di = Number(r.day_index || 0);
     (days[di] ||= []).push(r);
+  }
+  // Ensure stable ordering (just in case)
+  for (const k of Object.keys(days)) {
+    days[k].sort((a, b) => tMs(a) - tMs(b));
   }
   state.days = days;
 }
@@ -177,6 +207,64 @@ function mixSunColor(t, alpha = 1) {
   const bl = Math.round(a.b + (b.b - a.b) * t);
   const aa = clamp(alpha, 0, 1);
   return `rgba(${r}, ${g}, ${bl}, ${aa})`;
+}
+
+// --- Rate-limit cooldown
+let _rlTimer = null;
+function loadRateLimitUntil() {
+  try {
+    const raw = sessionStorage.getItem(RL_STORAGE_KEY);
+    const v = Number(raw || 0);
+    if (Number.isFinite(v) && v > 0) state.rateLimitUntil = v;
+  } catch { /* ignore */ }
+}
+function saveRateLimitUntil(ts) {
+  try { sessionStorage.setItem(RL_STORAGE_KEY, String(ts || 0)); } catch { /* ignore */ }
+}
+function clearRateLimit() {
+  state.rateLimitUntil = 0;
+  saveRateLimitUntil(0);
+  if (_rlTimer) { clearInterval(_rlTimer); _rlTimer = null; }
+  applyRateLimitUi();
+}
+function startRateLimitCooldown(seconds, detailMsg = '') {
+  const s = clamp(Number(seconds || 0), 5, 15 * 60);
+  state.rateLimitUntil = Date.now() + s * 1000;
+  saveRateLimitUntil(state.rateLimitUntil);
+
+  if (_rlTimer) clearInterval(_rlTimer);
+  _rlTimer = setInterval(() => {
+    if (Date.now() >= state.rateLimitUntil) {
+      clearRateLimit();
+      clearError();
+    } else {
+      applyRateLimitUi(detailMsg);
+    }
+  }, 500);
+
+  applyRateLimitUi(detailMsg);
+}
+function rateLimitRemainingMs() {
+  return Math.max(0, state.rateLimitUntil - Date.now());
+}
+function applyRateLimitUi(detailMsg = '') {
+  const remMs = rateLimitRemainingMs();
+  const active = remMs > 0;
+
+  if (els.btnRefresh) {
+    // Only disable refresh for cooldown (other controls still work)
+    const shouldDisable = active || state.isBusy;
+    els.btnRefresh.disabled = !!shouldDisable;
+    els.btnRefresh.title = active
+      ? `Rate limited. Try again in ${Math.ceil(remMs / 1000)}s.`
+      : 'Refresh data';
+  }
+
+  if (active) {
+    const secs = Math.ceil(remMs / 1000);
+    const suffix = detailMsg ? ` ${detailMsg}` : '';
+    showError(`Rate limited by the API. Please wait ${secs}s and try again.${suffix}`);
+  }
 }
 
 // --- Location
@@ -264,7 +352,8 @@ function chooseCityResult(r) {
   const label = `${r.name || ''}`.trim() || '—';
   setLocation(r.latitude, r.longitude, label);
   hideCityResults();
-  fetchDay(true);
+  // Not forced: use cache first; user can hit Refresh to force.
+  fetchDay(false);
 }
 
 if (els.cityInput) {
@@ -347,6 +436,12 @@ function saveCached(lat, lon, threshold, data, opts = {}) {
 
 // --- API
 async function fetchDay(force = false) {
+  // Respect cooldown (even if user spams Refresh)
+  if (rateLimitRemainingMs() > 0) {
+    applyRateLimitUi();
+    return;
+  }
+
   setBusy(true);
   await nextPaint();
   clearError();
@@ -394,7 +489,11 @@ async function fetchDay(force = false) {
       try { msg = (await res.json())?.detail || ''; } catch {}
 
       if (res.status === 503 && msg.toLowerCase().includes('rate limited')) {
-        showError(msg);
+        // Try to honor Retry-After if available
+        const ra = res.headers?.get?.('Retry-After');
+        let cooldown = RL_DEFAULT_COOLDOWN_S;
+        if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 15 * 60);
+        startRateLimitCooldown(cooldown, msg ? `(${msg})` : '');
         return;
       }
 
@@ -445,6 +544,7 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     if (els.whyInline) els.whyInline.textContent = '';
     setMeter(els.meterScore, 0, 'rgba(51,51,51,0.10)');
     setMeter(els.meterConf, 0, 'rgba(51,51,51,0.10)');
+    setMood(null);
     return;
   }
 
@@ -486,6 +586,11 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     els.decisionWrap.className = 'big';
     els.decisionWrap.style.color = sunColor;
   }
+
+  // Set wellness mood class on body
+  if (decision === 'Sunny') setMood('sunny');
+  else if (decision === 'Mixed') setMood('mixed');
+  else setMood('blocked');
 
   // WHY (short, decision-oriented)
   if (els.whyInline) {
@@ -553,10 +658,10 @@ function daylightWindow(dayRows, padMinutes = 30) {
   let last = null;
 
   for (const r of rows) {
-    if (isDaylightRow(r)) { first = tLocal(r); break; }
+    if (isDaylightRow(r)) { first = tUtc(r); break; }
   }
   for (let i = rows.length - 1; i >= 0; i--) {
-    if (isDaylightRow(rows[i])) { last = tLocal(rows[i]); break; }
+    if (isDaylightRow(rows[i])) { last = tUtc(rows[i]); break; }
   }
   if (!first || !last) return null;
 
@@ -580,7 +685,7 @@ function renderTimeline(dayRows, dayIndex = 0, win = null) {
 
   let shown = 0;
   for (const r of (dayRows || [])) {
-    const dt = tLocal(r);
+    const dt = tUtc(r);
     const inWin = win ? (dt >= win.start && dt <= win.end) : isDaylightRow(r);
     if (!inWin) continue;
 
@@ -648,10 +753,10 @@ function renderChart(dayRows, dayIndex = 0, win = null) {
   let endIdx = dayRows.length - 1;
 
   for (let i = 0; i < dayRows.length; i++) {
-    if (tLocal(dayRows[i]) >= win.start) { startIdx = Math.max(0, i); break; }
+    if (tUtc(dayRows[i]) >= win.start) { startIdx = Math.max(0, i); break; }
   }
   for (let i = dayRows.length - 1; i >= 0; i--) {
-    if (tLocal(dayRows[i]) <= win.end) { endIdx = Math.min(dayRows.length - 1, i); break; }
+    if (tUtc(dayRows[i]) <= win.end) { endIdx = Math.min(dayRows.length - 1, i); break; }
   }
 
   const rows = dayRows.slice(startIdx, endIdx + 1);
@@ -667,8 +772,8 @@ function renderChart(dayRows, dayIndex = 0, win = null) {
   }
 
   if (els.xAxis) {
-    const t0 = tLocal(rows[0]);
-    const t1 = tLocal(rows[rows.length - 1]);
+    const t0 = tUtc(rows[0]);
+    const t1 = tUtc(rows[rows.length - 1]);
     const steps = 4;
     const labels = [];
     for (let k = 0; k <= steps; k++) {
@@ -705,7 +810,7 @@ function renderChart(dayRows, dayIndex = 0, win = null) {
 
   const pts = rows.map((r, i) => {
     const e = Math.max(0, Number(r.elevation || 0));
-    return { x: xOf(i), y: yOf(e), e, s: Number(r.sun_score || 0), t: tLocal(r) };
+    return { x: xOf(i), y: yOf(e), e, s: Number(r.sun_score || 0), t: tUtc(r) };
   });
 
   // soft fill based on average score
@@ -811,14 +916,16 @@ function nearestRowToLocalHour(dayRows, hour = 12) {
   const rows = (dayRows || []);
   if (!rows.length) return null;
 
-  const base = tLocal(rows[0]);
+  // Use the first row's UTC timestamp and then format/display with tz.
+  // The selection is "closest to local hour" visually; this is only for a stable default row.
+  const base = tUtc(rows[0]);
   const target = new Date(base);
   target.setHours(hour, 0, 0, 0);
 
   let best = rows[0];
   let bestDt = Infinity;
   for (const r of rows) {
-    const t = tLocal(r);
+    const t = tUtc(r);
     const dt = Math.abs(t - target);
     if (dt < bestDt) { bestDt = dt; best = r; }
   }
@@ -866,7 +973,7 @@ function render() {
     : (state.data.next_sunny_window || null);
 
   if (dayIndex === 0 && !win && state.data.next_sunny_window_by_day) {
-    const w1 = state.data.next_sunny_window_by_day["1"] || null;
+    const w1 = state.data.next_sunny_window_by_day['1'] || null;
     if (w1) {
       renderNextWindow(w1, 'Tomorrow');
     } else {
@@ -930,6 +1037,9 @@ function render() {
     if (els.timeline) els.timeline.style.display = 'block';
     renderTimeline(dayRows, dayIndex, dayWin30);
   }
+
+  // Keep refresh disabled if rate-limited
+  applyRateLimitUi();
 }
 
 // --- Actions
@@ -1022,6 +1132,9 @@ startUiTick();
 
 // Init
 window.addEventListener('DOMContentLoaded', () => {
+  loadRateLimitUntil();
+  applyRateLimitUi();
+
   state.lat = null;
   state.lon = null;
   state.data = null;
