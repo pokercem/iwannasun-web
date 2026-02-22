@@ -41,17 +41,19 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 /* Prevent any "bottom band" where the page background shows through */
-html, body { min-height: 100%; }
-html { background: var(--bg1); }
-
-body {
+html, body {
   margin: 0;
   color-scheme: light;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   font-size: 14px; /* establish consistent base */
   line-height: 1.45;
-  background:
-    radial-gradient(900px 500px at 20% -10%, rgba(244, 184, 96, 0.28), rgba(244, 184, 96, 0.00) 60%),
+  background: transparent; /* let html provide the page background */
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+, rgba(244, 184, 96, 0.28), rgba(244, 184, 96, 0.00) 60%),
     radial-gradient(900px 520px at 95% 0%, rgba(155, 189, 217, 0.26), rgba(155, 189, 217, 0.00) 62%),
     linear-gradient(180deg, var(--bg0) 0%, var(--bg1) 100%);
   color: var(--text);
@@ -61,22 +63,22 @@ body {
   transition: background 600ms var(--ease);
 }
 
-/* --- Wellness mood shifts --- */
-body.mood-sunny {
+/* --- Wellness mood shifts (apply to root html) --- */
+html.mood-sunny {
   background:
     radial-gradient(1000px 520px at 15% -10%, rgba(244, 184, 96, 0.45), rgba(244, 184, 96, 0.00) 65%),
     radial-gradient(900px 520px at 95% 0%, rgba(255, 210, 120, 0.28), rgba(255, 210, 120, 0.00) 60%),
     linear-gradient(180deg, #fff6e6 0%, #fdf3df 100%);
 }
 
-body.mood-mixed {
+html.mood-mixed {
   background:
     radial-gradient(900px 500px at 20% -10%, rgba(244, 184, 96, 0.22), rgba(244, 184, 96, 0.00) 60%),
     radial-gradient(900px 520px at 95% 0%, rgba(155, 189, 217, 0.30), rgba(155, 189, 217, 0.00) 62%),
     linear-gradient(180deg, #fef6ea 0%, #eef4fb 100%);
 }
 
-body.mood-blocked {
+html.mood-blocked {
   background:
     radial-gradient(900px 520px at 95% 0%, rgba(155, 189, 217, 0.40), rgba(155, 189, 217, 0.00) 65%),
     linear-gradient(180deg, #f1f4f8 0%, #e6edf5 100%);
