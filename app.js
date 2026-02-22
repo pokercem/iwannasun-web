@@ -87,10 +87,12 @@ const state = {
 
 // --- Mood (wellness tone shift)
 function setMood(mood) {
-  const b = document.body;
-  if (!b) return;
-  b.classList.remove('mood-sunny', 'mood-mixed', 'mood-blocked');
-  if (mood) b.classList.add(`mood-${mood}`);
+  // Apply mood classes to <html> (root), not <body>
+  const root = document.documentElement; // <html>
+  if (!root) return;
+  root.classList.remove('mood-sunny', 'mood-mixed', 'mood-blocked');
+  if (mood) root.classList.add(`mood-${mood}`);
+}`);
 }
 
 
