@@ -228,7 +228,7 @@ button, .btn {
   border-radius: 14px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   transition: transform 160ms var(--ease), background 160ms var(--ease), box-shadow 160ms var(--ease);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
 }
