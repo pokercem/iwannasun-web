@@ -442,16 +442,17 @@ input:focus, select:focus {
 .trowHead {
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 11px;
+  font-size: 10px;
+  color: var(--muted);
 }
 
 .trow {
   display: grid;
   grid-template-columns: 70px 52px minmax(0, 1fr);
   gap: 7px;
-  padding: 10px 0;
+  padding: 8px 0;
   border-bottom: 1px solid rgba(20, 24, 28, 0.08);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .bar {
@@ -582,7 +583,11 @@ canvas {
 }
 .footer a:hover { border-bottom-color: rgba(244, 184, 96, 0.60); }
 
-.scoreNum { font-variant-numeric: tabular-nums; }
+.scoreNum {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 500;
+}
 
 /* Small polish for very narrow screens */
 @media (max-width: 360px) {
