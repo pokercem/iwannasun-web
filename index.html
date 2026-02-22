@@ -10,10 +10,11 @@
   <header class="topbar">
     <div class="brand">
       <h1>iwannasun</h1>
-      <div class="sub">Will I get direct sunlight here?</div>
+      <div class="sub">Find your next sun moment.</div>
     </div>
 
     <div class="controls" aria-label="Location and controls">
+      <div class="muted small" style="margin-top:2px">Pick a place → get your next sun break</div>
       <div class="cityWrap">
         <label for="cityInput" class="srOnly">Search city</label>
         <input
@@ -37,8 +38,8 @@
       </div>
 
       <div class="btnRow">
-        <button id="btnHere" class="btn">Use my location</button>
-        <button id="btnDemo" class="btn">Demo</button>
+        <button id="btnHere" class="btn" type="button">Use my spot</button>
+        <button id="btnDemo" class="btn" type="button">Try Amsterdam</button>
       </div>
     </div>
   </header>
@@ -46,7 +47,8 @@
   <div class="wrap">
     <div class="grid">
       <div class="card cardRel">
-        <div id="loadingOverlay" class="loadingOverlay" aria-live="polite" aria-busy="true">
+        <!-- aria-busy defaults to false; app.js toggles it -->
+        <div id="loadingOverlay" class="loadingOverlay" aria-live="polite" aria-busy="false">
           <div class="loadingInner">
             <div class="spinner" aria-hidden="true"></div>
             <div class="loadingText">
@@ -68,7 +70,7 @@
               <option value="0">Today</option>
               <option value="1">Tomorrow</option>
             </select>
-            <button id="btnRefresh" class="btn">Refresh</button>
+            <button id="btnRefresh" class="btn" type="button">Refresh</button>
           </div>
         </div>
 
@@ -114,22 +116,22 @@
         </div>
 
         <div class="timeline" id="timeline" aria-label="Sun score timeline"></div>
-        <div class="err" id="errBox" role="status"></div>
+        <div class="err" id="errBox" role="status" aria-live="polite"></div>
       </div>
 
       <div class="side">
         <div class="card">
-          <div class="muted small">Next sunny window</div>
+          <div class="muted small">Your next sun break</div>
           <div class="big" id="nextWindow">—</div>
           <div class="muted nextWindowSub" id="nextWindowSub">—</div>
 
           <div class="sunTimesRow">
             <div>
-              <div class="muted small">Sunrise</div>
+              <div class="muted small">Morning light</div>
               <div class="big sunTimeValue" id="sunriseTime">—</div>
             </div>
             <div>
-              <div class="muted small">Sunset</div>
+              <div class="muted small">Evening light</div>
               <div class="big sunTimeValue" id="sunsetTime">—</div>
             </div>
           </div>
@@ -138,22 +140,18 @@
         <div class="card notes">
           <div class="muted small"><b id="about">About</b></div>
           <div class="muted small aboutText">
-            You’ve probably noticed that sometimes the forecast says sunny, but the sun never shows.<br>
-            Or it says cloudy, yet you still feel sunlight on your face or see it lighting up the world from your window.<br><br>
-            That’s because sunlight reaching you is not really about how cloudy your area is.<br>
-            What matters is whether there is a clear line between you and the sun.<br><br>
-            Local forecasts give a general idea, but they struggle near sunset, sunrise, and in northern regions where the sun stays low.
-            In those cases, distant clouds near the horizon often matter more than the clouds above you.<br><br>
-            This app follows the path the sun takes across the sky and checks the clouds along that path.<br><br>
-            <b>Sun Score</b> means how likely the sun itself is visible.<br>
-            <b>Confidence</b> means how steady that situation is likely to stay.<br><br>
-            Made by sun lovers, for sun lovers ☀️
+            Sunlight is a simple wellness lever: it can lift mood, help you feel awake, and make a short walk feel like a reset.<br><br>
+            The tricky part is that “cloudy” doesn’t always mean “no sun.” What matters is whether there’s a clear line between you and the sun — especially near sunrise/sunset when the sun is low and distant clouds matter most.<br><br>
+            This app follows the sun’s path and checks the clouds along that path, so you can plan a quick <b>sun break</b> when it counts.<br><br>
+            <b>Sun Score</b> = how likely the sun is directly visible.<br>
+            <b>Confidence</b> = how steady that situation is likely to stay.
+            <div class="muted small" style="margin-top:10px">Tip: Add this page to your home screen for a fast daily check.</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="footer">Data: Open-Meteo • Model: iwannasun • <a href="#about">What is Sun score?</a></div>
+    <div class="footer">Data: Open-Meteo • Model: iwannasun • <a href="#about">How does it work?</a></div>Data: Open-Meteo • Model: iwannasun • <a href="#about">What is Sun score?</a></div>
   </div>
 
   <script src="./app.js" defer></script>
