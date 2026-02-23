@@ -103,6 +103,7 @@ const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 function roundCoord(x, decimals = 3) {
   const p = Math.pow(10, decimals);
   return Math.round(Number(x) * p) / p;
+  )
 const nextPaint = () => new Promise((r) => requestAnimationFrame(r));
 
 function showError(msg) {
