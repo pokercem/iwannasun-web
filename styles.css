@@ -52,6 +52,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 
@@ -493,6 +494,13 @@ input:focus, select:focus {
   opacity: 0.85;
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.chartTitle > * {
+  min-width: 0;
 }
 
 canvas {
