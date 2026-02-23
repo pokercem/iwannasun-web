@@ -53,15 +53,7 @@ html, body {
   text-rendering: optimizeLegibility;
   min-height: 100vh;
 }
-, rgba(244, 184, 96, 0.28), rgba(244, 184, 96, 0.00) 60%),
-    radial-gradient(900px 520px at 95% 0%, rgba(155, 189, 217, 0.26), rgba(155, 189, 217, 0.00) 62%),
-    linear-gradient(180deg, var(--bg0) 0%, var(--bg1) 100%);
-  color: var(--text);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  min-height: 100vh;
-  transition: background 600ms var(--ease);
-}
+
 
 /* --- Wellness mood shifts (apply to root html) --- */
 html.mood-sunny {
@@ -191,6 +183,25 @@ html.mood-blocked {
   align-items: flex-start;
   flex-wrap: nowrap;
   gap: 10px;
+}
+
+/* Critical: allow the left decision block to shrink on small screens.
+   Without this, longer text (e.g. "Based on tomorrow…") can force horizontal overflow. */
+.rowBetweenTop .decisionBlock {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Keep the controls sized to content */
+.rowBetweenTop .rightControls {
+  flex: 0 0 auto;
+}
+
+/* Ensure long sentences wrap instead of expanding the layout */
+.decisionContext,
+.whyInline {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .rowTop { align-self: flex-start; }
