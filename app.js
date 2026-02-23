@@ -100,6 +100,9 @@ let _dayAbort = null;
 
 // --- small helpers
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+function roundCoord(x, decimals = 3) {
+  const p = Math.pow(10, decimals);
+  return Math.round(Number(x) * p) / p;
 const nextPaint = () => new Promise((r) => requestAnimationFrame(r));
 
 function showError(msg) {
@@ -1064,8 +1067,8 @@ async function useHere({ silent = false } = {}) {
 
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
+      const lat = roundCoord(pos.coords.latitude, 3);
+      const lon = roundCoord(pos.coords.longitude, 3);
 
       // show immediate feedback
       setLocation(lat, lon, 'My location');
