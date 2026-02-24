@@ -306,7 +306,7 @@ input:focus, select:focus {
 .cityWrap { position: relative; }
 
 .cityInput {
-  width: 220px;
+  width: 170px;
   max-width: 100%;
 }
 
