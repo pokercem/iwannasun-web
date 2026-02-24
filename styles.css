@@ -191,6 +191,16 @@ html.mood-blocked {
 
 .row > * { flex: none; }
 
+/* Allow header controls to shrink/wrap instead of forcing horizontal overflow */
+.rowBetweenTop .rightControls > * {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.rowBetweenTop .rightControls select {
+  max-width: 100%;
+}
+
 .rowBetweenTop {
   justify-content: space-between;
   align-items: flex-start;
@@ -309,6 +319,17 @@ input:focus, select:focus {
 .cityInput {
   width: 170px;
   max-width: 100%;
+}
+
+@media (max-width: 700px) {
+  .rowBetweenTop {
+    flex-wrap: wrap;
+  }
+
+  .rightControls {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 520px) {
