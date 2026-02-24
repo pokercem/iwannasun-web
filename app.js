@@ -37,7 +37,6 @@ const els = {
   loadingOverlay: $('loadingOverlay'),
 
   btnHere: $('btnHere'),
-  btnDemo: $('btnDemo'),
   btnRefresh: $('btnRefresh'),
   daySelect: $('daySelect'),
 
@@ -127,13 +126,13 @@ function setBusy(isBusy) {
     els.loadingOverlay.setAttribute('aria-busy', isBusy ? 'true' : 'false');
   }
 
-  const disable = [els.btnHere, els.btnDemo, els.btnRefresh, els.daySelect, els.cityInput].filter(Boolean);
+  const disable = [els.btnHere, els.btnRefresh, els.daySelect, els.cityInput].filter(Boolean);
   for (const el of disable) el.disabled = !!isBusy;
 
   // rate-limit cooldown can also disable refresh (even when not busy)
   applyRateLimitUi();
 
-  const fade = [els.btnHere, els.btnDemo, els.btnRefresh].filter(Boolean);
+  const fade = [els.btnHere, els.btnRefresh].filter(Boolean);
   for (const el of fade) el.style.opacity = isBusy ? '0.65' : '1';
 }
 
@@ -1153,11 +1152,6 @@ function render() {
 }
 
 // --- Actions
-function useDemo() {
-  setLocation(52.3676, 4.9041, 'Amsterdam');
-  fetchDay();
-}
-
 async function useHere({ silent = false } = {}) {
   setBusy(true);
   await nextPaint();
@@ -1221,7 +1215,6 @@ async function useHere({ silent = false } = {}) {
 }
 
 // --- Wire up events
-if (els.btnDemo) els.btnDemo.addEventListener('click', useDemo);
 if (els.btnHere) els.btnHere.addEventListener('click', () => useHere());
 if (els.btnRefresh) els.btnRefresh.addEventListener('click', () => fetchDay(true));
 if (els.daySelect) els.daySelect.addEventListener('change', () => { if (state.data) render(); });
