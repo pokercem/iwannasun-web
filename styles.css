@@ -57,7 +57,7 @@ html, body {
   margin: 0;
   color-scheme: light;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  font-size: 14px; /* establish consistent base */
+  font-size: 15px; /* establish consistent base (calmer readability) */
   line-height: 1.45;
   background: transparent; /* let html provide the page background */
   color: var(--text);
@@ -106,9 +106,9 @@ html.mood-blocked {
 
 .brand h1 {
   margin: 0;
-  font-size: 17px;
-  letter-spacing: 0.2px;
-  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.1px;
+  font-weight: 500; /* more refined, less heavy */
 }
 .brand .sub {
   font-size: 12px;
@@ -401,7 +401,7 @@ input:focus, select:focus {
 .kpi .label {
   font-size: 11px;
   color: var(--muted);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
 
 .valueRow {
@@ -412,10 +412,10 @@ input:focus, select:focus {
 }
 
 .kpi .value {
-  font-size: 20px;
+  font-size: 18px; /* slightly reduced to avoid strong jumps */
   margin-top: 4px;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 500; /* consistent weight across UI */
 }
 
 .meter {
@@ -446,9 +446,9 @@ input:focus, select:focus {
 }
 
 .sunTimeValue {
-  font-size: 18px;
+  font-size: 17px;
   margin-top: 4px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .aboutText {
@@ -459,7 +459,7 @@ input:focus, select:focus {
 /* Make "How it works" feel present but calm (structured, not loud) */
 .notes .aboutText b {
   display: inline-block;
-  font-weight: 650;
+  font-weight: 600; /* toned down from 650 */
   color: rgba(20, 24, 28, 0.78);
   margin-top: 6px;
 }
@@ -486,10 +486,10 @@ input:focus, select:focus {
 .muted { color: var(--muted); }
 
 .big {
-  font-size: 28px;
+  font-size: 24px; /* reduced contrast for calmer hierarchy */
   margin: 4px 0 0;
-  letter-spacing: 0.2px;
-  font-weight: 600;
+  letter-spacing: 0.1px;
+  font-weight: 500; /* lighter weight for visual balance */
 }
 
 /* Calm decision tone: avoid overly saturated states */
@@ -638,7 +638,7 @@ canvas {
 .loadingTitle {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
 }
 
 .spinner {
