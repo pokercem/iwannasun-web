@@ -204,6 +204,65 @@ function prepData(data) {
   state.days = days;
 }
 
+// ------------------------------
+// NEW: Daylight-average metrics
+// ------------------------------
+function dayAverages(dayRows) {
+  const rows = (dayRows || []).filter(r => isDaylightRow(r));
+  if (!rows.length) return null;
+
+  let sumScore = 0;
+  let sumConf = 0;
+  let nScore = 0;
+  let nConf = 0;
+
+  // IMPORTANT: keep separate counters per field, otherwise missing values
+  // would drag averages down.
+  let sumLow = 0, sumMid = 0, sumHigh = 0, sumPrecip = 0;
+  let nLow = 0, nMid = 0, nHigh = 0, nPrecip = 0;
+
+  for (const r of rows) {
+    const s = Number(r.sun_score);
+    if (Number.isFinite(s)) { sumScore += s; nScore++; }
+
+    const c = Number(r.confidence);
+    if (Number.isFinite(c)) { sumConf += c; nConf++; }
+
+    const low = Number(r.cloud?.low);
+    if (Number.isFinite(low)) { sumLow += low; nLow++; }
+
+    const mid = Number(r.cloud?.mid);
+    if (Number.isFinite(mid)) { sumMid += mid; nMid++; }
+
+    const high = Number(r.cloud?.high);
+    if (Number.isFinite(high)) { sumHigh += high; nHigh++; }
+
+    const pr = Number(r.cloud?.precip_mm);
+    if (Number.isFinite(pr)) { sumPrecip += pr; nPrecip++; }
+  }
+
+  const avgScore = nScore ? (sumScore / nScore) : 0;
+  const avgConf = nConf ? (sumConf / nConf) : 0;
+
+  const avgLow = nLow ? (sumLow / nLow) : 0;
+  const avgMid = nMid ? (sumMid / nMid) : 0;
+  const avgHigh = nHigh ? (sumHigh / nHigh) : 0;
+  const avgPrecip = nPrecip ? (sumPrecip / nPrecip) : 0;
+
+  const layers = [
+    { name: 'low clouds', v: avgLow },
+    { name: 'mid clouds', v: avgMid },
+    { name: 'high clouds', v: avgHigh },
+  ].sort((a, b) => b.v - a.v);
+
+  return {
+    avgScore,
+    avgConf,
+    clouds: { low: avgLow, mid: avgMid, high: avgHigh, precip_mm: avgPrecip },
+    topLayer: layers[0],
+  };
+}
+
 // Color mix: 0 -> cloudy blue, 1 -> sunny warm
 function mixSunColor(t, alpha = 1) {
   t = clamp(Number(t || 0), 0, 1);
@@ -577,11 +636,14 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     return;
   }
 
-  const isNow = context?.label === 'now';
-  if (els.decisionContext) els.decisionContext.textContent = isNow ? '' : `Based on ${context.label}`;
-  if (els.labelScore) els.labelScore.textContent = isNow ? 'Sun score now' : 'Sun score';
+  const label = String(context?.label || '');
+  const isNow = label === 'now';
+  const isAvg = label.toLowerCase().includes('average');
+
+  if (els.decisionContext) els.decisionContext.textContent = isNow ? '' : `Based on ${label}`;
+  if (els.labelScore) els.labelScore.textContent = isNow ? 'Sun score now' : (isAvg ? 'Sun score (avg)' : 'Sun score');
   // Keep “ⓘ” behavior, but we also added title in HTML
-  if (els.labelConf) els.labelConf.firstChild && (els.labelConf.firstChild.textContent = isNow ? 'Confidence now ' : 'Confidence ');
+  if (els.labelConf) els.labelConf.firstChild && (els.labelConf.firstChild.textContent = isNow ? 'Confidence now ' : (isAvg ? 'Confidence (avg) ' : 'Confidence '));
 
   const s = Number(focusRow.sun_score || 0);
   const c = Number(focusRow.confidence || 0);
@@ -602,7 +664,9 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     const cp = Math.round(c * 100);
     if (els.confNow) {
       els.confNow.textContent = cp + '%';
-      els.confNow.title = 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
+      els.confNow.title = isAvg
+        ? 'Confidence average across daylight hours (higher = more stable conditions).'
+        : 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
     }
     // Confidence uses a neutral ink color (not the sunny color) so it feels distinct
     setMeter(els.meterConf, cp, 'rgba(51,51,51,0.28)');
@@ -646,9 +710,13 @@ function renderDecision(focusRow, context = { label: 'now' }) {
       }
 
       if (!parts.length) {
-        els.whyInline.textContent = 'Clear sky and sun above the horizon.';
+        els.whyInline.textContent = isAvg
+          ? 'Mostly clear overall (daylight average).'
+          : 'Clear sky and sun above the horizon.';
       } else {
-        const prefix = (s >= DEFAULT_THRESHOLD) ? 'Clear despite ' : 'Mostly blocked by ';
+        const prefix = isAvg
+          ? ((s >= DEFAULT_THRESHOLD) ? 'Overall clear despite ' : 'Overall mostly blocked by ')
+          : ((s >= DEFAULT_THRESHOLD) ? 'Clear despite ' : 'Mostly blocked by ');
         els.whyInline.textContent = prefix + parts.join(' + ') + '.';
       }
     }
@@ -983,18 +1051,31 @@ function render() {
     dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : [];
   }
 
-  let focusRow = null;
-  let context = { label: 'now' };
-
+  // ------------------------------
+  // UPDATED: Tomorrow shows averages
+  // ------------------------------
   if (dayIndex === 0) {
-    focusRow = nearestNowRow(dayRows);
-    context = { label: 'now' };
+    const focusRow = nearestNowRow(dayRows);
+    renderDecision(focusRow, { label: 'now' });
   } else {
-    focusRow = nearestRowToLocalHour(dayRows, 12);
-    context = { label: 'tomorrow ~12:00' };
-  }
+    const avg = dayAverages(dayRows);
 
-  renderDecision(focusRow, context);
+    if (!avg) {
+      // No daylight tomorrow
+      const fallback = nearestRowToLocalHour(dayRows, 12);
+      renderDecision(fallback, { label: 'tomorrow (no daylight)' });
+    } else {
+      // Synthetic row for decision UI
+      const synthetic = {
+        sun_score: avg.avgScore,
+        confidence: avg.avgConf,
+        elevation: 1,
+        is_daylight: true,
+        cloud: avg.clouds,
+      };
+      renderDecision(synthetic, { label: 'tomorrow (daylight average)' });
+    }
+  }
 
   // Next window
   let win = state.data.next_sunny_window_by_day
