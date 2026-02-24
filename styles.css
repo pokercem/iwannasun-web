@@ -346,14 +346,11 @@ input:focus, select:focus {
 
   /* Tighten reading blocks on small screens */
   .whyInline { max-width: 100%; }
-
-  /* Positioning line should not feel like a separator on mobile */
-  .positioningLine {
-    padding-top: 0;
-    margin-top: 0;
-  }
 }
 
+
+/* Suggestions dropdown */
+.suggest {
   position: absolute;
   top: 42px;
   left: 0;
@@ -474,11 +471,10 @@ input:focus, select:focus {
 .notes .muted.small b#about {
   letter-spacing: 0.02em;
 }
-/* Positioning line between main card and side column */
+/* Positioning line (now inside the side column on desktop, stacked naturally on mobile) */
 .positioningLine {
-  grid-column: 1 / -1;
-  padding: 2px 2px 6px;
-  margin: 2px 2px 6px;
+  padding: 2px 4px 8px;
+  margin: 0 2px 2px;
 }
 
 .positioningLine .muted.small {
