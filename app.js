@@ -22,7 +22,8 @@ const TIMELINE_MAX_ROWS = 84;
 
 // Rate-limit handling
 const RL_STORAGE_KEY = 'iwannasun_rate_limit_until';
-const RL_DEFAULT_COOLDOWN_S = 10;
+const RL_PROVIDER_DEFAULT_COOLDOWN_S = 15; // Open-Meteo / forecast provider
+const RL_USER_DEFAULT_COOLDOWN_S = 10;     // your API (slow down)
 
 // DOM
 const $ = (id) => document.getElementById(id);
@@ -83,6 +84,8 @@ const state = {
   tzName: null,
   isBusy: false,
   rateLimitUntil: 0,
+  rateLimitMsg: '',
+};
 };
 
 // --- Mood (wellness tone shift)
@@ -228,13 +231,15 @@ function saveRateLimitUntil(ts) {
 }
 function clearRateLimit() {
   state.rateLimitUntil = 0;
+  state.rateLimitMsg = '';
   saveRateLimitUntil(0);
   if (_rlTimer) { clearInterval(_rlTimer); _rlTimer = null; }
   applyRateLimitUi();
 }
-function startRateLimitCooldown(seconds, detailMsg = '') {
+function startRateLimitCooldown(seconds, message = '') {
   const s = clamp(Number(seconds || 0), 5, 15 * 60);
   state.rateLimitUntil = Date.now() + s * 1000;
+  state.rateLimitMsg = String(message || '').trim();
   saveRateLimitUntil(state.rateLimitUntil);
 
   if (_rlTimer) clearInterval(_rlTimer);
@@ -243,11 +248,11 @@ function startRateLimitCooldown(seconds, detailMsg = '') {
       clearRateLimit();
       clearError();
     } else {
-      applyRateLimitUi(detailMsg);
+      applyRateLimitUi();
     }
   }, 500);
 
-  applyRateLimitUi(detailMsg);
+  applyRateLimitUi();
 }
 function rateLimitRemainingMs() {
   return Math.max(0, state.rateLimitUntil - Date.now());
@@ -267,8 +272,8 @@ function applyRateLimitUi(detailMsg = '') {
 
   if (active) {
     const secs = Math.ceil(remMs / 1000);
-    const suffix = detailMsg ? ` ${detailMsg}` : '';
-    showError(`Rate limited by the API. Please wait ${secs}s and try again.${suffix}`);
+    const msg = state.rateLimitMsg || 'Please wait a moment before trying again.';
+    showError(`${msg} Try again in ${secs}s.`);
   }
 }
 
@@ -491,31 +496,68 @@ async function fetchDay(force = false) {
     let usedModel = 'ray';
     let res = await fetch(urlRay, { signal });
 
-    if (!res.ok) {
-      let msg = '';
-      try { msg = (await res.json())?.detail || ''; } catch {}
-
-      if (res.status === 503 && msg.toLowerCase().includes('rate limited')) {
-        // Try to honor Retry-After if available
-        const ra = res.headers?.get?.('Retry-After');
-        let cooldown = RL_DEFAULT_COOLDOWN_S;
-        if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 15 * 60);
-        startRateLimitCooldown(cooldown, msg ? `(${msg})` : '');
-        return;
-      }
+    if (res.status === 503 && msg.toLowerCase().includes('rate limit')) {
+      // Forecast provider (Open-Meteo) rate limit
+      const ra = res.headers?.get?.('Retry-After');
+      let cooldown = RL_DEFAULT_COOLDOWN_S;
+      if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 15 * 60);
+    
+      startRateLimitCooldown(
+        cooldown,
+        msg ? `Forecast provider is rate limited. (${msg})` : 'Forecast provider is rate limited.'
+      );
+      return;
+    }
+    if (res.status === 429) {
+      // Your API rate limit (user is refreshing too fast)
+      const ra = res.headers?.get?.('Retry-After');
+      let cooldown = 10; // polite default for "slow down"
+      if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 60);
+    
+      startRateLimitCooldown(
+        cooldown,
+        msg ? `Slow down — too many requests. (${msg})` : 'Slow down — too many requests.'
+      );
+      return;
+    }
 
       usedModel = 'local';
       res = await fetch(urlLocal, { signal });
     }
 
     if (!res.ok) {
-      let msg = `API error ${res.status}`;
-      try {
-        const j = await res.json();
-        if (j?.detail) msg = String(j.detail);
-      } catch {}
-      showError(msg);
-      return;
+      let msg = '';
+      try { msg = (await res.json())?.detail || ''; } catch {}
+    
+      // Provider rate limit (Open-Meteo). Backend returns 503 and should include Retry-After.
+      if (res.status === 503 && msg.toLowerCase().includes('rate limit')) {
+        const ra = res.headers?.get?.('Retry-After');
+        let cooldown = RL_PROVIDER_DEFAULT_COOLDOWN_S;
+        if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 15 * 60);
+    
+        startRateLimitCooldown(
+          cooldown,
+          'Rate limited by forecast provider. Please wait.'
+        );
+        return;
+      }
+    
+      // Your API limiter (user spamming). Backend returns 429 and should include Retry-After.
+      if (res.status === 429) {
+        const ra = res.headers?.get?.('Retry-After');
+        let cooldown = RL_USER_DEFAULT_COOLDOWN_S;
+        if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 60);
+    
+        startRateLimitCooldown(
+          cooldown,
+          'Slow down — too many requests to our service.'
+        );
+        return;
+      }
+    
+      // Otherwise: fall back to local model if ray failed for non-rate-limit reasons.
+      usedModel = 'local';
+      res = await fetch(urlLocal, { signal });
     }
 
     const data = await res.json();
