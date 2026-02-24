@@ -1,31 +1,39 @@
 'use strict';
 
 /**
- * Frontend only improvements:
- * - clearer separation of Sun Score vs Confidence (small meters)
- * - better mobile behavior
- * - keep backend assumptions exactly the same
+ * Frontend app logic for iwannasun
  *
- * Key fixes in this revision:
- * - Parse timeline timestamps using time_utc (authoritative) to avoid viewer-timezone bugs.
- * - Add 503 rate-limit cooldown (respects Retry-After when present) and block repeated refresh spam.
- * - Persist cooldown across reloads (sessionStorage).
+ * Responsibilities:
+ * - Fetch /day data from backend (ray model with local fallback)
+ * - Handle rate limiting (503 provider + 429 API) with cooldown persistence
+ * - Cache short-lived results in sessionStorage
+ * - Render decision, KPIs, chart, timeline, and next sunny window
+ * - Keep UI time and "now" marker fresh
+ *
+ * Design principles in current version:
+ * - Clear separation of Sun Score vs Confidence (distinct meters)
+ * - Tomorrow view shows daylight average instead of a single hour
+ * - Timeline uses time_utc as authoritative source to avoid timezone bugs
+ * - UI remains calm and non-intrusive (no aggressive auto-refresh loops)
+ *
+ * Removed in recent cleanup:
+ * - Demo city button and related logic
  */
 
-// CONFIG
+// ===== Config =====
 const API_BASE = 'https://iwannasun.onrender.com';
 const DEFAULT_THRESHOLD = 70;
 const DAYS = 2;
 
-// Timeline limits (less clutter, faster)
+// Timeline limits
 const TIMELINE_MAX_ROWS = 84;
 
-// Rate-limit handling
+// Rate limiting
 const RL_STORAGE_KEY = 'iwannasun_rate_limit_until';
 const RL_PROVIDER_DEFAULT_COOLDOWN_S = 15; // Open-Meteo / forecast provider
 const RL_USER_DEFAULT_COOLDOWN_S = 10;     // your API (slow down)
 
-// DOM
+// ===== DOM =====
 const $ = (id) => document.getElementById(id);
 
 const els = {
@@ -73,7 +81,7 @@ const els = {
 
 const ctx = els.canvas ? els.canvas.getContext('2d') : null;
 
-// App state
+// ===== State =====
 const state = {
   lat: null,
   lon: null,
@@ -86,7 +94,7 @@ const state = {
   rateLimitMsg: '',
 };
 
-// --- Mood (wellness tone shift)
+// ===== Mood =====
 function setMood(mood) {
   // Apply mood classes to <html> (root), not <body>
   const root = document.documentElement; // <html>
@@ -96,10 +104,10 @@ function setMood(mood) {
 }
 
 
-// Abort in-flight /day requests
+// ===== Request control =====
 let _dayAbort = null;
 
-// --- small helpers
+// ===== Helpers =====
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 function roundCoord(x, decimals = 3) {
   const p = Math.pow(10, decimals);
@@ -136,14 +144,14 @@ function setBusy(isBusy) {
   for (const el of fade) el.style.opacity = isBusy ? '0.65' : '1';
 }
 
-// Prevent HTML injection
+// Escape text for HTML injection safety
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
 }
 
-// Format times in the location timezone (not the viewer's)
+// Format times in the location timezone
 const _fmtCache = new Map();
 function getFormatters() {
   const tz = state.tzName || '';
@@ -165,7 +173,7 @@ function getFormatters() {
 const fmtTime = (v) => getFormatters().hm.format(v instanceof Date ? v : new Date(v));
 const fmtDateTime = (v) => getFormatters().full.format(v instanceof Date ? v : new Date(v));
 
-// Determine daylight
+// Daylight detection
 function isDaylightRow(r) {
   if (!r) return false;
   if (typeof r.is_daylight === 'boolean') return r.is_daylight;
@@ -187,7 +195,26 @@ function tUtc(r) {
 }
 const tMs = (r) => (r && typeof r._tMs === 'number') ? r._tMs : (tUtc(r)?.getTime() ?? NaN);
 
-// Build day buckets
+function daylightWindow(dayRows, padMinutes = 30) {
+  const rows = (dayRows || []);
+  let first = null;
+  let last = null;
+
+  for (const r of rows) {
+    if (isDaylightRow(r)) { first = tUtc(r); break; }
+  }
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (isDaylightRow(rows[i])) { last = tUtc(rows[i]); break; }
+  }
+  if (!first || !last) return null;
+
+  const start = new Date(first.getTime() - padMinutes * 60000);
+  const end = new Date(last.getTime() + padMinutes * 60000);
+  return { start, end };
+}
+
+
+// Day bucketing
 function prepData(data) {
   if (!data?.timeline) return;
   const days = {};
@@ -203,9 +230,7 @@ function prepData(data) {
   state.days = days;
 }
 
-// ------------------------------
-// NEW: Daylight-average metrics
-// ------------------------------
+// ===== Metrics (Tomorrow averages) =====
 function dayAverages(dayRows) {
   const rows = (dayRows || []).filter(r => isDaylightRow(r));
   if (!rows.length) return null;
@@ -215,8 +240,7 @@ function dayAverages(dayRows) {
   let nScore = 0;
   let nConf = 0;
 
-  // IMPORTANT: keep separate counters per field, otherwise missing values
-  // would drag averages down.
+  // Keep separate counters per field so missing values do not bias averages.
   let sumLow = 0, sumMid = 0, sumHigh = 0, sumPrecip = 0;
   let nLow = 0, nMid = 0, nHigh = 0, nPrecip = 0;
 
@@ -262,7 +286,7 @@ function dayAverages(dayRows) {
   };
 }
 
-// Color mix: 0 -> cloudy blue, 1 -> sunny warm
+// Color mix: 0 = cloudy, 1 = sunny
 function mixSunColor(t, alpha = 1) {
   t = clamp(Number(t || 0), 0, 1);
   const a = { r: 0x9b, g: 0xbe, b: 0xd9 };
@@ -274,7 +298,7 @@ function mixSunColor(t, alpha = 1) {
   return `rgba(${r}, ${g}, ${bl}, ${aa})`;
 }
 
-// --- Rate-limit cooldown
+// ===== Rate limit cooldown =====
 let _rlTimer = null;
 function loadRateLimitUntil() {
   try {
@@ -334,7 +358,7 @@ function applyRateLimitUi() {
   }
 }
 
-// --- Location
+// ===== Location =====
 function setLocation(lat, lon, label = '') {
   state.lat = Number(lat);
   state.lon = Number(lon);
@@ -357,7 +381,7 @@ function setLocation(lat, lon, label = '') {
   }
 }
 
-// --- City search (Open-Meteo geocoding)
+// ===== City search (Open-Meteo geocoding) =====
 let _cityTimer = null;
 let _lastCityQuery = '';
 let _lastCityResults = [];
@@ -470,7 +494,7 @@ document.addEventListener('click', (e) => {
   hideCityResults();
 });
 
-// --- Cache
+// ===== Cache =====
 function cacheKey(lat, lon, threshold, { days = 2, model = 'ray' } = {}) {
   const rlat = Number(lat).toFixed(4);
   const rlon = Number(lon).toFixed(4);
@@ -501,7 +525,7 @@ function saveCached(lat, lon, threshold, data, opts = {}) {
   }
 }
 
-// --- API
+// ===== API =====
 async function fetchDay(force = false) {
   // Respect cooldown (even if user spams Refresh)
   // IMPORTANT: if we return early, make sure we aren't leaving the UI in a busy state.
@@ -578,7 +602,7 @@ async function fetchDay(force = false) {
   
       startRateLimitCooldown(
         cooldown,
-        'Slow down — too many requests to our service.'
+        'Slow down, too many requests to our service.'
       );
       return;
     }
@@ -614,7 +638,7 @@ async function fetchDay(force = false) {
   }
 }
 
-// --- Rendering
+// ===== Rendering =====
 function setMeter(fillEl, pct, color) {
   if (!fillEl) return;
   const p = clamp(Number(pct || 0), 0, 100);
@@ -641,7 +665,7 @@ function renderDecision(focusRow, context = { label: 'now' }) {
 
   if (els.decisionContext) els.decisionContext.textContent = isNow ? '' : `Based on ${label}`;
   if (els.labelScore) els.labelScore.textContent = isNow ? 'Sun score now' : (isAvg ? 'Sun score (avg)' : 'Sun score');
-  // Keep “ⓘ” behavior, but we also added title in HTML
+  // Confidence label text adjusts depending on context (now vs average)
   if (els.labelConf) els.labelConf.firstChild && (els.labelConf.firstChild.textContent = isNow ? 'Confidence now ' : (isAvg ? 'Confidence (avg) ' : 'Confidence '));
 
   const s = Number(focusRow.sun_score || 0);
@@ -679,7 +703,7 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     els.decisionWrap.style.color = sunColor;
   }
 
-  // Set wellness mood class on body
+  // Set wellness mood class on <html> root
   if (decision === 'Sunny') setMood('sunny');
   else if (decision === 'Mixed') setMood('mixed');
   else setMood('blocked');
@@ -746,24 +770,6 @@ function renderNextWindow(win, label = null) {
     ? win.minutes
     : Math.max(0, Math.round((new Date(win.end) - new Date(win.start)) / 60000));
   els.nextWindowSub.textContent = `${mins} minutes above threshold`;
-}
-
-function daylightWindow(dayRows, padMinutes = 30) {
-  const rows = (dayRows || []);
-  let first = null;
-  let last = null;
-
-  for (const r of rows) {
-    if (isDaylightRow(r)) { first = tUtc(r); break; }
-  }
-  for (let i = rows.length - 1; i >= 0; i--) {
-    if (isDaylightRow(rows[i])) { last = tUtc(rows[i]); break; }
-  }
-  if (!first || !last) return null;
-
-  const start = new Date(first.getTime() - padMinutes * 60000);
-  const end = new Date(last.getTime() + padMinutes * 60000);
-  return { start, end };
 }
 
 function renderTimeline(dayRows, dayIndex = 0, win = null) {
@@ -1051,7 +1057,7 @@ function render() {
   }
 
   // ------------------------------
-  // UPDATED: Tomorrow shows averages
+  // Tomorrow view uses daylight average instead of single-hour snapshot
   // ------------------------------
   if (dayIndex === 0) {
     const focusRow = nearestNowRow(dayRows);
@@ -1134,7 +1140,7 @@ function render() {
   const dayWin30 = daylightWindow(dayRows, 30);
   renderChart(dayRows, dayIndex, dayWin30);
 
-  // Hide timeline if no daylight ahead (like before)
+  // Hide timeline if no daylight ahead for selected day
   const nowMs = Date.now();
   const hasDaylightAhead = (dayIndex === 0)
     ? (dayRows || []).some(r => isDaylightRow(r) && tMs(r) >= nowMs)
@@ -1151,7 +1157,7 @@ function render() {
   applyRateLimitUi();
 }
 
-// --- Actions
+// ===== Actions =====
 async function useHere({ silent = false } = {}) {
   setBusy(true);
   await nextPaint();
@@ -1214,7 +1220,7 @@ async function useHere({ silent = false } = {}) {
   );
 }
 
-// --- Wire up events
+// ===== Events =====
 if (els.btnHere) els.btnHere.addEventListener('click', () => useHere());
 if (els.btnRefresh) els.btnRefresh.addEventListener('click', () => fetchDay(true));
 if (els.daySelect) els.daySelect.addEventListener('change', () => { if (state.data) render(); });
@@ -1241,7 +1247,7 @@ function startUiTick() {
 
 startUiTick();
 
-// Init
+// ===== Init =====
 window.addEventListener('DOMContentLoaded', () => {
   loadRateLimitUntil();
   applyRateLimitUi();
