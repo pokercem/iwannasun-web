@@ -457,6 +457,20 @@ input:focus, select:focus {
   margin-top: 8px;
 }
 
+/* About paragraph rhythm (avoid large gaps from manual <br>) */
+.aboutText p {
+  margin: 6px 0;
+}
+
+.aboutText p:first-child {
+  margin-top: 2px;
+}
+
+.aboutText .aboutTip {
+  margin-top: 10px;
+  color: rgba(20, 24, 28, 0.62);
+}
+
 /* Make "How it works" feel present but calm (structured, not loud) */
 .notes .aboutText b {
   display: inline-block;
