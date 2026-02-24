@@ -1092,20 +1092,25 @@ async function useHere({ silent = false } = {}) {
     async (pos) => {
       const lat = roundCoord(pos.coords.latitude, 3);
       const lon = roundCoord(pos.coords.longitude, 3);
-
-      // show immediate feedback
+  
+      // Immediate feedback
       setLocation(lat, lon, 'My location');
-
-      // reverse geocode -> CITY only
-      try {
-        const url =
-          `https://api.bigdatacloud.net/data/reverse-geocode-client` +
-          `?latitude=${encodeURIComponent(lat)}` +
-          `&longitude=${encodeURIComponent(lon)}` +
-          `&localityLanguage=en`;
-
-        const res = await fetch(url);
-        if (res.ok) {
+  
+      // Start forecast ASAP (don't wait for city lookup)
+      fetchDay(false);
+  
+      // Reverse geocode in background (update label when it arrives)
+      (async () => {
+        try {
+          const url =
+            `https://api.bigdatacloud.net/data/reverse-geocode-client` +
+            `?latitude=${encodeURIComponent(lat)}` +
+            `&longitude=${encodeURIComponent(lon)}` +
+            `&localityLanguage=en`;
+  
+          const res = await fetch(url);
+          if (!res.ok) return;
+  
           const j = await res.json();
           const city =
             j.city ||
@@ -1113,14 +1118,17 @@ async function useHere({ silent = false } = {}) {
             j.principalSubdivision ||
             j.localityInfo?.administrative?.[0]?.name ||
             '';
-
-          if (city) setLocation(lat, lon, String(city).trim()); // <- replaces "My location"
+  
+          if (city) {
+            // Only update label; keep the same lat/lon and don't clear state.data
+            state.label = String(city).trim();
+            if (els.locPill) els.locPill.textContent = state.label;
+            if (els.cityInput) els.cityInput.value = state.label;
+          }
+        } catch {
+          // ignore, keep "My location"
         }
-      } catch {
-        // keep "My location"
-      }
-
-      await fetchDay();
+      })();
     },
     () => {
       if (!silent) showError('Please allow location, or search for a city above.');
