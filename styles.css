@@ -195,7 +195,12 @@ html.mood-blocked {
   justify-content: space-between;
   align-items: flex-start;
   flex-wrap: nowrap;
-  gap: 10px;
+  gap: 14px;
+}
+
+/* Give decision area more breathing room */
+.decisionBlock {
+  padding-right: 6px;
 }
 
 /* Critical: allow the left decision block to shrink on small screens.
@@ -213,8 +218,10 @@ html.mood-blocked {
 /* Ensure long sentences wrap instead of expanding the layout */
 .decisionContext,
 .whyInline {
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  margin-top: 6px;
+  line-height: 1.5;
+  max-width: 560px;
+  color: rgba(20, 24, 28, 0.72);
 }
 
 .rowTop { align-self: flex-start; }
@@ -223,8 +230,9 @@ html.mood-blocked {
 
 /* Decision */
 .decisionContext {
-  margin-top: 4px;
-  line-height: 1.3;
+  margin-top: 6px;
+  line-height: 1.35;
+  color: rgba(20, 24, 28, 0.68);
 }
 .whyInline {
   margin-top: 6px;
@@ -235,8 +243,8 @@ html.mood-blocked {
 /* Make the answer feel like a "moment" */
 #decisionWrap {
   display: inline-block;
-  padding: 4px 2px;
-  border-radius: 12px;
+  padding: 2px 0;
+  border-radius: 0;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -479,9 +487,18 @@ input:focus, select:focus {
 
 .big {
   font-size: 28px;
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   letter-spacing: 0.2px;
   font-weight: 600;
+}
+
+/* Calm decision tone: avoid overly saturated states */
+#decisionText {
+  transition: color 220ms var(--ease);
+}
+
+.big.good, .big.bad {
+  color: rgba(20, 24, 28, 0.88);
 }
 
 .good { color: var(--good); }
