@@ -646,6 +646,16 @@ canvas {
   user-select: none;
 }
 
+/* Prevent x-axis labels from forcing horizontal overflow */
+.xAxis > div {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Error */
 .err {
   margin-top: 12px;
