@@ -67,6 +67,9 @@
             <div class="big" id="decisionWrap"><span id="decisionText">—</span></div>
             <div class="muted small decisionContext" id="decisionContext"></div>
             <div class="muted small whyInline" id="whyInline"></div>
+            <div class="muted small" id="howItWorksLine" style="margin-top:6px; opacity:0.78;">
+              We follow the sun’s path and check clouds along that path, not just cloud percentage.
+            </div>
           </div>
 
           <div class="row rowTop rightControls">
@@ -124,6 +127,11 @@
       </div>
 
       <div class="side">
+        <!-- Ad slot (sidebar). Reserved space so monetisation doesn't break layout later. -->
+        <div class="adSlot" id="adSidebar" aria-label="Advertisement">
+          <div class="adSlotLabel">Advertisement</div>
+        </div>
+
         <div class="card">
           <div class="muted small">Your next sun break</div>
           <div class="big" id="nextWindow">—</div>
@@ -142,16 +150,28 @@
         </div>
 
         <div class="card notes">
-          <div class="muted small"><b id="about">About</b></div>
+          <div class="muted small"><b id="about">How it works</b></div>
           <div class="muted small aboutText">
-            Sunlight is a simple wellness lever: it can lift mood, help you feel awake, and make a short walk feel like a reset.<br><br>
-            The tricky part is that “cloudy” doesn’t always mean “no sun.” What matters is whether there’s a clear line between you and the sun, especially near sunrise/sunset when the sun is low and distant clouds matter most.<br><br>
-            This app follows the sun’s path and checks the clouds along that path, so you can plan a quick <b>sun break</b> when it counts.<br><br>
-            <b>Sun Score</b> = how likely the sun is directly visible.<br>
-            <b>Confidence</b> = how steady that situation is likely to stay.
+            <b>Why cloud percentage can mislead</b><br>
+            Cloud percentage does not tell you if the sun is actually blocked, especially when the sun is low on the horizon.<br><br>
+
+            <b>What iwannasun does differently</b><br>
+            iwannasun follows the sun’s exact path and checks the clouds along that path, so you know when sunlight really breaks through.<br><br>
+
+            <b>Sun Score</b><br>
+            The chance that the sun is directly visible.<br><br>
+
+            <b>Confidence</b><br>
+            How steady that situation is likely to stay.
+
             <div class="muted small" style="margin-top:10px">Tip: Add this page to your home screen for a fast daily check.</div>
           </div>
         </div>
+      </div>
+
+      <!-- Ad slot (mobile). Placed after main content; can be shown/hidden via CSS later. -->
+      <div class="adSlot small" id="adMobile" aria-label="Advertisement">
+        <div class="adSlotLabel">Advertisement</div>
       </div>
     </div>
 
