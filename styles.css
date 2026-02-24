@@ -498,6 +498,13 @@ input:focus, select:focus {
   line-height: 1.4;
 }
 
+/* Local time in main card header */
+#timePill {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
 /* Titles */
 .small { font-size: 12px; }
 
