@@ -219,25 +219,26 @@ html.mood-blocked {
 .decisionContext,
 .whyInline {
   margin-top: 6px;
-  line-height: 1.5;
   max-width: 560px;
-  color: rgba(20, 24, 28, 0.72);
 }
 
 .rowTop { align-self: flex-start; }
 
 .rightControls { justify-content: flex-end; }
 
-/* Decision */
+/* Decision text blocks */
 .decisionContext {
   margin-top: 6px;
-  line-height: 1.35;
+  line-height: 1.4;
+  max-width: 560px;
   color: rgba(20, 24, 28, 0.68);
 }
+
 .whyInline {
   margin-top: 6px;
   line-height: 1.45;
   max-width: 560px;
+  color: rgba(20, 24, 28, 0.72);
 }
 
 /* Make the answer feel like a "moment" */
