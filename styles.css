@@ -533,7 +533,7 @@ input:focus, select:focus {
 
 .big {
   font-size: 24px; /* reduced contrast for calmer hierarchy */
-  margin: 4px 0 0;
+  margin: 0;
   letter-spacing: 0.1px;
   font-weight: 500; /* lighter weight for visual balance */
 }
