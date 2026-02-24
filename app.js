@@ -86,7 +86,6 @@ const state = {
   rateLimitUntil: 0,
   rateLimitMsg: '',
 };
-};
 
 // --- Mood (wellness tone shift)
 function setMood(mood) {
