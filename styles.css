@@ -472,11 +472,6 @@ input:focus, select:focus {
 .notes .muted.small b#about {
   letter-spacing: 0.02em;
 }
-/* Positioning line (now inside the side column on desktop, stacked naturally on mobile) */
-.positioningLine {
-  padding: 2px 4px 8px;
-  margin: 0 2px 2px;
-}
 
 .positioningLine .muted.small {
   color: rgba(20, 24, 28, 0.68);
