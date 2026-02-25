@@ -466,8 +466,10 @@ input:focus, select:focus {
 .valueRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start; /* don't force space-between when tight */
   gap: 12px;
+  flex-wrap: wrap;            /* allow meter to drop if needed */
+  min-width: 0;
 }
 
 .kpi .value {
@@ -479,11 +481,14 @@ input:focus, select:focus {
 
 .meter {
   width: 92px;
+  max-width: 100%;
   height: 9px;
   border-radius: 999px;
   background: rgba(20, 24, 28, 0.08);
   overflow: hidden;
-  flex: none;
+
+  flex: 1 1 92px;   /* can shrink */
+  min-width: 64px;  /* but not too tiny */
 }
 
 .meter .fill {
