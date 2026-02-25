@@ -115,6 +115,26 @@ function roundCoord(x, decimals = 3) {
   }
 const nextPaint = () => new Promise((r) => requestAnimationFrame(r));
 
+// Debounce helper (mobile resize/orientation can fire many events)
+function debounce(fn, waitMs = 120) {
+  let t = null;
+  return (...args) => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => fn(...args), waitMs);
+  };
+}
+
+// Coalesce render calls (prevents thrash on mobile when layout changes)
+let _renderQueued = false;
+function renderSoon() {
+  if (_renderQueued) return;
+  _renderQueued = true;
+  requestAnimationFrame(() => {
+    _renderQueued = false;
+    render();
+  });
+}
+
 function showError(msg) {
   if (!els.errBox) return;
   els.errBox.style.display = 'block';
@@ -479,7 +499,8 @@ if (els.cityInput) {
 }
 
 if (els.cityResults) {
-  els.cityResults.addEventListener('mousedown', (e) => {
+  // pointerdown works better on mobile than mousedown (less delayed, more reliable)
+  els.cityResults.addEventListener('pointerdown', (e) => {
     const item = e.target.closest('.item');
     if (!item) return;
     const idx = Number(item.getAttribute('data-idx'));
@@ -826,8 +847,12 @@ function renderTimeline(dayRows, dayIndex = 0, win = null) {
 function renderChart(dayRows, dayIndex = 0, win = null) {
   if (!els.canvas || !ctx) return;
 
-  const cssW = els.canvas.clientWidth || 900;
-  const cssH = els.canvas.clientHeight || 220;
+  // Use rect sizing (more reliable on mobile than clientWidth during reflow)
+  const rect = els.canvas.getBoundingClientRect();
+  const cssW = Math.max(1, Math.round(rect.width || els.canvas.clientWidth || 0));
+  const cssH = Math.max(1, Math.round(rect.height || els.canvas.clientHeight || 0));
+  if (cssW <= 1 || cssH <= 1) return;
+
   const dpr = window.devicePixelRatio || 1;
   els.canvas.width = Math.round(cssW * dpr);
   els.canvas.height = Math.round(cssH * dpr);
@@ -1221,9 +1246,43 @@ async function useHere({ silent = false } = {}) {
 }
 
 // ===== Events =====
+// ===== Events =====
 if (els.btnHere) els.btnHere.addEventListener('click', () => useHere());
 if (els.btnRefresh) els.btnRefresh.addEventListener('click', () => fetchDay(true));
-if (els.daySelect) els.daySelect.addEventListener('change', () => { if (state.data) render(); });
+
+if (els.daySelect) els.daySelect.addEventListener('change', async () => {
+  if (!state.data) return;
+
+  // Switching day can change wrapping which changes canvas width.
+  // Wait a paint so layout settles, then render.
+  await nextPaint();
+  renderSoon();
+});
+
+// Redraw on viewport/layout changes (mobile address bar + orientation changes)
+const _onResize = debounce(() => {
+  if (!state.data || state.isBusy) return;
+  renderSoon();
+}, 160);
+
+window.addEventListener('resize', _onResize);
+window.addEventListener('orientationchange', _onResize);
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', _onResize);
+}
+
+// If supported, observe the canvas size directly (robust against flex/grid changes)
+let _chartRO = null;
+try {
+  if (window.ResizeObserver && els.canvas) {
+    _chartRO = new ResizeObserver(() => {
+      if (!state.data || state.isBusy) return;
+      renderSoon();
+    });
+    _chartRO.observe(els.canvas);
+  }
+} catch { /* ignore */ }
 
 // Keep UI fresh (time pill + “now” marker)
 let _uiTick = null;
