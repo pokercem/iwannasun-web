@@ -37,7 +37,6 @@ const RL_USER_DEFAULT_COOLDOWN_S = 10;     // your API (slow down)
 const $ = (id) => document.getElementById(id);
 
 const els = {
-  locPill: $('locPill'),
   timePill: $('timePill'),
   cityInput: $('cityInput'),
   cityResults: $('cityResults'),
