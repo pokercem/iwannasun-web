@@ -64,6 +64,8 @@ html, body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden; /* fallback for mobile browsers */
   overflow-x: clip;
 }
 
@@ -230,6 +232,8 @@ html.mood-blocked {
 /* Ensure long sentences wrap instead of expanding the layout */
 .decisionContext,
 .whyInline {
+  overflow-wrap: anywhere;
+  word-break: break-word;
   margin-top: 6px;
   max-width: 560px;
 }
@@ -264,6 +268,8 @@ html.mood-blocked {
 }
 
 /* Inputs / buttons */
+#locPill { overflow-wrap: anywhere; word-break: break-word; }
+
 .pill {
   padding: 6px 10px;
   border-radius: 999px;
@@ -335,6 +341,21 @@ input:focus, select:focus {
 }
 
 @media (max-width: 520px) {
+  /* Mobile: stack topbar controls cleanly to avoid sideways growth */
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cityWrap,
+  .pillRow,
+  .btnRow {
+    width: 100%;
+  }
+
+  .pillRow .pill {
+    width: 100%;
+  }
   .topbar {
     align-items: flex-start;
     gap: 10px;
@@ -384,7 +405,7 @@ input:focus, select:focus {
   border-radius: 16px;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.12);
   overflow: hidden;
-  max-height: 280px;
+  max-height: min(280px, 50vh);
   display: none;
   z-index: 50;
   backdrop-filter: blur(14px);
