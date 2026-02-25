@@ -66,7 +66,7 @@ html, body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden; /* fallback for mobile browsers */
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 
@@ -330,14 +330,15 @@ input:focus, select:focus {
 }
 
 @media (max-width: 700px) {
-  .rowBetweenTop {
-    flex-wrap: wrap;
-  }
+  .rowBetweenTop { flex-wrap: wrap; }
 
   .rightControls {
     width: 100%;
     justify-content: flex-start;
   }
+
+  /* KPI should be single-column on phones to prevent overflow */
+  .kpi { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 520px) {
@@ -387,7 +388,6 @@ input:focus, select:focus {
   }
 
   .card { padding: 14px; }
-  .kpi { grid-template-columns: 1fr; }
 
   /* Tighten reading blocks on small screens */
   .whyInline { max-width: 100%; }
@@ -433,6 +433,20 @@ input:focus, select:focus {
   margin-top: 12px;
 }
 
+.kpi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Fix iOS/grid overflow: allow KPI cards to shrink inside grid */
+.kpi .box {
+  min-width: 0;
+}
+
+.valueRow {
+  min-width: 0;
+}
 .kpi .box {
   padding: 14px;
   border-radius: 16px;
