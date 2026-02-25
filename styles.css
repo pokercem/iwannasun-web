@@ -557,6 +557,7 @@ input:focus, select:focus {
   margin-top: 14px;
   border-top: 1px solid rgba(20, 24, 28, 0.08);
   padding-top: 10px;
+  padding-right: 8px; /* subtle breathing room from scrollbar */
   max-height: 460px;
   overflow-y: auto;
   overflow-x: hidden;
