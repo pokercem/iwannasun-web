@@ -368,6 +368,24 @@ input:focus, select:focus {
 }
 
 @media (max-width: 520px) {
+  /* --- Mobile: logo full width + motto below --- */
+  .brand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    width: 100%;
+  }
+  
+  .brandLogo {
+    height: auto;
+    width: 100%;
+    max-width: 220px; /* adjust if you want bigger/smaller */
+  }
+  
+  .brand .sub {
+    white-space: normal;
+    font-size: 13px;
+  }
   /* Mobile: stack topbar controls cleanly to avoid sideways growth */
   .controls {
     flex-direction: column;
