@@ -137,11 +137,6 @@ html.mood-blocked {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.brand .sub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-}
 
 .controls {
   display: flex;
