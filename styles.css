@@ -117,8 +117,8 @@ html.mood-blocked {
 }
 
 .brandLogo {
-  height: 20px;       /* was 28px */
-  max-height: 20px;   /* hard cap */
+  height: 24px;       /* was 28px */
+  max-height: 24px;   /* hard cap */
   width: auto;
   display: block;
 }
