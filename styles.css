@@ -117,8 +117,7 @@ html.mood-blocked {
 }
 
 .brandLogo {
-  height: 28px;       /* was 28px */
-  max-height: 28px;   /* hard cap */
+  height: 28px;   /* tweak if you want bigger/smaller */
   width: auto;
   display: block;
 }
@@ -368,30 +367,55 @@ input:focus, select:focus {
 }
 
 @media (max-width: 520px) {
-
-  /* Keep header horizontal */
-  .topbar {
-    align-items: center;
-  }
-
-  /* Stack logo + motto only */
-  .brand {
+  /* Mobile: stack topbar controls cleanly to avoid sideways growth */
+  .controls {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cityWrap,
+  .pillRow,
+  .btnRow {
+    width: 100%;
+  }
+
+  .pillRow .pill {
+    width: 100%;
+  }
+  .topbar {
     align-items: flex-start;
-    gap: 4px;
+    gap: 10px;
   }
 
-  .brandLogo {
-    width: 110px;
-    height: auto;
+  .controls {
+    width: 100%;
+    justify-content: flex-start;
   }
 
-  .brand .sub {
-    font-size: 13px;
-    white-space: normal;
+  .cityInput { width: 100%; }
+
+  .btnRow {
+    width: 100%;
   }
 
-}
+  .btnRow button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .rowBetweenTop {
+    flex-wrap: wrap;
+  }
+
+  .rightControls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .card { padding: 14px; }
+
+  /* Tighten reading blocks on small screens */
+  .whyInline { max-width: 100%; }
 }
 
 
