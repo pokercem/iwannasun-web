@@ -368,86 +368,30 @@ input:focus, select:focus {
 }
 
 @media (max-width: 520px) {
-  /* --- Mobile: logo full width + motto below --- */
-  /* --- Mobile: stack entire header --- */
-  
+
+  /* Keep header horizontal */
   .topbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
+    align-items: center;
   }
-  
+
+  /* Stack logo + motto only */
   .brand {
     flex-direction: column;
     align-items: flex-start;
-    width: 100%;
-    gap: 6px;
+    gap: 4px;
   }
-  
+
   .brandLogo {
-    width: 100%;
-    max-width: 240px;
+    width: 110px;
     height: auto;
   }
-  
+
   .brand .sub {
-    white-space: normal;
     font-size: 13px;
-  }
-  
-  .controls {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  /* Mobile: stack topbar controls cleanly to avoid sideways growth */
-  .controls {
-    flex-direction: column;
-    align-items: stretch;
+    white-space: normal;
   }
 
-  .cityWrap,
-  .pillRow,
-  .btnRow {
-    width: 100%;
-  }
-
-  .pillRow .pill {
-    width: 100%;
-  }
-  .topbar {
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .controls {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .cityInput { width: 100%; }
-
-  .btnRow {
-    width: 100%;
-  }
-
-  .btnRow button {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .rowBetweenTop {
-    flex-wrap: wrap;
-  }
-
-  .rightControls {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .card { padding: 14px; }
-
-  /* Tighten reading blocks on small screens */
-  .whyInline { max-width: 100%; }
+}
 }
 
 
