@@ -1,3 +1,9 @@
+/* iwannasun.css — fixed mobile header split + logo sizing
+   Goal:
+   - Desktop: brand stays inline (logo + motto next to each other)
+   - Mobile (<=520px): header splits 30/70 (brand/controls), logo bigger, no overflow
+*/
+
 .srOnly {
   position: absolute;
   width: 1px;
@@ -65,10 +71,8 @@ html, body {
   text-rendering: optimizeLegibility;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-x: hidden; /* fallback for mobile browsers */
   overflow-x: hidden;
 }
-
 
 /* --- Wellness mood shifts (apply to root html) --- */
 html.mood-sunny {
@@ -106,20 +110,18 @@ html.mood-blocked {
   z-index: 10;
 }
 
-/* Brand (logo + motto) */
+/* Brand (logo + motto) — DEFAULT (desktop/tablet) */
 .brand {
-  flex: 0 0 30%;
-  max-width: 30%;
-  min-width: 0;
-
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
 }
 
 .brandLogo {
-  height: 28px;   /* tweak if you want bigger/smaller */
+  height: 28px; /* desktop baseline */
   width: auto;
   display: block;
 }
@@ -133,7 +135,7 @@ html.mood-blocked {
 .brand .sub {
   font-size: 12px;
   color: var(--muted);
-  margin-top: 0; /* align nicely next to logo */
+  margin-top: 0;
   line-height: 1.2;
   white-space: normal;
   overflow: hidden;
@@ -239,8 +241,7 @@ html.mood-blocked {
   padding-right: 6px;
 }
 
-/* Critical: allow the left decision block to shrink on small screens.
-   Without this, longer text (e.g. "Based on tomorrow…") can force horizontal overflow. */
+/* Critical: allow the left decision block to shrink on small screens */
 .rowBetweenTop .decisionBlock {
   flex: 1 1 auto;
   min-width: 0;
@@ -261,7 +262,6 @@ html.mood-blocked {
 }
 
 .rowTop { align-self: flex-start; }
-
 .rightControls { justify-content: flex-end; }
 
 /* Decision text blocks */
@@ -363,17 +363,18 @@ input:focus, select:focus {
   .kpi { grid-template-columns: 1fr; }
 }
 
+/* ===== MOBILE HEADER LAYOUT (<=520px): 30/70 split ===== */
 @media (max-width: 520px) {
-
-  /* --- Refined mobile header split (45 / 55) --- */
   .topbar {
     align-items: stretch;
     gap: 12px;
+    min-width: 0;
   }
 
+  /* Left column: brand */
   .brand {
-    flex: 0 0 45%;
-    max-width: 45%;
+    flex: 0 0 30%;
+    max-width: 30%;
     min-width: 0;
 
     display: flex;
@@ -383,7 +384,7 @@ input:focus, select:focus {
   }
 
   .brandLogo {
-    height: 38px;
+    height: 38px; /* bigger on mobile */
     width: auto;
   }
 
@@ -393,16 +394,19 @@ input:focus, select:focus {
   }
 
   .brand .sub {
+    font-size: 11px;
+    line-height: 1.15;
     white-space: normal;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
+  /* Right column: controls */
   .controls {
     flex: 0 0 70%;
     max-width: 70%;
     min-width: 0;
-  
+
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -415,6 +419,7 @@ input:focus, select:focus {
   .pillRow,
   .btnRow {
     width: 100%;
+    min-width: 0;
   }
 
   .cityInput {
@@ -444,6 +449,7 @@ input:focus, select:focus {
     padding: 14px;
   }
 
+  /* Tighten reading blocks on small screens */
   .whyInline {
     max-width: 100%;
   }
@@ -605,6 +611,7 @@ input:focus, select:focus {
 .notes .muted.small b#about {
   letter-spacing: 0.02em;
 }
+
 /* Positioning line (now inside the side column on desktop, stacked naturally on mobile) */
 .positioningLine {
   padding: 2px 4px 0;
@@ -626,7 +633,6 @@ input:focus, select:focus {
 
 /* Titles */
 .small { font-size: 12px; }
-
 .muted { color: var(--muted); }
 
 .big {
@@ -645,7 +651,7 @@ input:focus, select:focus {
   color: rgba(20, 24, 28, 0.88);
 }
 
-.good { color: var(--good); }
+good { color: var(--good); }
 .bad { color: var(--bad); }
 
 /* Timeline */
@@ -684,6 +690,7 @@ input:focus, select:focus {
   overflow: hidden;
   margin-top: 6px;
 }
+
 .bar > div {
   height: 100%;
   border-radius: 999px;
@@ -855,7 +862,6 @@ canvas {
 
 /* Small polish for very narrow screens */
 @media (max-width: 360px) {
-
   .wrap { padding: 14px; }
   .meter { width: 72px; }
   .trow { grid-template-columns: 64px 48px minmax(0, 1fr); }
