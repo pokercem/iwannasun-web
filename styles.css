@@ -108,12 +108,14 @@ html.mood-blocked {
 
 /* Brand (logo + motto) */
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  color: inherit;
+  flex: 0 0 30%;
+  max-width: 30%;
   min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
 }
 
 .brandLogo {
@@ -381,7 +383,7 @@ input:focus, select:focus {
   }
 
   .brandLogo {
-    height: 30px;
+    height: 38px;
     width: auto;
   }
 
@@ -397,10 +399,10 @@ input:focus, select:focus {
   }
 
   .controls {
-    flex: 0 0 55%;
-    max-width: 55%;
+    flex: 0 0 70%;
+    max-width: 70%;
     min-width: 0;
-
+  
     display: flex;
     flex-direction: column;
     justify-content: center;
