@@ -363,7 +363,7 @@ input:focus, select:focus {
   .kpi { grid-template-columns: 1fr; }
 }
 
-/* ===== MOBILE HEADER LAYOUT (<=520px): 30/70 split ===== */
+/* ===== MOBILE HEADER LAYOUT (<=520px): 40/60 split ===== */
 @media (max-width: 520px) {
   .topbar {
     align-items: stretch;
@@ -373,8 +373,8 @@ input:focus, select:focus {
 
   /* Left column: brand */
   .brand {
-    flex: 0 0 30%;
-    max-width: 30%;
+    flex: 0 0 40%;
+    max-width: 40%;
     min-width: 0;
 
     display: flex;
@@ -384,7 +384,7 @@ input:focus, select:focus {
   }
 
   .brandLogo {
-    height: 44px; /* bigger on mobile */
+    height: 48px; /* bigger on mobile */
     width: auto;
   }
 
@@ -407,8 +407,8 @@ input:focus, select:focus {
 
   /* Right column: controls */
   .controls {
-    flex: 0 0 70%;
-    max-width: 70%;
+    flex: 0 0 60%;
+    max-width: 60%;
     min-width: 0;
 
     display: flex;
