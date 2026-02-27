@@ -384,7 +384,7 @@ input:focus, select:focus {
   }
 
   .brandLogo {
-    height: 48px; /* bigger on mobile */
+    height: 60px; /* much bigger on mobile */
     width: auto;
   }
 
