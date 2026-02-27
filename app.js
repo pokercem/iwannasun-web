@@ -37,6 +37,7 @@ const RL_USER_DEFAULT_COOLDOWN_S = 10;     // your API (slow down)
 const $ = (id) => document.getElementById(id);
 
 const els = {
+  locPill: $('locPill'),
   timePill: $('timePill'),
   cityInput: $('cityInput'),
   cityResults: $('cityResults'),
@@ -379,8 +380,8 @@ function applyRateLimitUi() {
 
 // ===== Location =====
 function setLocation(lat, lon, label = '') {
-  state.lat = Number(lat);
-  state.lon = Number(lon);
+  state.lat = roundCoord(lat, 2);
+  state.lon = roundCoord(lon, 2);
   state.label = (label || '').trim();
 
   state.data = null;
@@ -388,7 +389,7 @@ function setLocation(lat, lon, label = '') {
   state.tzName = null;
 
   if (els.locPill) {
-    els.locPill.textContent = state.label ? state.label : `${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}`;
+    els.locPill.textContent = state.label ? state.label : `${state.lat.toFixed(2)}, ${state.lon.toFixed(2)}`;
   }
   if (els.timePill) {
     els.timePill.textContent = '—';
