@@ -363,56 +363,63 @@ input:focus, select:focus {
 
 @media (max-width: 520px) {
 
-  /* ADD THIS PART */
+  /* --- Refined mobile header split (45 / 55) --- */
+  .topbar {
+    align-items: stretch;
+    gap: 12px;
+  }
+
   .brand {
-    flex-direction: column;   /* stack logo and motto */
-    align-items: flex-start;  /* or center if you prefer */
+    flex: 0 0 45%;
+    max-width: 45%;
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     gap: 6px;
   }
 
   .brandLogo {
-    height: 30px;  /* adjust 28–34 if needed */
+    height: 30px;
     width: auto;
   }
 
   .brandText {
     width: 100%;
+    min-width: 0;
   }
 
   .brand .sub {
     white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-  }
-  
-  /* Mobile: stack topbar controls cleanly to avoid sideways growth */
-  .controls {
-    flex-direction: column;
-    align-items: stretch;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
+  .controls {
+    flex: 0 0 55%;
+    max-width: 55%;
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  /* Make inputs + buttons fill their column cleanly */
   .cityWrap,
   .pillRow,
   .btnRow {
     width: 100%;
   }
 
+  .cityInput {
+    width: 100%;
+  }
+
   .pillRow .pill {
-    width: 100%;
-  }
-  .topbar {
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .controls {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .cityInput { width: 100%; }
-
-  .btnRow {
     width: 100%;
   }
 
@@ -421,6 +428,7 @@ input:focus, select:focus {
     min-width: 0;
   }
 
+  /* Card + layout adjustments */
   .rowBetweenTop {
     flex-wrap: wrap;
   }
@@ -430,10 +438,13 @@ input:focus, select:focus {
     justify-content: flex-start;
   }
 
-  .card { padding: 14px; }
+  .card {
+    padding: 14px;
+  }
 
-  /* Tighten reading blocks on small screens */
-  .whyInline { max-width: 100%; }
+  .whyInline {
+    max-width: 100%;
+  }
 }
 
 
