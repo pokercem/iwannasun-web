@@ -391,14 +391,18 @@ input:focus, select:focus {
   .brandText {
     width: 100%;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* center motto under logo */
   }
 
   .brand .sub {
     font-size: 11px;
     line-height: 1.15;
+    text-align: center; /* center text */
     white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: unset;
   }
 
   /* Right column: controls */
