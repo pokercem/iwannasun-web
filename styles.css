@@ -362,6 +362,29 @@ input:focus, select:focus {
 }
 
 @media (max-width: 520px) {
+
+  /* ADD THIS PART */
+  .brand {
+    flex-direction: column;   /* stack logo and motto */
+    align-items: flex-start;  /* or center if you prefer */
+    gap: 6px;
+  }
+
+  .brandLogo {
+    height: 30px;  /* adjust 28–34 if needed */
+    width: auto;
+  }
+
+  .brandText {
+    width: 100%;
+  }
+
+  .brand .sub {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+  
   /* Mobile: stack topbar controls cleanly to avoid sideways growth */
   .controls {
     flex-direction: column;
