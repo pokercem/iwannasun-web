@@ -97,7 +97,7 @@ html.mood-blocked {
 
 /* Topbar */
 .topbar {
-  padding: 14px 18px;
+  padding: 12px 18px;
   border-bottom: 1px solid rgba(20, 24, 28, 0.08);
   display: flex;
   gap: 12px;
@@ -121,7 +121,7 @@ html.mood-blocked {
 }
 
 .brandLogo {
-  height: 28px; /* desktop baseline */
+  height: 39px; /* desktop baseline */
   width: auto;
   display: block;
 }
