@@ -845,9 +845,11 @@ canvas {
 
 /* Footer */
 .footer {
-  margin-top: 16px;
-  color: var(--muted);
-  font-size: 12px;
+  margin: 18px auto 22px;
+  padding: 0 18px;
+  color: rgba(20, 24, 28, 0.78);
+  font-size: 13px;
+  line-height: 1.5;
   text-align: center;
 }
 
