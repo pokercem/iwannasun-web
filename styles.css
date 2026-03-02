@@ -1,8 +1,8 @@
-/* iwannasun.css — fixed mobile header split + logo sizing
-   Goal:
-   - Desktop: brand stays inline (logo + motto next to each other)
-   - Mobile (<=520px): header splits 30/70 (brand/controls), logo bigger, no overflow
-*/
+/*
+ * Main stylesheet for iwannasun.
+ * Responsibilities: page layout, responsive behavior, visual mood states,
+ * and styling for controls, chart/timeline, and supporting content blocks.
+ */
 
 .srOnly {
   position: absolute;
@@ -32,7 +32,6 @@
   --sky: #9bbdd9;
 
   /* Status */
-  --good: rgba(20, 24, 28, 0.92);
   --bad: rgba(20, 24, 28, 0.78);
 
   /* Surfaces (Apple-Health calm) */
@@ -495,14 +494,8 @@ input:focus, select:focus {
 .kpi {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.kpi {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 16px;
+  margin-top: 12px;
 }
 
 /* Fix iOS/grid overflow: allow KPI cards to shrink inside grid */
@@ -510,9 +503,6 @@ input:focus, select:focus {
   min-width: 0;
 }
 
-.valueRow {
-  min-width: 0;
-}
 .kpi .box {
   padding: 14px;
   border-radius: 16px;
@@ -672,7 +662,6 @@ input:focus, select:focus {
   color: rgba(20, 24, 28, 0.88);
 }
 
-good { color: var(--good); }
 .bad { color: var(--bad); }
 
 /* Timeline */

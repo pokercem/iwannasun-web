@@ -11,6 +11,11 @@
   <link rel="manifest" href="/site.webmanifest">
 </head>
 <body>
+  <!--
+    Main app shell for iwannasun.
+    Responsibilities: semantic page structure for controls, forecast display,
+    supporting information, and reserved ad slots used by app.js + styles.css.
+  -->
   <header class="topbar">
     <a class="brand" href="/" aria-label="iwannasun home">
       <img class="brandLogo" src="./iwannasunlogowtext.svg" alt="iwannasun" />
@@ -47,7 +52,6 @@
   <div class="wrap">
     <div class="grid">
       <div class="card cardRel">
-        <!-- aria-busy defaults to false; app.js toggles it -->
         <div id="loadingOverlay" class="loadingOverlay" aria-live="polite" aria-busy="false">
           <div class="loadingInner">
             <div class="spinner" aria-hidden="true"></div>
@@ -121,11 +125,9 @@
       </div>
 
       <div class="side">
-        <!-- Positioning line (keeps the hero clean but makes the product clear) -->
         <div class="positioningLine" id="positioningLine" aria-label="What makes iwannasun different">
           <div class="muted small">Most weather apps show cloud percentage.<br>iwannasun shows when the sunlight really breaks through.</div>
         </div>
-        <!-- Ad slot (sidebar). Reserved space so monetisation doesn't break layout later. -->
         <div class="adSlot" id="adSidebar" aria-label="Advertisement">
           <div class="adSlotLabel">Advertisement</div>
         </div>
@@ -169,15 +171,11 @@
       </div>
     </div>
 
-    <!-- Ad slot (mobile). Placed after main content; can be shown/hidden via CSS later. -->
       <div class="adSlot small" id="adMobile" aria-label="Advertisement">
         <div class="adSlotLabel">Advertisement</div>
       </div>
     </div>
-
-    
   </div>
-
 
   <script src="./app.js" defer></script>
 </body>

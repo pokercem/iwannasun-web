@@ -1,23 +1,9 @@
 'use strict';
 
 /**
- * Frontend app logic for iwannasun
- *
- * Responsibilities:
- * - Fetch /day data from backend (ray model with local fallback)
- * - Handle rate limiting (503 provider + 429 API) with cooldown persistence
- * - Cache short-lived results in sessionStorage
- * - Render decision, KPIs, chart, timeline, and next sunny window
- * - Keep UI time and "now" marker fresh
- *
- * Design principles in current version:
- * - Clear separation of Sun Score vs Confidence (distinct meters)
- * - Tomorrow view shows daylight average instead of a single hour
- * - Timeline uses time_utc as authoritative source to avoid timezone bugs
- * - UI remains calm and non-intrusive (no aggressive auto-refresh loops)
- *
- * Removed in recent cleanup:
- * - Demo city button and related logic
+ * Main frontend controller for iwannasun.
+ * Responsibilities: location handling, forecast fetching/caching, cooldown UX,
+ * and rendering the decision, metrics, chart, timeline, and time indicators.
  */
 
 // ===== Config =====
@@ -112,7 +98,7 @@ const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 function roundCoord(x, decimals = 3) {
   const p = Math.pow(10, decimals);
   return Math.round(Number(x) * p) / p;
-  }
+}
 const nextPaint = () => new Promise((r) => requestAnimationFrame(r));
 
 // Debounce helper (mobile resize/orientation can fire many events)
@@ -595,53 +581,53 @@ async function fetchDay(force = false) {
     _dayAbort = new AbortController();
     const { signal } = _dayAbort;
 
-  let usedModel = 'ray';
-  let res = await fetch(urlRay, { signal });
-  
-  if (!res.ok) {
-    let msg = '';
-    try { msg = (await res.json())?.detail || ''; } catch {}
-  
-    // Provider rate limit (Open-Meteo). Backend returns 503 and should include Retry-After.
-    if (res.status === 503 && msg.toLowerCase().includes('rate limit')) {
-      const ra = res.headers?.get?.('Retry-After');
-      let cooldown = RL_PROVIDER_DEFAULT_COOLDOWN_S;
-      if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 15 * 60);
-  
-      startRateLimitCooldown(
-        cooldown,
-        'Rate limited by forecast provider. Please wait.'
-      );
+    let usedModel = 'ray';
+    let res = await fetch(urlRay, { signal });
+
+    if (!res.ok) {
+      let msg = '';
+      try { msg = (await res.json())?.detail || ''; } catch {}
+
+      // Provider rate limit (Open-Meteo). Backend returns 503 and should include Retry-After.
+      if (res.status === 503 && msg.toLowerCase().includes('rate limit')) {
+        const ra = res.headers?.get?.('Retry-After');
+        let cooldown = RL_PROVIDER_DEFAULT_COOLDOWN_S;
+        if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 15 * 60);
+
+        startRateLimitCooldown(
+          cooldown,
+          'Rate limited by forecast provider. Please wait.'
+        );
+        return;
+      }
+
+      // Your API limiter (user spamming). Backend returns 429 and should include Retry-After.
+      if (res.status === 429) {
+        const ra = res.headers?.get?.('Retry-After');
+        let cooldown = RL_USER_DEFAULT_COOLDOWN_S;
+        if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 60);
+
+        startRateLimitCooldown(
+          cooldown,
+          'Slow down, too many requests to our service.'
+        );
+        return;
+      }
+
+      // Otherwise: fall back to local model if ray failed for non-rate-limit reasons.
+      usedModel = 'local';
+      res = await fetch(urlLocal, { signal });
+    }
+
+    if (!res.ok) {
+      let msg = `API error ${res.status}`;
+      try {
+        const j = await res.json();
+        if (j?.detail) msg = String(j.detail);
+      } catch {}
+      showError(msg);
       return;
     }
-  
-    // Your API limiter (user spamming). Backend returns 429 and should include Retry-After.
-    if (res.status === 429) {
-      const ra = res.headers?.get?.('Retry-After');
-      let cooldown = RL_USER_DEFAULT_COOLDOWN_S;
-      if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 60);
-  
-      startRateLimitCooldown(
-        cooldown,
-        'Slow down, too many requests to our service.'
-      );
-      return;
-    }
-  
-    // Otherwise: fall back to local model if ray failed for non-rate-limit reasons.
-    usedModel = 'local';
-    res = await fetch(urlLocal, { signal });
-  }
-  
-  if (!res.ok) {
-    let msg = `API error ${res.status}`;
-    try {
-      const j = await res.json();
-      if (j?.detail) msg = String(j.detail);
-    } catch {}
-    showError(msg);
-    return;
-  }
 
     const data = await res.json();
     state.data = data;
@@ -844,7 +830,7 @@ function renderTimeline(dayRows, dayIndex = 0, win = null) {
   els.timeline.innerHTML = parts.join('');
 }
 
-function renderChart(dayRows, dayIndex = 0, win = null) {
+function renderChart(dayRows, win = null) {
   if (!els.canvas || !ctx) return;
 
   // Use rect sizing (more reliable on mobile than clientWidth during reflow)
@@ -1163,7 +1149,7 @@ function render() {
   }
 
   const dayWin30 = daylightWindow(dayRows, 30);
-  renderChart(dayRows, dayIndex, dayWin30);
+  renderChart(dayRows, dayWin30);
 
   // Hide timeline if no daylight ahead for selected day
   const nowMs = Date.now();
@@ -1245,7 +1231,6 @@ async function useHere({ silent = false } = {}) {
   );
 }
 
-// ===== Events =====
 // ===== Events =====
 if (els.btnHere) els.btnHere.addEventListener('click', () => useHere());
 if (els.btnRefresh) els.btnRefresh.addEventListener('click', () => fetchDay(true));
