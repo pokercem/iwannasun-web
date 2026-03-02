@@ -9,7 +9,7 @@
   width: 1px;
   height: 1px;
   padding: 0;
-  margin: -1px;
+  margin: 0;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
@@ -600,6 +600,23 @@ input:focus, select:focus {
   color: rgba(20, 24, 28, 0.62);
 }
 
+/* NEW: About attribution line (Open-Meteo CC BY 4.0) */
+.aboutAttrib {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(20, 24, 28, 0.62);
+}
+
+.aboutAttrib a {
+  color: rgba(20, 24, 28, 0.68);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(20, 24, 28, 0.18);
+}
+.aboutAttrib a:hover {
+  border-bottom-color: rgba(244, 184, 96, 0.60);
+}
+
 /* Make "How it works" feel present but calm (structured, not loud) */
 .notes .aboutText b {
   display: inline-block;
@@ -842,23 +859,6 @@ canvas {
   #adSidebar { display: none; }
   #adMobile { display: flex; }
 }
-
-/* Footer */
-.footer {
-  margin: 18px auto 22px;
-  padding: 0 18px;
-  color: rgba(20, 24, 28, 0.78);
-  font-size: 13px;
-  line-height: 1.5;
-  text-align: center;
-}
-
-.footer a {
-  color: rgba(20, 24, 28, 0.72);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(20, 24, 28, 0.20);
-}
-.footer a:hover { border-bottom-color: rgba(244, 184, 96, 0.60); }
 
 .scoreNum {
   font-variant-numeric: tabular-nums;
