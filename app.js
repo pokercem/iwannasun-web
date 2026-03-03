@@ -7,7 +7,7 @@
  */
 
 // ===== Config =====
-const API_BASE = 'https://iwannasun.onrender.com';
+const API_BASE = 'https://api.iwannasun.com';
 const DEFAULT_THRESHOLD = 70;
 const DAYS = 2;
 
