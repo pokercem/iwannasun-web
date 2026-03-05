@@ -7,7 +7,10 @@
  */
 
 // ===== Config =====
-const API_BASE = 'https://api.iwannasun.com';
+const API_BASE =
+  (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+    ? 'http://127.0.0.1:8000'
+    : 'https://api.iwannasun.com';
 const DEFAULT_THRESHOLD = 70;
 const DAYS = 2;
 
