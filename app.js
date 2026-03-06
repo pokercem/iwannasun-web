@@ -13,6 +13,9 @@ const API_BASE =
     : 'https://api.iwannasun.com';
 const DEFAULT_THRESHOLD = 70;
 const DAYS = 2;
+const COORD_STATE_DECIMALS = 3;
+const COORD_CACHE_KEY_DECIMALS = 3;
+const COORD_UI_DECIMALS = 2;
 
 // Timeline limits
 const TIMELINE_MAX_ROWS = 84;
@@ -367,10 +370,19 @@ function applyRateLimitUi() {
   }
 }
 
+function handleCooldownResponse(res, defaultSeconds, maxSeconds, message) {
+  const ra = res.headers?.get?.('Retry-After');
+  let cooldown = defaultSeconds;
+  if (ra && /^\d+$/.test(ra)) {
+    cooldown = clamp(Number(ra), 5, maxSeconds);
+  }
+  startRateLimitCooldown(cooldown, message);
+}
+
 // ===== Location =====
 function setLocation(lat, lon, label = '') {
-  state.lat = roundCoord(lat, 2);
-  state.lon = roundCoord(lon, 2);
+  state.lat = roundCoord(lat, COORD_STATE_DECIMALS);
+  state.lon = roundCoord(lon, COORD_STATE_DECIMALS);
   state.label = (label || '').trim();
 
   state.data = null;
@@ -378,7 +390,7 @@ function setLocation(lat, lon, label = '') {
   state.tzName = null;
 
   if (els.locPill) {
-    els.locPill.textContent = state.label ? state.label : `${state.lat.toFixed(2)}, ${state.lon.toFixed(2)}`;
+    els.locPill.textContent = state.label ? state.label : `${state.lat.toFixed(COORD_UI_DECIMALS)}, ${state.lon.toFixed(COORD_UI_DECIMALS)}`;
   }
   if (els.timePill) {
     els.timePill.textContent = '—';
@@ -505,11 +517,11 @@ document.addEventListener('click', (e) => {
 });
 
 // ===== Cache =====
-function cacheKey(lat, lon, threshold, { days = 2, model = 'ray' } = {}) {
-  const rlat = Number(lat).toFixed(4);
-  const rlon = Number(lon).toFixed(4);
+function cacheKey(lat, lon, threshold, { days = 2, model = 'ray', mode = 'full' } = {}) {
+  const rlat = Number(lat).toFixed(COORD_CACHE_KEY_DECIMALS);
+  const rlon = Number(lon).toFixed(COORD_CACHE_KEY_DECIMALS);
   const thr = Number(threshold);
-  return `iwannasun_day_${rlat}_${rlon}_${thr}_d${days}_m${model}`;
+  return `iwannasun_day_${rlat}_${rlon}_${thr}_d${days}_m${model}_mo${mode}`;
 }
 
 function loadCached(lat, lon, threshold, maxAgeMs = 5 * 60 * 1000, opts = {}) {
@@ -536,6 +548,15 @@ function saveCached(lat, lon, threshold, data, opts = {}) {
 }
 
 // ===== API =====
+function buildDayUrls(lat, lon, threshold, days, mode) {
+  const base = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
+    + `&threshold=${encodeURIComponent(threshold)}&days=${days}&mode=${encodeURIComponent(mode)}`;
+  return {
+    urlRay: base + `&model=ray`,
+    urlLocal: base + `&model=local`,
+  };
+}
+
 async function fetchDay(force = false) {
   // Respect cooldown (even if user spams Refresh)
   // IMPORTANT: if we return early, make sure we aren't leaving the UI in a busy state.
@@ -560,15 +581,11 @@ async function fetchDay(force = false) {
   const threshold = DEFAULT_THRESHOLD;
   const wantedMode = 'full';
 
-  const base = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
-    + `&threshold=${encodeURIComponent(threshold)}&days=${DAYS}&mode=${encodeURIComponent(wantedMode)}`;
-
-  const urlRay = base + `&model=ray`;
-  const urlLocal = base + `&model=local`;
+  const { urlRay, urlLocal } = buildDayUrls(lat, lon, threshold, DAYS, wantedMode);
 
   if (!force) {
-    let cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'ray' });
-    if (!cached) cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'local' });
+    let cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'ray', mode: wantedMode });
+    if (!cached) cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'local', mode: wantedMode });
     if (cached) {
       state.data = cached;
       state.tzName = cached?.meta?.tz_name || null;
@@ -589,31 +606,21 @@ async function fetchDay(force = false) {
 
     if (!res.ok) {
       let msg = '';
-      try { msg = (await res.json())?.detail || ''; } catch {}
+      try {
+        const errBody = await res.json();
+        msg = (typeof errBody?.detail === 'string') ? errBody.detail : '';
+      } catch {}
+      const errCode = (res.headers?.get?.('X-IWS-Error-Code') || '').trim();
 
       // Provider rate limit (Open-Meteo). Backend returns 503 and should include Retry-After.
-      if (res.status === 503 && msg.toLowerCase().includes('rate limit')) {
-        const ra = res.headers?.get?.('Retry-After');
-        let cooldown = RL_PROVIDER_DEFAULT_COOLDOWN_S;
-        if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 15 * 60);
-
-        startRateLimitCooldown(
-          cooldown,
-          'Rate limited by forecast provider. Please wait.'
-        );
+      if (res.status === 503 && (errCode === 'UPSTREAM_RATE_LIMIT' || msg.toLowerCase().includes('rate limit'))) {
+        handleCooldownResponse(res, RL_PROVIDER_DEFAULT_COOLDOWN_S, 15 * 60, 'Rate limited by forecast provider. Please wait.');
         return;
       }
 
       // Your API limiter (user spamming). Backend returns 429 and should include Retry-After.
       if (res.status === 429) {
-        const ra = res.headers?.get?.('Retry-After');
-        let cooldown = RL_USER_DEFAULT_COOLDOWN_S;
-        if (ra && /^\d+$/.test(ra)) cooldown = clamp(Number(ra), 5, 60);
-
-        startRateLimitCooldown(
-          cooldown,
-          'Slow down, too many requests to our service.'
-        );
+        handleCooldownResponse(res, RL_USER_DEFAULT_COOLDOWN_S, 60, 'Slow down, too many requests to our service.');
         return;
       }
 
@@ -626,7 +633,7 @@ async function fetchDay(force = false) {
       let msg = `API error ${res.status}`;
       try {
         const j = await res.json();
-        if (j?.detail) msg = String(j.detail);
+        if (typeof j?.detail === 'string') msg = j.detail;
       } catch {}
       showError(msg);
       return;
@@ -637,7 +644,7 @@ async function fetchDay(force = false) {
     state.tzName = data?.meta?.tz_name || null;
     prepData(state.data);
 
-    saveCached(lat, lon, threshold, data, { days: DAYS, model: usedModel });
+    saveCached(lat, lon, threshold, data, { days: DAYS, model: usedModel, mode: wantedMode });
     render();
   } catch (e) {
     if (e && (e.name === 'AbortError' || e.code === 20)) return;
@@ -1185,8 +1192,8 @@ async function useHere({ silent = false } = {}) {
 
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
-      const lat = roundCoord(pos.coords.latitude, 3);
-      const lon = roundCoord(pos.coords.longitude, 3);
+      const lat = roundCoord(pos.coords.latitude, COORD_STATE_DECIMALS);
+      const lon = roundCoord(pos.coords.longitude, COORD_STATE_DECIMALS);
   
       // Immediate feedback
       setLocation(lat, lon, 'My location');
