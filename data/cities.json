@@ -1,0 +1,281 @@
+[
+  {
+    "slug": "amsterdam",
+    "city": "Amsterdam",
+    "lat": 52.3676,
+    "lon": 4.9041,
+    "meta_description": "Wondering when the sun will come out in Amsterdam? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Amsterdam with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Amsterdam with a practical timeline forecast."
+  },
+  {
+    "slug": "london",
+    "city": "London",
+    "lat": 51.5074,
+    "lon": -0.1278,
+    "meta_description": "Wondering when the sun will come out in London? iwannasun shows upcoming sunlight windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in London with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in London with a practical timeline forecast."
+  },
+  {
+    "slug": "berlin",
+    "city": "Berlin",
+    "lat": 52.52,
+    "lon": 13.405,
+    "meta_description": "Wondering when the sun will come out in Berlin? iwannasun maps likely sun windows from cloud layers and sun-angle forecasting.",
+    "og_description": "Track likely sunlight breaks in Berlin with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Berlin with a practical timeline forecast."
+  },
+  {
+    "slug": "paris",
+    "city": "Paris",
+    "lat": 48.8566,
+    "lon": 2.3522,
+    "meta_description": "Wondering when the sun will come out in Paris? iwannasun points to upcoming sun breaks using forecast cloud data and solar geometry.",
+    "og_description": "Track likely sunlight breaks in Paris with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Paris with a practical timeline forecast."
+  },
+  {
+    "slug": "barcelona",
+    "city": "Barcelona",
+    "lat": 41.3874,
+    "lon": 2.1686,
+    "meta_description": "Wondering when the sun will come out in Barcelona? iwannasun estimates the next sun windows using forecast clouds and the local sun path.",
+    "og_description": "Track likely sunlight breaks in Barcelona with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Barcelona with a practical timeline forecast."
+  },
+  {
+    "slug": "brussels",
+    "city": "Brussels",
+    "lat": 50.8503,
+    "lon": 4.3517,
+    "meta_description": "Wondering when the sun will come out in Brussels? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Brussels with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Brussels with a practical timeline forecast."
+  },
+  {
+    "slug": "copenhagen",
+    "city": "Copenhagen",
+    "lat": 55.6761,
+    "lon": 12.5683,
+    "meta_description": "Wondering when the sun will come out in Copenhagen? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Copenhagen with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Copenhagen with a practical timeline forecast."
+  },
+  {
+    "slug": "stockholm",
+    "city": "Stockholm",
+    "lat": 59.3293,
+    "lon": 18.0686,
+    "meta_description": "Wondering when the sun will come out in Stockholm? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Stockholm with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Stockholm with a practical timeline forecast."
+  },
+  {
+    "slug": "oslo",
+    "city": "Oslo",
+    "lat": 59.9139,
+    "lon": 10.7522,
+    "meta_description": "Wondering when the sun will come out in Oslo? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Oslo with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Oslo with a practical timeline forecast."
+  },
+  {
+    "slug": "helsinki",
+    "city": "Helsinki",
+    "lat": 60.1699,
+    "lon": 24.9384,
+    "meta_description": "Wondering when the sun will come out in Helsinki? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Helsinki with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Helsinki with a practical timeline forecast."
+  },
+  {
+    "slug": "dublin",
+    "city": "Dublin",
+    "lat": 53.3498,
+    "lon": -6.2603,
+    "meta_description": "Wondering when the sun will come out in Dublin? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Dublin with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Dublin with a practical timeline forecast."
+  },
+  {
+    "slug": "edinburgh",
+    "city": "Edinburgh",
+    "lat": 55.9533,
+    "lon": -3.1883,
+    "meta_description": "Wondering when the sun will come out in Edinburgh? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Edinburgh with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Edinburgh with a practical timeline forecast."
+  },
+  {
+    "slug": "manchester",
+    "city": "Manchester",
+    "lat": 53.4808,
+    "lon": -2.2426,
+    "meta_description": "Wondering when the sun will come out in Manchester? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Manchester with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Manchester with a practical timeline forecast."
+  },
+  {
+    "slug": "glasgow",
+    "city": "Glasgow",
+    "lat": 55.8642,
+    "lon": -4.2518,
+    "meta_description": "Wondering when the sun will come out in Glasgow? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Glasgow with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Glasgow with a practical timeline forecast."
+  },
+  {
+    "slug": "hamburg",
+    "city": "Hamburg",
+    "lat": 53.5511,
+    "lon": 9.9937,
+    "meta_description": "Wondering when the sun will come out in Hamburg? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Hamburg with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Hamburg with a practical timeline forecast."
+  },
+  {
+    "slug": "munich",
+    "city": "Munich",
+    "lat": 48.1351,
+    "lon": 11.582,
+    "meta_description": "Wondering when the sun will come out in Munich? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Munich with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Munich with a practical timeline forecast."
+  },
+  {
+    "slug": "vienna",
+    "city": "Vienna",
+    "lat": 48.2082,
+    "lon": 16.3738,
+    "meta_description": "Wondering when the sun will come out in Vienna? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Vienna with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Vienna with a practical timeline forecast."
+  },
+  {
+    "slug": "zurich",
+    "city": "Zurich",
+    "lat": 47.3769,
+    "lon": 8.5417,
+    "meta_description": "Wondering when the sun will come out in Zurich? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Zurich with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Zurich with a practical timeline forecast."
+  },
+  {
+    "slug": "prague",
+    "city": "Prague",
+    "lat": 50.0755,
+    "lon": 14.4378,
+    "meta_description": "Wondering when the sun will come out in Prague? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Prague with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Prague with a practical timeline forecast."
+  },
+  {
+    "slug": "warsaw",
+    "city": "Warsaw",
+    "lat": 52.2297,
+    "lon": 21.0122,
+    "meta_description": "Wondering when the sun will come out in Warsaw? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Warsaw with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Warsaw with a practical timeline forecast."
+  },
+  {
+    "slug": "budapest",
+    "city": "Budapest",
+    "lat": 47.4979,
+    "lon": 19.0402,
+    "meta_description": "Wondering when the sun will come out in Budapest? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Budapest with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Budapest with a practical timeline forecast."
+  },
+  {
+    "slug": "lisbon",
+    "city": "Lisbon",
+    "lat": 38.7223,
+    "lon": -9.1393,
+    "meta_description": "Wondering when the sun will come out in Lisbon? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Lisbon with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Lisbon with a practical timeline forecast."
+  },
+  {
+    "slug": "madrid",
+    "city": "Madrid",
+    "lat": 40.4168,
+    "lon": -3.7038,
+    "meta_description": "Wondering when the sun will come out in Madrid? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Madrid with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Madrid with a practical timeline forecast."
+  },
+  {
+    "slug": "rome",
+    "city": "Rome",
+    "lat": 41.9028,
+    "lon": 12.4964,
+    "meta_description": "Wondering when the sun will come out in Rome? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Rome with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Rome with a practical timeline forecast."
+  },
+  {
+    "slug": "seattle",
+    "city": "Seattle",
+    "lat": 47.6062,
+    "lon": -122.3321,
+    "meta_description": "Wondering when the sun will come out in Seattle? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Seattle with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Seattle with a practical timeline forecast."
+  },
+  {
+    "slug": "vancouver",
+    "city": "Vancouver",
+    "lat": 49.2827,
+    "lon": -123.1207,
+    "meta_description": "Wondering when the sun will come out in Vancouver? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Vancouver with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Vancouver with a practical timeline forecast."
+  },
+  {
+    "slug": "portland",
+    "city": "Portland",
+    "lat": 45.5152,
+    "lon": -122.6784,
+    "meta_description": "Wondering when the sun will come out in Portland? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Portland with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Portland with a practical timeline forecast."
+  },
+  {
+    "slug": "boston",
+    "city": "Boston",
+    "lat": 42.3601,
+    "lon": -71.0589,
+    "meta_description": "Wondering when the sun will come out in Boston? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Boston with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Boston with a practical timeline forecast."
+  },
+  {
+    "slug": "chicago",
+    "city": "Chicago",
+    "lat": 41.8781,
+    "lon": -87.6298,
+    "meta_description": "Wondering when the sun will come out in Chicago? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Chicago with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Chicago with a practical timeline forecast."
+  },
+  {
+    "slug": "toronto",
+    "city": "Toronto",
+    "lat": 43.6532,
+    "lon": -79.3832,
+    "meta_description": "Wondering when the sun will come out in Toronto? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Toronto with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Toronto with a practical timeline forecast."
+  },
+  {
+    "slug": "montreal",
+    "city": "Montreal",
+    "lat": 45.5017,
+    "lon": -73.5673,
+    "meta_description": "Wondering when the sun will come out in Montreal? iwannasun highlights the next likely sun windows using forecast clouds and solar path timing.",
+    "og_description": "Track likely sunlight breaks in Montreal with a clear, location-based sun forecast timeline.",
+    "twitter_description": "See likely sun breaks in Montreal with a practical timeline forecast."
+  }
+]

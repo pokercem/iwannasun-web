@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>When Will the Sun Come Out in ${city}? | iwannasun Sun Forecast</title>
+  <meta name="description" content="${meta_description}" />
+  <link rel="canonical" href="https://iwannasun.com/sun/${slug}/" />
+  <meta property="og:title" content="When Will the Sun Come Out in ${city}? | iwannasun Sun Forecast" />
+  <meta property="og:description" content="${og_description}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://iwannasun.com/sun/${slug}/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="When Will the Sun Come Out in ${city}? | iwannasun Sun Forecast" />
+  <meta name="twitter:description" content="${twitter_description}" />
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "iwannasun",
+      "url": "https://iwannasun.com/sun/${slug}/",
+      "description": "iwannasun helps people find upcoming sun windows in ${city} by combining weather forecast cloud data with solar path modeling.",
+      "applicationCategory": "WeatherApplication",
+      "operatingSystem": "Web",
+      "browserRequirements": "Requires JavaScript and a modern browser.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+  </script>
+  <script>
+    window.IWS_PRESET_LOCATION = { lat: ${lat}, lon: ${lon}, label: '${city}' };
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="iwannasun home">
+      <img class="brandLogo" src="/iwannasunlogowtext.svg" alt="iwannasun" />
+      <div class="brandText">
+        <h1 class="sub">Find the next sunny window in ${city}.</h1>
+      </div>
+    </a>
+
+    <div class="controls" aria-label="Location and controls">
+      <div class="controlsHelper muted small" style="margin-top:2px">
+        <span class="desktopCopy">Pick a place → get your next sun break</span>
+        <span class="mobileCopy">Pick a place for your next sun break</span>
+      </div>
+      <div class="cityWrap">
+        <label for="cityInput" class="srOnly">Search city</label>
+        <input
+          id="cityInput"
+          class="cityInput"
+          type="text"
+          inputmode="search"
+          autocomplete="off"
+          placeholder="Search city…"
+          aria-label="Search city"
+          aria-autocomplete="list"
+          aria-controls="cityResults"
+          aria-expanded="false"
+        />
+        <div id="cityResults" class="suggest" role="listbox"></div>
+      </div>
+
+      <div class="btnRow">
+        <button id="btnHere" class="btn" type="button">Use my spot</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="grid">
+      <section class="card cardRel" aria-labelledby="forecastToolHeading">
+        <h2 id="forecastToolHeading" class="srOnly">Sun forecast tool</h2>
+        <div id="loadingOverlay" class="loadingOverlay" aria-live="polite" aria-busy="false">
+          <div class="loadingInner">
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="loadingText">
+              <div class="loadingTitle">Loading forecast…</div>
+              <div class="muted small">Fetching clouds + sun path</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row rowBetweenTop">
+          <div class="decisionBlock">
+            <div class="big" id="decisionWrap"><span id="decisionText">—</span></div>
+            <div class="muted small decisionContext" id="decisionContext"></div>
+            <div class="muted small whyInline" id="whyInline"></div>
+          </div>
+
+          <div class="row rowTop rightControls">
+            <span class="muted small" id="timePill" title="Local time">—</span>
+            <select id="daySelect" aria-label="Select day">
+              <option value="0">Today</option>
+              <option value="1">Tomorrow</option>
+            </select>
+            <button id="btnRefresh" class="btn" type="button" aria-label="Refresh data">Refresh</button>
+          </div>
+        </div>
+
+        <div class="chartBlock">
+          <div class="small chartTitle" id="chartTitle">
+            <span>Elevation (°)</span><span>line intensity = sun score</span>
+          </div>
+          <div class="chartWrap">
+            <div class="yAxis" id="yAxis"></div>
+            <canvas id="sunChart" aria-label="Sun elevation chart with sun score intensity"></canvas>
+          </div>
+          <div class="xAxis" id="xAxis"></div>
+        </div>
+
+        <div class="kpi">
+          <div class="box">
+            <div class="label" id="labelScore">Sun score now</div>
+            <div class="valueRow">
+              <div class="value" id="scoreNow">—</div>
+              <div class="meter" aria-hidden="true"><div class="fill" id="meterScore"></div></div>
+            </div>
+          </div>
+
+          <div class="box">
+            <div class="label" id="labelConf">
+              Confidence now
+            </div>
+            <div class="valueRow">
+              <div class="value" id="confNow">—</div>
+              <div class="meter" aria-hidden="true"><div class="fill" id="meterConf"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline" id="timeline" aria-label="Sun score timeline"></div>
+        <div class="err" id="errBox" role="status" aria-live="polite"></div>
+      </section>
+
+      <aside class="side" aria-label="Supplementary forecast details">
+        <section class="positioningLine" id="positioningLine" aria-label="What makes iwannasun different">
+          <h2 class="srOnly">What makes iwannasun different</h2>
+          <div class="muted small">See when sunlight is most likely to break through in ${city}.</div>
+        </section>
+        <section class="card" aria-labelledby="nextWindowHeading">
+          <div class="muted small" id="nextWindowHeading">Your next sun break</div>
+          <div class="big" id="nextWindow">—</div>
+          <div class="muted nextWindowSub" id="nextWindowSub">—</div>
+
+          <div class="sunTimesRow">
+            <div>
+              <div class="muted small">Sunrise</div>
+              <div class="big sunTimeValue" id="sunriseTime">—</div>
+            </div>
+            <div>
+              <div class="muted small">Sunset</div>
+              <div class="big sunTimeValue" id="sunsetTime">—</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card notes" aria-labelledby="about">
+          <h2 class="muted small sectionHeading" id="about">About iwannasun</h2>
+          <div class="muted small aboutText">
+            <p><b>Why cloud percentage can mislead:</b> Cloud percentage does not tell you if the sun is actually blocked, especially when the sun is low on the horizon.</p>
+
+            <p><b>What iwannasun does differently:</b> iwannasun follows the sun's exact path and checks the clouds along that path, so you know when sunlight really breaks through.</p>
+
+            <p><b>Sun Score:</b> The chance that the sun is directly visible.<br><b>Confidence:</b> How steady that situation is likely to stay.</p>
+
+            <p class="aboutTip">Tip: Add this page to your home screen for a fast daily check.</p>
+
+            <p class="aboutAttrib">
+              Weather data provided by
+              <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>
+              (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>).
+              Data may be modified for presentation. Model: iwannasun.
+            </p>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="wrap siteFooter">
+    <p class="muted small">iwannasun is a weather-based sunlight planning tool for daily outdoor decisions.</p>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
