@@ -73,6 +73,15 @@ html, body {
   overflow-x: hidden;
 }
 
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+body > main.wrap {
+  flex: 1 0 auto;
+}
+
 /* --- Wellness mood shifts (apply to root html) --- */
 html.mood-sunny {
   background:
