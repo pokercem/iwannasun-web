@@ -25,7 +25,10 @@
     </a>
 
     <div class="controls" aria-label="Location and controls">
-      <div class="muted small" style="margin-top:2px">Pick a place → get your next sun break</div>
+      <div class="controlsHelper muted small" style="margin-top:2px">
+        <span class="desktopCopy">Pick a place → get your next sun break</span>
+        <span class="mobileCopy">Pick a place for your next sun break</span>
+      </div>
       <div class="cityWrap">
         <label for="cityInput" class="srOnly">Search city</label>
         <input
@@ -75,8 +78,19 @@
               <option value="0">Today</option>
               <option value="1">Tomorrow</option>
             </select>
-            <button id="btnRefresh" class="btn" type="button">Refresh</button>
+            <button id="btnRefresh" class="btn" type="button" aria-label="Refresh data">Refresh</button>
           </div>
+        </div>
+
+        <div class="chartBlock">
+          <div class="small chartTitle" id="chartTitle">
+            <span>Elevation (°)</span><span>line intensity = sun score</span>
+          </div>
+          <div class="chartWrap">
+            <div class="yAxis" id="yAxis"></div>
+            <canvas id="sunChart" aria-label="Sun elevation chart with sun score intensity"></canvas>
+          </div>
+          <div class="xAxis" id="xAxis"></div>
         </div>
 
         <div class="kpi">
@@ -97,27 +111,6 @@
               <div class="meter" aria-hidden="true"><div class="fill" id="meterConf"></div></div>
             </div>
           </div>
-
-          <div class="box" id="boxSun60">
-            <div class="label" id="labelSun60">Sunny minutes next 1h</div>
-            <div class="value" id="sun60">—</div>
-          </div>
-
-          <div class="box" id="boxSun120">
-            <div class="label" id="labelSun120">Sunny minutes next 2h</div>
-            <div class="value" id="sun120">—</div>
-          </div>
-        </div>
-
-        <div class="chartBlock">
-          <div class="small chartTitle" id="chartTitle">
-            <span>Elevation (°)</span><span>line intensity = sun score</span>
-          </div>
-          <div class="chartWrap">
-            <div class="yAxis" id="yAxis"></div>
-            <canvas id="sunChart" aria-label="Sun elevation chart with sun score intensity"></canvas>
-          </div>
-          <div class="xAxis" id="xAxis"></div>
         </div>
 
         <div class="timeline" id="timeline" aria-label="Sun score timeline"></div>
@@ -165,8 +158,6 @@
           </div>
         </div>
       </div>
-    </div>
-
     </div>
   </div>
 

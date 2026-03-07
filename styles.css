@@ -149,6 +149,15 @@ html.mood-blocked {
   justify-content: flex-end;
 }
 
+/* Header tagline consistency: match brand subtitle tone */
+.controls > .muted.small:first-child {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.controlsHelper .mobileCopy { display: none; }
+
 .pillRow {
   display: flex;
   gap: 8px;
@@ -182,6 +191,19 @@ html.mood-blocked {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* Side-panel card polish: slightly cleaner, more consistent surfaces */
+.side .card {
+  padding: 16px 17px;
+  border-color: rgba(20, 24, 28, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.80), rgba(255, 255, 255, 0.62));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.side .card > .muted.small:first-child {
+  color: rgba(20, 24, 28, 0.58);
+  letter-spacing: 0.01em;
 }
 
 @media (max-width: 860px) {
@@ -232,12 +254,12 @@ html.mood-blocked {
   justify-content: space-between;
   align-items: flex-start;
   flex-wrap: nowrap;
-  gap: 14px;
+  gap: 16px;
 }
 
 /* Give decision area more breathing room */
 .decisionBlock {
-  padding-right: 6px;
+  padding-right: 10px;
 }
 
 /* Critical: allow the left decision block to shrink on small screens */
@@ -261,31 +283,45 @@ html.mood-blocked {
 }
 
 .rowTop { align-self: flex-start; }
-.rightControls { justify-content: flex-end; }
+.rightControls {
+  justify-content: flex-end;
+  gap: 8px;
+  opacity: 0.9;
+}
 
 /* Decision text blocks */
 .decisionContext {
-  margin-top: 6px;
-  line-height: 1.4;
+  margin-top: 8px;
+  line-height: 1.45;
+  font-size: 12.5px;
   max-width: 560px;
-  color: rgba(20, 24, 28, 0.68);
+  color: rgba(20, 24, 28, 0.66);
 }
 
 .whyInline {
-  margin-top: 6px;
-  line-height: 1.45;
+  margin-top: 5px;
+  line-height: 1.5;
+  font-size: 13px;
   max-width: 560px;
-  color: rgba(20, 24, 28, 0.72);
+  color: rgba(20, 24, 28, 0.76);
 }
 
 /* Make the answer feel like a "moment" */
 #decisionWrap {
-  display: inline-block;
-  padding: 2px 0;
+  display: inline-flex;
+  align-items: baseline;
+  padding: 1px 0 2px;
   border-radius: 0;
   background: transparent;
   border: none;
   box-shadow: none;
+}
+
+#decisionText {
+  font-size: 30px;
+  line-height: 1.04;
+  font-weight: 590;
+  letter-spacing: 0.18px;
 }
 
 /* Inputs / buttons */
@@ -351,22 +387,99 @@ input:focus, select:focus {
 }
 
 @media (max-width: 700px) {
-  .rowBetweenTop { flex-wrap: wrap; }
-
-  .rightControls {
-    width: 100%;
-    justify-content: flex-start;
+  .wrap {
+    padding-top: 14px;
   }
 
-  /* KPI should be single-column on phones to prevent overflow */
-  .kpi { grid-template-columns: 1fr; }
+  .rowBetweenTop {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .rowBetweenTop .decisionBlock {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-right: 4px;
+  }
+
+  .topbar,
+  .card,
+  .suggest,
+  .loadingOverlay {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .rowBetweenTop .rightControls {
+    flex: 0 0 auto;
+    width: auto;
+    display: grid;
+    grid-template-columns: minmax(88px, auto) 36px;
+    grid-template-areas:
+      "time time"
+      "day refresh";
+    justify-content: end;
+    align-items: center;
+    gap: 6px 4px;
+  }
+
+  #timePill {
+    grid-area: time;
+    margin-left: 0;
+    justify-self: end;
+    text-align: right;
+    font-size: 11px;
+    opacity: 0.74;
+  }
+
+  #timePill::before {
+    content: "Local time ";
+    opacity: 0.86;
+  }
+
+  #daySelect {
+    grid-area: day;
+    min-width: 88px;
+  }
+
+  #btnRefresh {
+    grid-area: refresh;
+    justify-self: start;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 12px;
+    font-size: 0;
+    line-height: 0;
+  }
+
+  #btnRefresh::before {
+    content: "\21BB";
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .timeline {
+    --timeline-cols: max-content max-content minmax(0, 1fr);
+    --timeline-col-gap: 8px;
+    --timeline-conf-offset: -10px;
+  }
+
+  /* With 2 KPI cards, keep a balanced two-column layout on most phones */
+  canvas { height: 160px; }
+  #decisionText { font-size: 27px; }
+  .decisionContext,
+  .whyInline { max-width: 100%; }
 }
 
 /* ===== MOBILE HEADER LAYOUT (<=520px): 45/55 split ===== */
 @media (max-width: 520px) {
   .topbar {
     align-items: stretch;
-    gap: 12px;
+    gap: 8px;
+    padding: 9px 14px;
     min-width: 0;
   }
 
@@ -379,11 +492,11 @@ input:focus, select:focus {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
   }
 
   .brandLogo {
-    height: 81px; /* hero-sized logo on mobile */
+    height: 70px; /* mobile polish: reduce header height while keeping brand presence */
     width: auto;
   }
 
@@ -404,6 +517,14 @@ input:focus, select:focus {
     text-overflow: unset;
   }
 
+  .controls > .muted.small:first-child {
+    font-size: 10.8px;
+    line-height: 1.12;
+  }
+
+  .controlsHelper .desktopCopy { display: none; }
+  .controlsHelper .mobileCopy { display: inline; }
+
   /* Right column: controls */
   .controls {
     flex: 0 0 55%;
@@ -414,7 +535,7 @@ input:focus, select:focus {
     flex-direction: column;
     justify-content: center;
     align-items: stretch;
-    gap: 10px;
+    gap: 8px;
   }
 
   /* Make inputs + buttons fill their column cleanly */
@@ -440,21 +561,20 @@ input:focus, select:focus {
 
   /* Card + layout adjustments */
   .rowBetweenTop {
-    flex-wrap: wrap;
+    gap: 10px;
   }
 
-  .rightControls {
-    width: 100%;
-    justify-content: flex-start;
+  .rowBetweenTop .decisionBlock {
+    padding-right: 2px;
+  }
+
+  .rowBetweenTop .rightControls {
+    gap: 5px 6px;
+    margin-top: 1px;
   }
 
   .card {
     padding: 14px;
-  }
-
-  /* Tighten reading blocks on small screens */
-  .whyInline {
-    max-width: 100%;
   }
 }
 
@@ -494,29 +614,26 @@ input:focus, select:focus {
 .kpi {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-/* Fix iOS/grid overflow: allow KPI cards to shrink inside grid */
-.kpi .box {
-  min-width: 0;
+  gap: 14px;
+  margin-top: 14px;
 }
 
 .kpi .box {
-  padding: 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.46);
-  border: 1px solid var(--stroke);
-  box-shadow: 0 10px 18px rgba(0,0,0,0.045);
+  min-width: 0; /* Fix iOS/grid overflow: allow KPI cards to shrink inside grid */
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.36);
+  border: 1px solid rgba(20, 24, 28, 0.06);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.03);
 }
 
-.kpi .box.dim { opacity: 0.55; }
+.kpi .box.dim { opacity: 0.5; }
 
 .kpi .label {
   font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.01em;
+  line-height: 1.25;
+  color: rgba(20, 24, 28, 0.58);
+  letter-spacing: 0.015em;
 }
 
 .valueRow {
@@ -529,18 +646,18 @@ input:focus, select:focus {
 }
 
 .kpi .value {
-  font-size: 18px; /* slightly reduced to avoid strong jumps */
-  margin-top: 4px;
+  font-size: 19px;
+  margin-top: 3px;
   font-variant-numeric: tabular-nums;
-  font-weight: 500; /* consistent weight across UI */
+  font-weight: 540;
 }
 
 .meter {
   width: 92px;
   max-width: 100%;
-  height: 9px;
+  height: 8px;
   border-radius: 999px;
-  background: rgba(20, 24, 28, 0.08);
+  background: rgba(20, 24, 28, 0.06);
   overflow: hidden;
 
   flex: 1 1 92px;   /* can shrink */
@@ -555,20 +672,42 @@ input:focus, select:focus {
 }
 
 /* Next window */
-.nextWindowSub { margin-top: 6px; }
+#nextWindow {
+  margin-top: 4px;
+  font-size: 27px;
+  line-height: 1.08;
+  font-weight: 590;
+  letter-spacing: 0.12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nextWindowSub {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: rgba(20, 24, 28, 0.60);
+}
 
 .sunTimesRow {
   margin-top: 12px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(20, 24, 28, 0.07);
   display: flex;
-  gap: 16px;
+  gap: 18px;
   align-items: flex-start;
   flex-wrap: wrap;
 }
 
 .sunTimeValue {
-  font-size: 17px;
+  font-size: 16px;
   margin-top: 4px;
   font-weight: 500;
+  color: rgba(20, 24, 28, 0.78);
+}
+
+@media (max-width: 520px) {
+  #nextWindow { font-size: 24px; }
+  .sunTimesRow { gap: 14px; }
 }
 
 .aboutText {
@@ -617,6 +756,11 @@ input:focus, select:focus {
 
 .notes .aboutText {
   color: rgba(20, 24, 28, 0.68);
+  line-height: 1.55;
+}
+
+.notes .aboutText p {
+  margin: 5px 0;
 }
 
 .notes .muted.small b#about {
@@ -639,7 +783,8 @@ input:focus, select:focus {
 #timePill {
   margin-left: 6px;
   font-variant-numeric: tabular-nums;
-  opacity: 0.75;
+  opacity: 0.68;
+  font-size: 12px;
 }
 
 /* Titles */
@@ -666,9 +811,12 @@ input:focus, select:focus {
 
 /* Timeline */
 .timeline {
+  --timeline-cols: 72px 46px minmax(0, 1fr);
+  --timeline-col-gap: 4px;
+  --timeline-conf-offset: -6px;
   margin-top: 14px;
   border-top: 1px solid rgba(20, 24, 28, 0.08);
-  padding-top: 10px;
+  padding-top: 12px;
   padding-right: 8px; /* subtle breathing room from scrollbar */
   max-height: 460px;
   overflow-y: auto;
@@ -679,26 +827,41 @@ input:focus, select:focus {
 
 .trowHead {
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 10px;
+  letter-spacing: 0.02em;
+  font-size: 9px;
   color: var(--muted);
+  padding-bottom: 1px;
 }
+
+.trowHead > div { letter-spacing: 0.01em; white-space: nowrap; text-align: left; }
 
 .trow {
   display: grid;
-  grid-template-columns: 70px 52px minmax(0, 1fr);
-  gap: 7px;
+  grid-template-columns: var(--timeline-cols);
+  align-items: center;
+  column-gap: var(--timeline-col-gap);
+  row-gap: 0;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(20, 24, 28, 0.08);
-  font-size: 13px;
+  border-bottom: 1px solid rgba(20, 24, 28, 0.07);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
 }
+
+/* Visual spacing balance: bring CONF. slightly closer to TIME */
+.trowHead > :nth-child(2),
+.trow > :nth-child(2) {
+  margin-left: var(--timeline-conf-offset);
+}
+
+/* Keep SUN SCORE column flexible and prevent bar cell from forcing extra width */
+.trow > :nth-child(3) { min-width: 0; }
 
 .bar {
   height: 10px;
   border-radius: 999px;
-  background: rgba(20, 24, 28, 0.08);
+  background: rgba(20, 24, 28, 0.09);
   overflow: hidden;
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .bar > div {
@@ -708,7 +871,10 @@ input:focus, select:focus {
 }
 
 /* Chart */
-.chartBlock { margin-top: 10px; }
+.chartBlock {
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
 
 .chartTitle {
   opacity: 0.85;
@@ -730,9 +896,11 @@ canvas {
   border-radius: 16px;
   border: 1px solid var(--stroke);
   background:
-    radial-gradient(700px 280px at 30% 0%, rgba(244, 184, 96, 0.08), rgba(244, 184, 96, 0.00) 62%),
-    rgba(155, 189, 217, 0.05);
-  margin-top: 10px;
+    radial-gradient(760px 320px at 26% -6%, rgba(244, 184, 96, 0.10), rgba(244, 184, 96, 0.00) 64%),
+    radial-gradient(760px 280px at 82% 104%, rgba(155, 189, 217, 0.10), rgba(155, 189, 217, 0.00) 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(155, 189, 217, 0.06) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -18px 28px rgba(155, 189, 217, 0.06);
+  margin-top: 8px;
 }
 
 .chartWrap {
@@ -829,11 +997,31 @@ canvas {
   font-variant-numeric: tabular-nums;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.2;
 }
 
 /* Small polish for very narrow screens */
 @media (max-width: 360px) {
   .wrap { padding: 14px; }
+  .kpi { grid-template-columns: 1fr; }
   .meter { width: 72px; }
-  .trow { grid-template-columns: 64px 48px minmax(0, 1fr); }
+  canvas { height: 145px; }
+
+  .rowBetweenTop {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rowBetweenTop .rightControls {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  #btnRefresh {
+    grid-area: auto;
+    justify-self: auto;
+  }
 }

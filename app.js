@@ -47,15 +47,9 @@ const els = {
 
   labelScore: $('labelScore'),
   labelConf: $('labelConf'),
-  labelSun60: $('labelSun60'),
-  labelSun120: $('labelSun120'),
-  boxSun60: $('boxSun60'),
-  boxSun120: $('boxSun120'),
 
   scoreNow: $('scoreNow'),
   confNow: $('confNow'),
-  sun60: $('sun60'),
-  sun120: $('sun120'),
 
   meterScore: $('meterScore'),
   meterConf: $('meterConf'),
@@ -125,6 +119,29 @@ function renderSoon() {
     _renderQueued = false;
     render();
   });
+}
+
+// Chart hover inspector state (desktop/pointer devices)
+const _chartHover = { active: false, idx: -1 };
+let _chartGeom = null;
+
+function clearChartHover() {
+  if (!_chartHover.active && _chartHover.idx < 0) return;
+  _chartHover.active = false;
+  _chartHover.idx = -1;
+  renderSoon();
+}
+
+function chartHoverIndexFromClientX(clientX) {
+  if (!els.canvas || !_chartGeom || _chartGeom.ptsLen < 1) return -1;
+  const rect = els.canvas.getBoundingClientRect();
+  const localX = clientX - rect.left;
+  const minX = _chartGeom.padX;
+  const maxX = _chartGeom.w - _chartGeom.padX;
+  const clampedX = clamp(localX, minX, maxX);
+  const span = Math.max(1, maxX - minX);
+  const u = (clampedX - minX) / span;
+  return clamp(Math.round(u * (_chartGeom.ptsLen - 1)), 0, _chartGeom.ptsLen - 1);
 }
 
 function showError(msg) {
@@ -849,9 +866,13 @@ function renderChart(dayRows, win = null) {
   const cssH = Math.max(1, Math.round(rect.height || els.canvas.clientHeight || 0));
   if (cssW <= 1 || cssH <= 1) return;
 
-  const dpr = window.devicePixelRatio || 1;
-  els.canvas.width = Math.round(cssW * dpr);
-  els.canvas.height = Math.round(cssH * dpr);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const targetW = Math.round(cssW * dpr);
+  const targetH = Math.round(cssH * dpr);
+  if (els.canvas.width !== targetW || els.canvas.height !== targetH) {
+    els.canvas.width = targetW;
+    els.canvas.height = targetH;
+  }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const w = cssW;
@@ -860,6 +881,7 @@ function renderChart(dayRows, win = null) {
   ctx.clearRect(0, 0, w, h);
 
   if (!dayRows || !dayRows.length) {
+    _chartGeom = null;
     if (els.yAxis) els.yAxis.innerHTML = '';
     if (els.xAxis) els.xAxis.innerHTML = '';
     return;
@@ -867,6 +889,7 @@ function renderChart(dayRows, win = null) {
 
   win = win || daylightWindow(dayRows, 30);
   if (!win) {
+    _chartGeom = null;
     if (els.yAxis) els.yAxis.innerHTML = '';
     if (els.xAxis) els.xAxis.innerHTML = '';
     return;
@@ -936,13 +959,16 @@ function renderChart(dayRows, win = null) {
     return { x: xOf(i), y: yOf(e), e, s: Number(r.sun_score || 0), t: tUtc(r) };
   });
 
+  _chartGeom = { w, padX, ptsLen: pts.length };
+
   // soft fill based on average score
   const avgScore = pts.reduce((acc, p) => acc + p.s, 0) / Math.max(1, pts.length);
   const tAvg = clamp(avgScore / 100, 0, 1);
-  const fillAlpha = 0.04 + 0.14 * tAvg;
+  const fillAlpha = 0.03 + 0.11 * tAvg;
 
   const fillGrad = ctx.createLinearGradient(0, padTop, 0, h);
   fillGrad.addColorStop(0, mixSunColor(tAvg, fillAlpha));
+  fillGrad.addColorStop(0.58, mixSunColor(tAvg, fillAlpha * 0.44));
   fillGrad.addColorStop(1, mixSunColor(tAvg, 0));
 
   ctx.beginPath();
@@ -953,8 +979,15 @@ function renderChart(dayRows, win = null) {
   ctx.fillStyle = fillGrad;
   ctx.fill();
 
+  const atmosphereGrad = ctx.createLinearGradient(0, padTop, 0, h - padBottom);
+  atmosphereGrad.addColorStop(0, "rgba(255,248,236,0.10)");
+  atmosphereGrad.addColorStop(0.42, "rgba(255,255,255,0.03)");
+  atmosphereGrad.addColorStop(1, "rgba(255,255,255,0.00)");
+  ctx.fillStyle = atmosphereGrad;
+  ctx.fill();
+
   // base line
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.3;
   ctx.lineCap = 'round';
   ctx.beginPath();
   for (let i = 0; i < pts.length; i++) {
@@ -971,15 +1004,18 @@ function renderChart(dayRows, win = null) {
 
     const t = clamp(((a.s + b.s) / 2) / 100, 0, 1);
     const elev = (a.e + b.e) / 2;
-    const alpha = 0.05 + 0.95 * t;
 
     const thinNearHorizon = 0.55 + 0.45 * clamp(elev / 6, 0, 1);
-    const lw = (1.0 + 9.0 * (t ** 0.9)) * thinNearHorizon;
+    const lw = (0.7 + 6.5 * (t ** 1.3)) * thinNearHorizon;
     const glowFade = clamp(elev / 8, 0, 1);
+    const glowStrength = (0.08 + 0.40 * (t ** 1.4)) * glowFade;
+    const glowBlur = 4 + 16 * (t ** 1.6);
 
     ctx.save();
-    ctx.globalAlpha = alpha * 0.25 * glowFade;
-    ctx.lineWidth = lw + 5;
+    ctx.globalAlpha = glowStrength;
+    ctx.lineWidth = lw + 6;
+    ctx.shadowBlur = glowBlur;
+    ctx.shadowColor = mixSunColor(t, 0.9);
     ctx.strokeStyle = mixSunColor(t, 1);
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
@@ -988,7 +1024,7 @@ function renderChart(dayRows, win = null) {
     ctx.restore();
 
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = 0.10 + 0.90 * (t ** 1.08);
     ctx.lineWidth = lw;
     ctx.strokeStyle = mixSunColor(t, 1);
     ctx.beginPath();
@@ -1017,10 +1053,74 @@ function renderChart(dayRows, win = null) {
 
     const idx = Math.round(u * (pts.length - 1));
     const p = pts[clamp(idx, 0, pts.length - 1)];
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+
+    // subtle warm halo to make "now" feel intentional without adding visual weight
+    ctx.fillStyle = 'rgba(244,184,96,0.24)';
     ctx.beginPath();
-    ctx.arc(xn, p.y, 3, 0, Math.PI * 2);
+    ctx.arc(xn, p.y, 5, 0, Math.PI * 2);
     ctx.fill();
+
+    // higher-contrast core so marker remains visible over bright curve segments
+    ctx.fillStyle = 'rgba(120,72,20,0.96)';
+    ctx.beginPath();
+    ctx.arc(xn, p.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,248,232,0.92)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(xn, p.y, 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // hover inspector (pointer devices): guide line + point + small tooltip
+  if (_chartHover.active && _chartHover.idx >= 0 && _chartHover.idx < pts.length) {
+    const hp = pts[_chartHover.idx];
+    const t = clamp(Number(hp.s || 0) / 100, 0, 1);
+    const dotColor = mixSunColor(t, 1);
+    const label = `${fmtTime(hp.t)} · ${Math.round(hp.s)}%`;
+
+    ctx.save();
+
+    ctx.strokeStyle = 'rgba(20,24,28,0.28)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath();
+    ctx.moveTo(hp.x, padTop);
+    ctx.lineTo(hp.x, h - padBottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.90)';
+    ctx.beginPath();
+    ctx.arc(hp.x, hp.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = dotColor;
+    ctx.beginPath();
+    ctx.arc(hp.x, hp.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.font = '600 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+    ctx.textBaseline = 'middle';
+    const txPad = 7;
+    const tipH = 20;
+    const tipW = Math.ceil(ctx.measureText(label).width) + txPad * 2;
+    const tipY = padTop + 5;
+    let tipX = Math.round(hp.x - tipW / 2);
+    tipX = clamp(tipX, padX + 2, w - padX - tipW - 2);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.94)';
+    ctx.strokeStyle = 'rgba(20,24,28,0.10)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.rect(tipX, tipY, tipW, tipH);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(20,24,28,0.82)';
+    ctx.fillText(label, tipX + txPad, tipY + tipH / 2);
+    ctx.restore();
   }
 }
 
@@ -1135,29 +1235,6 @@ function render() {
     }
   }
 
-  // Sunny minutes (today only)
-  if (state.data.sun_minutes) {
-    const todayMode = (dayIndex === 0);
-
-    if (els.labelSun60) els.labelSun60.textContent = todayMode ? 'Sunny minutes next 1h' : 'Sunny minutes (today only)';
-    if (els.labelSun120) els.labelSun120.textContent = todayMode ? 'Sunny minutes next 2h' : 'Sunny minutes (today only)';
-
-    if (els.boxSun60) els.boxSun60.classList.toggle('dim', !todayMode);
-    if (els.boxSun120) els.boxSun120.classList.toggle('dim', !todayMode);
-
-    if (todayMode) {
-      if (els.sun60) els.sun60.textContent = state.data.sun_minutes.next_1h ?? '—';
-      if (els.sun120) els.sun120.textContent = state.data.sun_minutes.next_2h ?? '—';
-      if (els.sun60) els.sun60.title = 'Sunny minutes from now (today)';
-      if (els.sun120) els.sun120.title = 'Sunny minutes from now (today)';
-    } else {
-      if (els.sun60) els.sun60.textContent = '—';
-      if (els.sun120) els.sun120.textContent = '—';
-      if (els.sun60) els.sun60.title = 'Only available for Today';
-      if (els.sun120) els.sun120.title = 'Only available for Today';
-    }
-  }
-
   const dayWin30 = daylightWindow(dayRows, 30);
   renderChart(dayRows, dayWin30);
 
@@ -1247,6 +1324,7 @@ if (els.btnRefresh) els.btnRefresh.addEventListener('click', () => fetchDay(true
 
 if (els.daySelect) els.daySelect.addEventListener('change', async () => {
   if (!state.data) return;
+  clearChartHover();
 
   // Switching day can change wrapping which changes canvas width.
   // Wait a paint so layout settles, then render.
@@ -1278,6 +1356,21 @@ try {
     _chartRO.observe(els.canvas);
   }
 } catch { /* ignore */ }
+
+if (els.canvas) {
+  els.canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+    if (!state.data || state.isBusy) return;
+    const idx = chartHoverIndexFromClientX(e.clientX);
+    if (idx < 0) return;
+    if (_chartHover.active && _chartHover.idx === idx) return;
+    _chartHover.active = true;
+    _chartHover.idx = idx;
+    renderSoon();
+  });
+  els.canvas.addEventListener('pointerleave', clearChartHover);
+  els.canvas.addEventListener('pointercancel', clearChartHover);
+}
 
 // Keep UI fresh (time pill + “now” marker)
 let _uiTick = null;
