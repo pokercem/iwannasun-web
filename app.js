@@ -1394,6 +1394,22 @@ function startUiTick() {
 
 startUiTick();
 
+function getPresetLocation() {
+  const raw = window.IWS_PRESET_LOCATION;
+  if (!raw || typeof raw !== 'object') return null;
+
+  const lat = Number(raw.lat);
+  const lon = Number(raw.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+
+  return {
+    lat,
+    lon,
+    label: String(raw.label || '').trim(),
+  };
+}
+
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', () => {
   loadRateLimitUntil();
@@ -1405,6 +1421,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
   if (els.locPill) els.locPill.textContent = 'Choose a location';
   if (els.timePill) { els.timePill.textContent = '—'; els.timePill.title = ''; }
+
+  const preset = getPresetLocation();
+  if (preset) {
+    setLocation(preset.lat, preset.lon, preset.label);
+    fetchDay(false);
+    return;
+  }
 
   useHere({ silent: false });
 });

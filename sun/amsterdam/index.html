@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>iwannasun | Find Your Next Sun Window by Location</title>
-  <meta name="description" content="iwannasun helps you find when sunlight is likely to break through in your location, using forecast clouds and solar path modeling in one simple timeline." />
-  <link rel="canonical" href="https://iwannasun.com/" />
-  <meta property="og:title" content="iwannasun | Find Your Next Sun Window by Location" />
-  <meta property="og:description" content="See when the sun is most likely to appear at your location with a practical timeline built from weather forecasts and solar modeling." />
+  <title>Amsterdam Sun Forecast | iwannasun</title>
+  <meta name="description" content="Find the next sunny window in Amsterdam with iwannasun. See when sunlight is most likely to break through using forecast clouds and solar path modeling." />
+  <link rel="canonical" href="https://iwannasun.com/sun/amsterdam/" />
+  <meta property="og:title" content="Amsterdam Sun Forecast | iwannasun" />
+  <meta property="og:description" content="See when sunlight is most likely to break through in Amsterdam with a practical sun-window timeline." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://iwannasun.com/" />
+  <meta property="og:url" content="https://iwannasun.com/sun/amsterdam/" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="iwannasun | Find Your Next Sun Window by Location" />
-  <meta name="twitter:description" content="Find your next sun break with a location-based timeline powered by weather data and solar modeling." />
-  <link rel="stylesheet" href="./styles.css">
+  <meta name="twitter:title" content="Amsterdam Sun Forecast | iwannasun" />
+  <meta name="twitter:description" content="Find your next sun break in Amsterdam with weather-based sunlight timing." />
+  <link rel="stylesheet" href="/styles.css">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
@@ -23,8 +23,8 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "iwannasun",
-      "url": "https://iwannasun.com/",
-      "description": "iwannasun helps people find upcoming sun windows by combining weather forecast cloud data with solar path modeling.",
+      "url": "https://iwannasun.com/sun/amsterdam/",
+      "description": "iwannasun helps people find upcoming sun windows in Amsterdam by combining weather forecast cloud data with solar path modeling.",
       "applicationCategory": "WeatherApplication",
       "operatingSystem": "Web",
       "browserRequirements": "Requires JavaScript and a modern browser.",
@@ -35,18 +35,16 @@
       }
     }
   </script>
+  <script>
+    window.IWS_PRESET_LOCATION = { lat: 52.3676, lon: 4.9041, label: 'Amsterdam' };
+  </script>
 </head>
 <body>
-  <!--
-    Main app shell for iwannasun.
-    Responsibilities: semantic page structure for controls, forecast display,
-    supporting information for the sun forecast experience.
-  -->
   <header class="topbar">
     <a class="brand" href="/" aria-label="iwannasun home">
-      <img class="brandLogo" src="./iwannasunlogowtext.svg" alt="iwannasun" />
+      <img class="brandLogo" src="/iwannasunlogowtext.svg" alt="iwannasun" />
       <div class="brandText">
-        <h1 class="sub">Find your next sun moment.</h1>
+        <h1 class="sub">Find the next sunny window in Amsterdam.</h1>
       </div>
     </a>
 
@@ -147,7 +145,7 @@
       <aside class="side" aria-label="Supplementary forecast details">
         <section class="positioningLine" id="positioningLine" aria-label="What makes iwannasun different">
           <h2 class="srOnly">What makes iwannasun different</h2>
-          <div class="muted small">Most weather apps show cloud percentage.<br>iwannasun shows when the sunlight really breaks through.</div>
+          <div class="muted small">See when sunlight is most likely to break through in Amsterdam.</div>
         </section>
         <section class="card" aria-labelledby="nextWindowHeading">
           <div class="muted small" id="nextWindowHeading">Your next sun break</div>
@@ -182,7 +180,7 @@
               <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>
               (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>).
               Data may be modified for presentation. Model: iwannasun.
-            </p>            
+            </p>
           </div>
         </section>
       </aside>
@@ -193,6 +191,6 @@
     <p class="muted small">iwannasun is a weather-based sunlight planning tool for daily outdoor decisions.</p>
   </footer>
 
-  <script src="./app.js" defer></script>
+  <script src="/app.js" defer></script>
 </body>
 </html>

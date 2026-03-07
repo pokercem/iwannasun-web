@@ -141,6 +141,11 @@ html.mood-blocked {
   text-overflow: ellipsis;
 }
 
+.brand h1.sub {
+  margin: 0;
+  font-weight: 400;
+}
+
 .controls {
   display: flex;
   gap: 10px;
@@ -389,6 +394,11 @@ input:focus, select:focus {
 @media (max-width: 700px) {
   .wrap {
     padding-top: 14px;
+  }
+
+  .controls > .muted.small:first-child {
+    width: 100%;
+    text-align: center;
   }
 
   .rowBetweenTop {
@@ -767,6 +777,12 @@ input:focus, select:focus {
   letter-spacing: 0.02em;
 }
 
+.sectionHeading {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 /* Positioning line (now inside the side column on desktop, stacked naturally on mobile) */
 .positioningLine {
   padding: 2px 4px 0;
@@ -808,6 +824,15 @@ input:focus, select:focus {
 }
 
 .bad { color: var(--bad); }
+
+.siteFooter {
+  padding-top: 0;
+}
+
+.siteFooter p {
+  margin: 0;
+  text-align: center;
+}
 
 /* Timeline */
 .timeline {
