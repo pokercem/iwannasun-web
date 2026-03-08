@@ -144,6 +144,15 @@ function chartHoverIndexFromClientX(clientX) {
   return clamp(Math.round(u * (_chartGeom.ptsLen - 1)), 0, _chartGeom.ptsLen - 1);
 }
 
+function updateChartHoverFromClientX(clientX) {
+  const idx = chartHoverIndexFromClientX(clientX);
+  if (idx < 0) return;
+  if (_chartHover.active && _chartHover.idx === idx) return;
+  _chartHover.active = true;
+  _chartHover.idx = idx;
+  renderSoon();
+}
+
 function showError(msg) {
   if (!els.errBox) return;
   els.errBox.style.display = 'block';
@@ -924,8 +933,14 @@ function renderChart(dayRows, win = null) {
     const labels = [];
     for (let k = 0; k <= steps; k++) {
       const tt = new Date(t0.getTime() + (k / steps) * (t1 - t0));
-      tt.setMinutes(0, 0, 0);
+      const mins = tt.getMinutes();
+      const roundedMins = Math.round(mins / 10) * 10;
+      tt.setMinutes(roundedMins, 0, 0);
       labels.push(fmtTime(tt));
+    }
+    if (labels.length) {
+      labels[0] = fmtTime(t0);
+      labels[labels.length - 1] = fmtTime(t1);
     }
     els.xAxis.innerHTML = labels.map(t => `<div>${t}</div>`).join('');
   }
@@ -1358,18 +1373,51 @@ try {
 } catch { /* ignore */ }
 
 if (els.canvas) {
-  els.canvas.addEventListener('pointermove', (e) => {
-    if (e.pointerType === 'touch') return;
+  let touchPointerId = null;
+
+  els.canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') return;
     if (!state.data || state.isBusy) return;
-    const idx = chartHoverIndexFromClientX(e.clientX);
-    if (idx < 0) return;
-    if (_chartHover.active && _chartHover.idx === idx) return;
-    _chartHover.active = true;
-    _chartHover.idx = idx;
-    renderSoon();
+    touchPointerId = e.pointerId;
+    try { els.canvas.setPointerCapture(e.pointerId); } catch {}
+    updateChartHoverFromClientX(e.clientX);
   });
-  els.canvas.addEventListener('pointerleave', clearChartHover);
-  els.canvas.addEventListener('pointercancel', clearChartHover);
+
+  els.canvas.addEventListener('pointermove', (e) => {
+    if (!state.data || state.isBusy) return;
+
+    if (e.pointerType === 'touch') {
+      if (touchPointerId == null || e.pointerId !== touchPointerId) return;
+      updateChartHoverFromClientX(e.clientX);
+      return;
+    }
+
+    updateChartHoverFromClientX(e.clientX);
+  });
+
+  els.canvas.addEventListener('pointerup', (e) => {
+    if (e.pointerType !== 'touch') return;
+    if (touchPointerId != null && e.pointerId === touchPointerId) {
+      touchPointerId = null;
+      clearChartHover();
+      try { els.canvas.releasePointerCapture(e.pointerId); } catch {}
+    }
+  });
+
+  els.canvas.addEventListener('pointerleave', (e) => {
+    if (e.pointerType === 'touch') return;
+    clearChartHover();
+  });
+
+  els.canvas.addEventListener('pointercancel', (e) => {
+    if (e.pointerType === 'touch' && touchPointerId != null && e.pointerId === touchPointerId) {
+      touchPointerId = null;
+      clearChartHover();
+      try { els.canvas.releasePointerCapture(e.pointerId); } catch {}
+      return;
+    }
+    if (e.pointerType !== 'touch') clearChartHover();
+  });
 }
 
 // Keep UI fresh (time pill + “now” marker)
