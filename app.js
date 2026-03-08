@@ -1436,7 +1436,7 @@ function initMobilePullToRefresh() {
 
   const THRESHOLD_PX = 72;
   const MAX_PULL_PX = 120;
-  let activePointerId = null;
+  let activeTouchId = null;
   let startY = 0;
   let isPulling = false;
   let isArmed = false;
@@ -1453,20 +1453,32 @@ function initMobilePullToRefresh() {
     return true;
   };
 
-  window.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'touch') return;
+  const findTouchById = (touchList, id) => {
+    for (let i = 0; i < touchList.length; i += 1) {
+      const t = touchList[i];
+      if (t.identifier === id) return t;
+    }
+    return null;
+  };
+
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
     if (!canStart(e)) return;
-    activePointerId = e.pointerId;
-    startY = e.clientY;
+    const t = e.touches[0];
+    activeTouchId = t.identifier;
+    startY = t.clientY;
     isPulling = true;
     isArmed = false;
     indicator.textContent = 'Pull to refresh';
     hideIndicator();
   }, { passive: true });
 
-  window.addEventListener('pointermove', (e) => {
-    if (!isPulling || activePointerId == null || e.pointerId !== activePointerId) return;
-    const pull = clamp(e.clientY - startY, 0, MAX_PULL_PX);
+  window.addEventListener('touchmove', (e) => {
+    if (!isPulling || activeTouchId == null) return;
+    const t = findTouchById(e.touches, activeTouchId);
+    if (!t) return;
+
+    const pull = clamp(t.clientY - startY, 0, MAX_PULL_PX);
     if (pull <= 0) {
       hideIndicator();
       return;
@@ -1479,12 +1491,14 @@ function initMobilePullToRefresh() {
     indicator.textContent = isArmed ? 'Release to refresh' : 'Pull to refresh';
   }, { passive: false });
 
-  const endPull = (pointerId) => {
-    if (!isPulling || activePointerId == null || pointerId !== activePointerId) return;
+  const endPull = (touchList) => {
+    if (!isPulling || activeTouchId == null) return;
+    if (findTouchById(touchList, activeTouchId)) return;
+
     const shouldRefresh = isArmed && !state.isBusy;
     isPulling = false;
     isArmed = false;
-    activePointerId = null;
+    activeTouchId = null;
 
     if (!shouldRefresh) {
       hideIndicator();
@@ -1499,14 +1513,12 @@ function initMobilePullToRefresh() {
     });
   };
 
-  window.addEventListener('pointerup', (e) => {
-    if (e.pointerType !== 'touch') return;
-    endPull(e.pointerId);
+  window.addEventListener('touchend', (e) => {
+    endPull(e.touches);
   }, { passive: true });
 
-  window.addEventListener('pointercancel', (e) => {
-    if (e.pointerType !== 'touch') return;
-    endPull(e.pointerId);
+  window.addEventListener('touchcancel', (e) => {
+    endPull(e.touches);
   }, { passive: true });
 }
 

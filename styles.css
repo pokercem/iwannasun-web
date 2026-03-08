@@ -401,6 +401,11 @@ input:focus, select:focus {
 }
 
 @media (max-width: 700px) {
+  html,
+  body {
+    overscroll-behavior-y: contain;
+  }
+
   .wrap {
     padding-top: 14px;
   }
@@ -931,6 +936,12 @@ canvas {
     linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(155, 189, 217, 0.06) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -18px 28px rgba(155, 189, 217, 0.06);
   margin-top: 8px;
+}
+
+@media (pointer: coarse) {
+  canvas {
+    touch-action: none;
+  }
 }
 
 .ptrIndicator {
