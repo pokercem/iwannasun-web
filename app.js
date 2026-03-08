@@ -1420,6 +1420,98 @@ if (els.canvas) {
   });
 }
 
+function initMobilePullToRefresh() {
+  const mqMobile = window.matchMedia ? window.matchMedia('(max-width: 700px)') : null;
+  const mqCoarse = window.matchMedia ? window.matchMedia('(pointer: coarse)') : null;
+  const hasTouch = () => (navigator.maxTouchPoints || 0) > 0;
+  const isActiveContext = () => Boolean(
+    mqMobile && mqMobile.matches && ((mqCoarse && mqCoarse.matches) || hasTouch())
+  );
+  if (!isActiveContext()) return;
+
+  const indicator = document.createElement('div');
+  indicator.className = 'ptrIndicator';
+  indicator.textContent = 'Pull to refresh';
+  document.body.appendChild(indicator);
+
+  const THRESHOLD_PX = 72;
+  const MAX_PULL_PX = 120;
+  let activePointerId = null;
+  let startY = 0;
+  let isPulling = false;
+  let isArmed = false;
+
+  const hideIndicator = () => {
+    indicator.classList.remove('active', 'armed', 'loading');
+  };
+
+  const canStart = (event) => {
+    if (!isActiveContext()) return false;
+    if (state.isBusy) return false;
+    if ((window.scrollY || window.pageYOffset || 0) > 0) return false;
+    if (event.target && event.target.closest && event.target.closest('#sunChart')) return false;
+    return true;
+  };
+
+  window.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') return;
+    if (!canStart(e)) return;
+    activePointerId = e.pointerId;
+    startY = e.clientY;
+    isPulling = true;
+    isArmed = false;
+    indicator.textContent = 'Pull to refresh';
+    hideIndicator();
+  }, { passive: true });
+
+  window.addEventListener('pointermove', (e) => {
+    if (!isPulling || activePointerId == null || e.pointerId !== activePointerId) return;
+    const pull = clamp(e.clientY - startY, 0, MAX_PULL_PX);
+    if (pull <= 0) {
+      hideIndicator();
+      return;
+    }
+
+    if (e.cancelable) e.preventDefault();
+    indicator.classList.add('active');
+    isArmed = pull >= THRESHOLD_PX;
+    indicator.classList.toggle('armed', isArmed);
+    indicator.textContent = isArmed ? 'Release to refresh' : 'Pull to refresh';
+  }, { passive: false });
+
+  const endPull = (pointerId) => {
+    if (!isPulling || activePointerId == null || pointerId !== activePointerId) return;
+    const shouldRefresh = isArmed && !state.isBusy;
+    isPulling = false;
+    isArmed = false;
+    activePointerId = null;
+
+    if (!shouldRefresh) {
+      hideIndicator();
+      return;
+    }
+
+    indicator.classList.remove('armed');
+    indicator.classList.add('active', 'loading');
+    indicator.textContent = 'Refreshing…';
+    Promise.resolve(fetchDay(true)).finally(() => {
+      setTimeout(() => hideIndicator(), 260);
+    });
+  };
+
+  window.addEventListener('pointerup', (e) => {
+    if (e.pointerType !== 'touch') return;
+    endPull(e.pointerId);
+  }, { passive: true });
+
+  window.addEventListener('pointercancel', (e) => {
+    if (e.pointerType !== 'touch') return;
+    endPull(e.pointerId);
+  }, { passive: true });
+}
+
+initMobilePullToRefresh();
+
 // Keep UI fresh (time pill + “now” marker)
 let _uiTick = null;
 let _lastUiMinute = null;

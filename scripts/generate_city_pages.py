@@ -10,6 +10,7 @@ from string import Template
 ROOT = Path(__file__).resolve().parents[1]
 DATA_FILE = ROOT / "data" / "cities.json"
 TEMPLATE_FILE = ROOT / "templates" / "city_page.html.tmpl"
+INDEX_TEMPLATE_FILE = ROOT / "templates" / "city_index.html.tmpl"
 SUN_DIR = ROOT / "sun"
 SITEMAP_FILE = ROOT / "sitemap.xml"
 BASE_URL = "https://iwannasun.com"
@@ -51,6 +52,19 @@ def render_city_pages(cities: list[dict]) -> None:
         (out_dir / "index.html").write_text(html, encoding="utf-8")
 
 
+def render_city_index(cities: list[dict]) -> None:
+    template = Template(INDEX_TEMPLATE_FILE.read_text(encoding="utf-8"))
+    links = []
+
+    for city in sorted(cities, key=lambda c: str(c["city"]).lower()):
+        slug = str(city["slug"]).strip()
+        name = str(city["city"]).strip()
+        links.append(f'          <li><a href="/sun/{slug}/">{name}</a></li>')
+
+    html = template.substitute(city_links="\n".join(links))
+    (SUN_DIR / "index.html").write_text(html, encoding="utf-8")
+
+
 def render_sitemap(cities: list[dict]) -> None:
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -59,6 +73,11 @@ def render_sitemap(cities: list[dict]) -> None:
         f"    <loc>{BASE_URL}/</loc>",
         "    <changefreq>daily</changefreq>",
         "    <priority>1.0</priority>",
+        "  </url>",
+        "  <url>",
+        f"    <loc>{BASE_URL}/sun/</loc>",
+        "    <changefreq>daily</changefreq>",
+        "    <priority>0.9</priority>",
         "  </url>",
     ]
 
@@ -81,8 +100,9 @@ def render_sitemap(cities: list[dict]) -> None:
 def main() -> None:
     cities = load_cities()
     render_city_pages(cities)
+    render_city_index(cities)
     render_sitemap(cities)
-    print(f"Generated {len(cities)} city pages and sitemap.xml")
+    print(f"Generated {len(cities)} city pages, /sun/index.html, and sitemap.xml")
 
 
 if __name__ == "__main__":
