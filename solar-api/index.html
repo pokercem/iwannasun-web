@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iwannasun Solar Feature API | Beam-Aware Signals for Forecasting</title>
+  <meta name="description" content="Solar Feature API for B2B forecasting teams. Get production-tested beam, cloud, and disagreement signals from /v1/features in a clean timeline format." />
+  <link rel="canonical" href="https://iwannasun.com/solar-api/" />
+  <meta property="og:title" content="iwannasun Solar Feature API" />
+  <meta property="og:description" content="Beam-aware solar signal features for forecasting, PV prediction, and grid operations." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://iwannasun.com/solar-api/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="iwannasun Solar Feature API" />
+  <meta name="twitter:description" content="Production-tested solar signal features via /v1/features." />
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+</head>
+<body class="solarApiPage">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="iwannasun home">
+      <img class="brandLogo" src="/iwannasunlogowtext.svg" alt="iwannasun" />
+      <div class="brandText">
+        <h1 class="sub">Solar feature API for B2B integration.</h1>
+      </div>
+    </a>
+
+    <div class="controls" aria-label="B2B page links">
+      <div class="btnRow">
+        <a class="btn" href="/">Back to Sun Planner</a>
+        <a class="btn" href="#integration">Feature API Guide</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap solarApiWrap">
+    <section class="card solarHero" aria-labelledby="heroHeading">
+      <div class="solarHeroSplit">
+        <div class="solarHeroCopy">
+          <p class="muted small solarEyebrow">Solar Feature API</p>
+          <h2 id="heroHeading">Beam-aware solar signals for forecast correction.</h2>
+          <p class="solarLead">
+            Call <code>/v1/features</code> to retrieve production-derived beam-state, cloud-geometry, and DNI-disagreement signals.
+            Each timestamped row exposes interpretable features that allow downstream systems to apply residual correction, fragility detection, and regime-aware forecast logic.
+          </p>
+          <div class="codePanel">
+            <pre><code>curl "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=local&amp;mode=full"</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="useCasesHeading">
+      <h2 id="useCasesHeading">Use Cases</h2>
+      <ul class="solarList solarUseGrid">
+        <li><strong>Solar forecasting models:</strong> improve residual correction in beam-transition regimes.</li>
+        <li><strong>PV production prediction:</strong> reduce error during rapid cloud-driven irradiance changes.</li>
+        <li><strong>Grid operations:</strong> surface fragile intervals ahead of short-horizon variability.</li>
+        <li><strong>Solar analytics:</strong> evaluate model behavior by beam state, cloud regime, and solar elevation.</li>
+      </ul>
+    </section>
+
+    <section class="card solarSection" id="integration" aria-labelledby="problemHeading">
+      <div class="solarSplit">
+        <div>
+          <h2 id="problemHeading">Beam Visibility as a Forecasting Constraint</h2>
+          <p>
+            Direct-beam visibility is a primary control on DNI and downstream PV output, but it changes abruptly under broken cloud and at low solar elevation.
+            Small beam-state errors can amplify into larger operational forecast error.
+          </p>
+          <p>
+            Cloud-geometry cues and local DNI-ratio cues often diverge in these regimes.
+            That divergence is a measurable stability signal: it identifies intervals where baseline forecasts are least reliable and targeted correction is most valuable.
+          </p>
+        </div>
+
+        <div aria-labelledby="integrationHeading">
+          <h2 id="integrationHeading">Integration</h2>
+          <p><strong>Method:</strong> <code>GET</code> <strong>Endpoint:</strong> <code>/v1/features</code></p>
+          <p><strong>Access:</strong> currently provided for approved beta integrations (token-based).</p>
+          <h3 class="small sectionHeading">Request parameters</h3>
+          <ul class="solarList">
+            <li><code>lat</code> (required, -90..90)</li>
+            <li><code>lon</code> (required, -180..180)</li>
+            <li><code>days</code> (optional, 1..3 forecast days, default 1)</li>
+            <li><code>model</code> (optional, <code>local|ray</code>, default <code>local</code>)</li>
+            <li><code>mode</code> (optional, <code>full|quick</code>, default <code>full</code>)</li>
+          </ul>
+          <h3 class="small sectionHeading">Response cadence</h3>
+          <ul class="solarList">
+            <li>Timeline interval: 10-minute timesteps.</li>
+            <li><code>mode=full</code>: complete local-day timeline for each requested day.</li>
+            <li><code>mode=quick</code>: short near-term timeline for low-latency clients.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card solarSection solarProvidesRow" aria-labelledby="providesHeading">
+      <div class="solarSplit">
+        <div aria-labelledby="providesHeading">
+          <h2 id="providesHeading">What <code>/v1/features</code> Provides</h2>
+          <p class="muted">
+            A structured response with request <code>meta</code>, <code>feature_schema</code>, and per-timestamp rows in <code>timeline</code> that carry core and advanced signals.
+          </p>
+          <h3 class="small sectionHeading">Core signals (API v1)</h3>
+          <dl class="signalList">
+            <dt><code>sun_score</code></dt><dd>Final production sun visibility score (0-100).</dd>
+            <dt><code>score_cloud</code></dt><dd>Cloud-geometry component score (0-100).</dd>
+            <dt><code>score_dni</code></dt><dd>DNI-ratio component score (0-100).</dd>
+            <dt><code>disagree</code></dt><dd>Normalized cloud-vs-DNI disagreement (0-1).</dd>
+            <dt><code>sun_score_minus_score_dni</code></dt><dd>Final score delta vs DNI component.</dd>
+            <dt><code>score_cloud_minus_score_dni</code></dt><dd>Cloud-vs-DNI component delta.</dd>
+            <dt><code>sun_score_minus_score_cloud</code></dt><dd>Final score delta vs cloud component.</dd>
+            <dt><code>broken_cloud_flag</code></dt><dd>Broken-cloud regime indicator.</dd>
+          </dl>
+        </div>
+
+        <div class="solarExampleCol" aria-labelledby="responseHeading">
+          <h2 id="responseHeading">Example Response (trimmed)</h2>
+          <div class="codePanel codePanelCompact">
+            <pre><code>{
+  "meta": {
+    "source": "production",
+    "feature_api_version": "v1",
+    "interval_minutes": 10
+  },
+  "timeline": [
+    {
+      "time_utc": "2026-03-09T19:40:00+00:00",
+      "features": {
+        "sun_score": 74,
+        "score_cloud": 81,
+        "score_dni": 63,
+        "disagree": 0.18,
+        "sun_score_minus_score_dni": 11,
+        "score_cloud_minus_score_dni": 18,
+        "sun_score_minus_score_cloud": -7,
+        "broken_cloud_flag": true
+      }
+    }
+  ]
+}</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card solarSection solarCtaCard" aria-labelledby="trustHeading">
+      <h2 id="trustHeading">Trust and Validation</h2>
+      <div class="solarTrustBody">
+        <p>
+          API v1 signals are computed from production model logic and evaluated in SURFRAD-style experiments.
+          Validation focused on beam/occlusion behavior, residual add-value, and transfer across station and time holdouts.
+        </p>
+        <p>
+          The endpoint exposes intermediate production signals rather than a black-box forecast output.
+          Downstream systems can combine these signals with existing models to apply targeted residual correction and regime-aware decision logic.
+        </p>
+      </div>
+      <h3 class="small sectionHeading">Validation Snapshot</h3>
+      <ul class="solarList">
+        <li>Evaluated on SURFRAD-style ground irradiance datasets using production model signal outputs.</li>
+        <li>Tested with station-holdout and time-holdout protocols to assess transfer behavior.</li>
+        <li>Beam-state and disagreement signals consistently identify forecast-fragile intervals.</li>
+        <li>Residual-correction usefulness is strongest in transition and broken-cloud regimes.</li>
+      </ul>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="accessHeading">
+      <h2 id="accessHeading">API Access</h2>
+      <p><code>/v1/features</code> is currently available for early integrations.</p>
+      <p>Request access: <a href="mailto:api@iwannasun.com">api@iwannasun.com</a></p>
+    </section>
+  </main>
+
+  <footer class="wrap siteFooter">
+    <p class="muted small">iwannasun Solar Feature API is a B2B signal layer for beam-aware forecasting workflows.</p>
+    <p class="muted small">
+      Core endpoint (approved beta access):
+      <a href="https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=local&amp;mode=full" target="_blank" rel="noopener noreferrer">/v1/features</a>
+    </p>
+  </footer>
+</body>
+</html>
