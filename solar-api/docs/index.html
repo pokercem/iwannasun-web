@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Solar Feature API Developer Guide | iwannasun</title>
+  <meta name="description" content="Developer guide for iwannasun Solar Feature API (/v1/features): authentication, parameters, response schema, errors, limits, and onboarding." />
+  <link rel="canonical" href="https://iwannasun.com/solar-api/docs/" />
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+</head>
+<body class="solarApiPage">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="iwannasun home">
+      <img class="brandLogo" src="/iwannasunlogowtext.svg" alt="iwannasun" />
+      <div class="brandText">
+        <h1 class="sub">Solar Feature API developer guide.</h1>
+      </div>
+    </a>
+    <div class="controls" aria-label="Guide navigation links">
+      <div class="btnRow">
+        <a class="btn" href="/solar-api/">Back to Solar API</a>
+        <a class="btn" href="/">Back to Sun Planner</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap solarApiWrap">
+    <section class="card solarHero" aria-labelledby="docsHeading">
+      <div class="solarHeroSplit">
+        <div class="solarHeroCopy">
+          <p class="muted small solarEyebrow">Developer Guide</p>
+          <h2 id="docsHeading">Integrate <code>/v1/features</code> in a controlled beta workflow.</h2>
+          <p class="solarLead">
+            <code>/v1/features</code> returns production-derived solar feature signals as a timestamped timeline.
+            It is designed as a feature layer for downstream forecasting, PV modeling, and operational analytics systems.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="overviewHeading">
+      <h2 id="overviewHeading">Endpoint Overview</h2>
+      <p><strong>Method:</strong> <code>GET</code></p>
+      <p><strong>Endpoint:</strong> <code>https://api.iwannasun.com/v1/features</code></p>
+      <p><strong>Access model:</strong> approved beta integrations using request token header.</p>
+      <p><strong>Output:</strong> <code>meta</code>, <code>feature_schema</code>, and timestamped <code>timeline</code> rows.</p>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="authHeading">
+      <h2 id="authHeading">Authentication</h2>
+      <p>For approved beta access, send the request token in header <code>X-IWS-Feature-Token</code>.</p>
+      <div class="codePanel">
+        <pre><code>X-IWS-Feature-Token: YOUR_TOKEN</code></pre>
+      </div>
+      <h3 class="small sectionHeading">Full curl example</h3>
+      <div class="codePanel">
+        <pre><code>curl \
+  -H "X-IWS-Feature-Token: YOUR_TOKEN" \
+  "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=local&amp;mode=full"</code></pre>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="paramsHeading">
+      <h2 id="paramsHeading">Request Parameters</h2>
+      <ul class="solarList">
+        <li><code>lat</code>: latitude in decimal degrees (<code>-90..90</code>), required.</li>
+        <li><code>lon</code>: longitude in decimal degrees (<code>-180..180</code>), required.</li>
+        <li><code>days</code>: forecast horizon in days (<code>1..3</code>), default <code>1</code>.</li>
+        <li><code>model</code>: geometry mode (<code>local|ray</code>), default <code>local</code>.</li>
+        <li><code>mode</code>: timeline density (<code>full|quick</code>), default <code>full</code>.</li>
+        <li><code>source</code>: optional, currently only <code>production</code>.</li>
+      </ul>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="responseHeading">
+      <h2 id="responseHeading">Example Response Structure</h2>
+      <div class="codePanel">
+        <pre><code>{
+  "meta": {
+    "lat": 39.74,
+    "lon": -104.99,
+    "days": 1,
+    "mode": "full",
+    "geometry_mode": "local",
+    "source": "production",
+    "feature_api_version": "v1",
+    "request_id": "..."
+  },
+  "feature_schema": {
+    "sun_score": {
+      "tier": "core",
+      "type": "integer",
+      "description": "Final production sun visibility score (0-100)."
+    },
+    "disagree": {
+      "tier": "core",
+      "type": "number",
+      "description": "Normalized disagreement magnitude between cloud and DNI evidence (0-1)."
+    }
+  },
+  "timeline": [
+    {
+      "time_utc": "2026-03-09T19:40:00+00:00",
+      "time_local": "2026-03-09T12:40:00-07:00",
+      "azimuth": 238.24,
+      "elevation": 25.31,
+      "is_daylight": true,
+      "features": {
+        "sun_score": 74,
+        "score_cloud": 81,
+        "score_dni": 63,
+        "disagree": 0.18,
+        "broken_cloud_flag": true
+      },
+      "inputs": {
+        "low_pct": 31.0,
+        "mid_pct": 44.0,
+        "high_pct": 22.0,
+        "dni_val": 540.0,
+        "dni_clear": 760.0
+      }
+    }
+  ]
+}</code></pre>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="errorsHeading">
+      <h2 id="errorsHeading">Errors and Limits</h2>
+      <p>Error responses include a structured <code>error</code> object and a request trace id.</p>
+      <div class="codePanel">
+        <pre><code>{
+  "detail": "Feature access token required.",
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Feature access token required.",
+    "request_id": "..."
+  }
+}</code></pre>
+      </div>
+      <h3 class="small sectionHeading">Common error codes</h3>
+      <ul class="solarList">
+        <li><code>INVALID_ARGUMENT</code>: invalid query parameter values.</li>
+        <li><code>UNAUTHORIZED</code>: access token missing when token gate is enabled.</li>
+        <li><code>FORBIDDEN</code>: access token present but invalid.</li>
+        <li><code>API_RATE_LIMIT</code>: request rate exceeded.</li>
+        <li><code>UPSTREAM_RATE_LIMIT</code>: upstream forecast provider is rate-limiting requests.</li>
+        <li><code>UPSTREAM_BAD_RESPONSE</code>: upstream response could not be used.</li>
+        <li><code>TEMPORARY_UNAVAILABLE</code>: upstream/provider issue.</li>
+        <li><code>INTERNAL_ERROR</code>: unhandled server error.</li>
+      </ul>
+      <h3 class="small sectionHeading">Rate limit behavior</h3>
+      <p>Requests are rate-limited per client IP. Default server configuration is <code>120</code> requests per <code>60</code> seconds (configurable).</p>
+      <p>When limited, the API returns <code>429</code> with <code>Retry-After</code> and <code>X-IWS-Error-Code: API_RATE_LIMIT</code>.</p>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="checklistHeading">
+      <h2 id="checklistHeading">Integration Checklist</h2>
+      <ol class="solarList">
+        <li>Request beta access token and store it as a secret.</li>
+        <li>Integrate <code>/v1/features</code> with token header and retry handling for <code>429</code>/<code>503</code>.</li>
+        <li>Start with core fields and validate downstream lift before adding advanced fields.</li>
+        <li>Log <code>request_id</code> for traceability and support diagnostics.</li>
+      </ol>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="validationHeading">
+      <h2 id="validationHeading">Validation Summary</h2>
+      <ul class="solarList">
+        <li>Signals evaluated against SURFRAD ground irradiance measurements.</li>
+        <li>Station-holdout and time-holdout validation protocols were used.</li>
+        <li>Analysis focused on broken-cloud and transition regimes where beam-state uncertainty is highest.</li>
+        <li>Current product framing is a feature layer for downstream models, not a forecast replacement.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="wrap siteFooter">
+    <p class="muted small">Solar Feature API docs for controlled beta integrations.</p>
+    <p class="muted small">Support and access: <a href="mailto:api@iwannasun.com">api@iwannasun.com</a></p>
+  </footer>
+</body>
+</html>

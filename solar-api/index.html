@@ -31,7 +31,7 @@
     <div class="controls" aria-label="B2B page links">
       <div class="btnRow">
         <a class="btn" href="/">Back to Sun Planner</a>
-        <a class="btn" href="#integration">Feature API Guide</a>
+        <a class="btn" href="/solar-api/docs/">Feature API Guide</a>
       </div>
     </div>
   </header>
@@ -107,6 +107,10 @@
           <h2 id="providesHeading">What <code>/v1/features</code> Provides</h2>
           <p class="muted">
             A structured response with request <code>meta</code>, <code>feature_schema</code>, and per-timestamp rows in <code>timeline</code> that carry core and advanced signals.
+          </p>
+          <h3 class="small sectionHeading">Schema Stability (v1)</h3>
+          <p class="muted">
+            The <code>/v1/features</code> schema is stable within v1. New fields may be added, but existing fields will not change semantics without a version update.
           </p>
           <h3 class="small sectionHeading">Core signals (API v1)</h3>
           <dl class="signalList">
