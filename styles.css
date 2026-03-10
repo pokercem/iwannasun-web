@@ -1401,6 +1401,23 @@ body.solarApiPage p {
   max-width: 62ch;
 }
 
+/* Let section body text use available card width on solar API pages. */
+body.solarApiPage .solarSection p {
+  max-width: none;
+  white-space: normal;
+  word-break: normal;
+}
+
+/* Keep inline code tokens in running text truly inline and readable. */
+body.solarApiPage .solarSection p code,
+body.solarApiPage .solarSection li code,
+body.solarApiPage .solarSection dt code,
+body.solarApiPage .solarSection dd code {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
 body.solarApiPage .muted,
 body.solarApiPage .small,
 body.solarApiPage .label {
