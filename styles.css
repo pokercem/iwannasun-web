@@ -1215,7 +1215,6 @@ body.solarApiPage .solarHero h2 {
   letter-spacing: 0.02em;
   font-weight: 600;
   color: #ffffff;
-  max-width: 24ch;
 }
 
 body.solarApiPage .solarHeroSplit {
@@ -1240,7 +1239,11 @@ body.solarApiPage .solarLead {
   font-size: 15.5px;
   line-height: 1.52;
   color: #cbd5e1;
-  max-width: 88ch;
+  max-width: none;
+}
+
+body.solarApiPage .solarHero p {
+  max-width: none;
 }
 
 body.solarApiPage .solarHero .codePanel {
@@ -1374,27 +1377,12 @@ body.solarApiPage .solarTrustBody p {
 }
 
 body.solarApiPage .solarProvidesRow .solarSplit {
-  align-items: stretch;
+  align-items: start;
 }
 
-body.solarApiPage .solarProvidesRow .solarExampleCol {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-body.solarApiPage .solarProvidesRow .solarExampleCol .codePanel {
-  margin-top: 8px;
-  flex: 1 1 auto;
-  display: flex;
-  min-height: 0;
-}
-
-body.solarApiPage .solarProvidesRow .solarExampleCol .codePanel pre {
-  flex: 1 1 auto;
-  width: 100%;
-  height: 100%;
-  max-height: none;
+body.solarApiPage .solarSplit .solarUseGrid {
+  columns: 1;
+  column-gap: 0;
 }
 
 body.solarApiPage code {
@@ -1422,11 +1410,6 @@ body.solarApiPage .label {
 body.solarApiPage .card .sectionHeading {
   margin-top: 8px;
   color: #94a3b8;
-}
-
-body.solarApiPage .codePanelCompact pre {
-  max-height: 220px;
-  overflow: auto;
 }
 
 body.solarApiPage .solarUseGrid {
@@ -1472,10 +1455,6 @@ body.solarApiPage a:hover {
     gap: 8px;
   }
 
-  body.solarApiPage .solarProvidesRow .solarExampleCol .codePanel pre {
-    max-height: 220px;
-    height: auto;
-  }
 }
 
 @media (max-width: 768px) {
