@@ -80,6 +80,13 @@ const state = {
   rateLimitMsg: '',
 };
 
+// Theme accent anchors used by chart/timeline score coloring.
+const themeAccents = {
+  sky: { r: 0x9b, g: 0xbe, b: 0xd9 },
+  sun: { r: 0xf4, g: 0xb8, b: 0x60 },
+};
+let _lastAtmosThemeKey = '';
+
 // ===== Mood =====
 function setMood(mood) {
   // Apply mood classes to <html> (root), not <body>
@@ -100,6 +107,58 @@ function roundCoord(x, decimals = 3) {
   return Math.round(Number(x) * p) / p;
 }
 const nextPaint = () => new Promise((r) => requestAnimationFrame(r));
+
+function hslToRgb(h, s, l) {
+  const hh = (((Number(h) % 360) + 360) % 360) / 360;
+  const ss = clamp(Number(s) / 100, 0, 1);
+  const ll = clamp(Number(l) / 100, 0, 1);
+  if (ss === 0) {
+    const g = Math.round(ll * 255);
+    return { r: g, g, b: g };
+  }
+  const q = ll < 0.5 ? ll * (1 + ss) : ll + ss - ll * ss;
+  const p = 2 * ll - q;
+  const hue2rgb = (t) => {
+    let tt = t;
+    if (tt < 0) tt += 1;
+    if (tt > 1) tt -= 1;
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+    if (tt < 1 / 2) return q;
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+    return p;
+  };
+  return {
+    r: Math.round(hue2rgb(hh + 1 / 3) * 255),
+    g: Math.round(hue2rgb(hh) * 255),
+    b: Math.round(hue2rgb(hh - 1 / 3) * 255),
+  };
+}
+
+function blendRgb(a, b, t) {
+  const u = clamp(Number(t || 0), 0, 1);
+  return {
+    r: Math.round(a.r + (b.r - a.r) * u),
+    g: Math.round(a.g + (b.g - a.g) * u),
+    b: Math.round(a.b + (b.b - a.b) * u),
+  };
+}
+
+function setThemeAccents({ sky, sun }) {
+  if (sky && Number.isFinite(sky.r) && Number.isFinite(sky.g) && Number.isFinite(sky.b)) {
+    themeAccents.sky = {
+      r: clamp(Math.round(sky.r), 0, 255),
+      g: clamp(Math.round(sky.g), 0, 255),
+      b: clamp(Math.round(sky.b), 0, 255),
+    };
+  }
+  if (sun && Number.isFinite(sun.r) && Number.isFinite(sun.g) && Number.isFinite(sun.b)) {
+    themeAccents.sun = {
+      r: clamp(Math.round(sun.r), 0, 255),
+      g: clamp(Math.round(sun.g), 0, 255),
+      b: clamp(Math.round(sun.b), 0, 255),
+    };
+  }
+}
 
 // Debounce helper (mobile resize/orientation can fire many events)
 function debounce(fn, waitMs = 120) {
@@ -191,6 +250,7 @@ function esc(s) {
 
 // Format times in the location timezone
 const _fmtCache = new Map();
+const _hourFmtCache = new Map();
 function getFormatters() {
   const tz = state.tzName || '';
   if (_fmtCache.has(tz)) return _fmtCache.get(tz);
@@ -210,6 +270,45 @@ function getFormatters() {
 }
 const fmtTime = (v) => getFormatters().hm.format(v instanceof Date ? v : new Date(v));
 const fmtDateTime = (v) => getFormatters().full.format(v instanceof Date ? v : new Date(v));
+
+function getHourFormatter() {
+  const tz = state.tzName || '';
+  if (_hourFmtCache.has(tz)) return _hourFmtCache.get(tz);
+  let f = null;
+  try {
+    f = new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: tz || undefined,
+    });
+  } catch {
+    f = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  _hourFmtCache.set(tz, f);
+  return f;
+}
+
+function localHourForDate(d) {
+  const date = d instanceof Date ? d : new Date(d);
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    const n = new Date();
+    return n.getHours() + (n.getMinutes() / 60);
+  }
+  try {
+    const parts = getHourFormatter().formatToParts(date);
+    let hh = NaN;
+    let mm = 0;
+    for (const p of parts) {
+      if (p.type === 'hour') hh = Number(p.value);
+      if (p.type === 'minute') mm = Number(p.value);
+    }
+    if (Number.isFinite(hh)) return hh + ((Number.isFinite(mm) ? mm : 0) / 60);
+  } catch {
+    // Fall through to local browser clock parsing.
+  }
+  return date.getHours() + (date.getMinutes() / 60);
+}
 
 // Daylight detection
 function isDaylightRow(r) {
@@ -327,13 +426,190 @@ function dayAverages(dayRows) {
 // Color mix: 0 = cloudy, 1 = sunny
 function mixSunColor(t, alpha = 1) {
   t = clamp(Number(t || 0), 0, 1);
-  const a = { r: 0x9b, g: 0xbe, b: 0xd9 };
-  const b = { r: 0xf4, g: 0xb8, b: 0x60 };
-  const r = Math.round(a.r + (b.r - a.r) * t);
-  const g = Math.round(a.g + (b.g - a.g) * t);
-  const bl = Math.round(a.b + (b.b - a.b) * t);
+
+  // Piecewise palette tuned for readability and score semantics:
+  // >90: strong golden amber, 70-90: warm amber, 50-70: pale amber, <50: muted amber-grey.
+  // Kept slightly deeper than background glow so chart accents remain legible.
+  const mutedLow = { r: 160, g: 162, b: 144 };
+  const muted = { r: 186, g: 176, b: 136 };
+  const pale = { r: 214, g: 190, b: 118 };
+  const warm = { r: 236, g: 176, b: 74 };
+  const gold = { r: 246, g: 186, b: 62 };
+
+  let rgb = mutedLow;
+  if (t >= 0.9) {
+    rgb = blendRgb(warm, gold, (t - 0.9) / 0.1);
+  } else if (t >= 0.7) {
+    rgb = blendRgb(pale, warm, (t - 0.7) / 0.2);
+  } else if (t >= 0.5) {
+    rgb = blendRgb(muted, pale, (t - 0.5) / 0.2);
+  } else {
+    rgb = blendRgb(mutedLow, muted, t / 0.5);
+  }
+
+  // Keep palette gently aligned with atmospheric accents.
+  if (t >= 0.6) {
+    rgb = blendRgb(rgb, themeAccents.sun, 0.12 * clamp((t - 0.6) / 0.4, 0, 1));
+  } else {
+    rgb = blendRgb(rgb, themeAccents.sky, 0.08 * clamp((0.6 - t) / 0.6, 0, 1));
+  }
+
   const aa = clamp(alpha, 0, 1);
-  return `rgba(${r}, ${g}, ${bl}, ${aa})`;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${aa})`;
+}
+
+function toNumberOrNaN(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function cloudFragilityFromRow(row) {
+  if (!row || !row.cloud) return 0;
+  const low = toNumberOrNaN(row.cloud.low);
+  const mid = toNumberOrNaN(row.cloud.mid);
+  const high = toNumberOrNaN(row.cloud.high);
+  const vals = [low, mid, high].filter(Number.isFinite);
+  if (!vals.length) return 0;
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const spread = (Math.max(...vals) - Math.min(...vals)) / 100;
+  const transition = (mean > 15 && mean < 90) ? 1 : 0;
+  return clamp(0.4 * spread + 0.35 * transition, 0, 1);
+}
+
+function directionalGlowPreset(localHour, elevationDeg, isFallback) {
+  if (isFallback || !Number.isFinite(elevationDeg) || elevationDeg <= 0.25) {
+    return 'night';
+  }
+  const h = Number(localHour);
+  if (!Number.isFinite(h)) return 'night';
+  if (h < 7.5) return 'sunrise';
+  if (h < 9.5) return 'morning';
+  if (h < 11.5) return 'late_morning';
+  if (h < 13.5) return 'noon';
+  if (h < 15.5) return 'afternoon';
+  if (h < 17.5) return 'late_afternoon';
+  return 'sunset';
+}
+
+function computeAtmosphericTheme(row) {
+  const now = new Date();
+  const score = clamp(toNumberOrNaN(row?.sun_score) || 0, 0, 100);
+  const sunT = score / 100;
+  const elev = toNumberOrNaN(row?.elevation);
+
+  const rowDate = row ? tUtc(row) : null;
+  const refDate = (rowDate instanceof Date && !Number.isNaN(rowDate.getTime()))
+    ? rowDate
+    : now;
+  const localHour = localHourForDate(refDate);
+  const dayPhase = clamp((localHour - 6) / 12, 0, 1);
+  const midday = Math.sin(dayPhase * Math.PI);
+  const elevClamped = Number.isFinite(elev) ? clamp(elev, 0, 90) : (midday * 55);
+  const elevT = clamp(elevClamped / 90, 0, 1);
+  const fallbackMode = Boolean(row?._themeFallback);
+  const preset = directionalGlowPreset(localHour, elevClamped, fallbackMode);
+
+  const fragility = clamp(cloudFragilityFromRow(row), 0, 1);
+  const saturation = clamp(24 + 54 * sunT - 10 * fragility, 18, 76);
+  const hue = clamp(203 + (1 - sunT) * 7, 201, 214);
+
+  // Three-layer light atmosphere: deeper top, sky-rich middle, bright horizon.
+  const skyTop = `hsl(${hue} ${clamp(saturation * 0.78, 16, 60)}% ${clamp(69 + 11 * sunT + 5 * elevT - 5 * fragility, 60, 86)}%)`;
+  const skyMid = `hsl(${hue} ${clamp(saturation, 18, 76)}% ${clamp(81 + 11 * sunT + 4 * elevT - 3 * fragility, 72, 95)}%)`;
+  const skyBottom = `hsl(${clamp(hue - 2, 198, 216)} ${clamp(saturation * 0.86, 16, 66)}% ${clamp(93 + 5 * sunT + 2 * (1 - elevT), 88, 99)}%)`;
+
+  const presetWarm = ({
+    sunrise: 1.0,
+    morning: 0.62,
+    late_morning: 0.34,
+    noon: 0.18,
+    afternoon: 0.34,
+    late_afternoon: 0.62,
+    sunset: 1.0,
+    night: 0.42,
+  })[preset] ?? 0.5;
+  const sunWarm = clamp(0.55 * presetWarm + 0.35 * (1 - elevT) + 0.10 * (1 - midday), 0, 1);
+  const glowHue = clamp(Math.round(52 - 29 * sunWarm), 20, 52);
+  const glowSat = clamp(Math.round(72 + 18 * sunT - 4 * fragility), 62, 94);
+  const glowLight = clamp(Math.round(71 + 8 * sunT + 4 * midday), 65, 89);
+  const glowCoreAlpha = clamp(0.20 + 0.22 * sunT * (0.45 + 0.55 * elevT), 0.16, 0.46);
+  const glowStrongAlpha = clamp(0.16 + 0.20 * sunT * (0.50 + 0.50 * elevT), 0.13, 0.38);
+  const glowSoftAlpha = clamp(0.09 + 0.11 * sunT * (0.55 + 0.45 * elevT), 0.08, 0.24);
+
+  // Intentionally discrete directional communication for user-facing sky feel.
+  const glowPos = ({
+    sunrise: { x: 16, y: 84 },
+    morning: { x: 46, y: 82 },
+    late_morning: { x: 28, y: 24 },
+    noon: { x: 50, y: 14 },
+    afternoon: { x: 74, y: 24 },
+    late_afternoon: { x: 84, y: 50 },
+    sunset: { x: 82, y: 84 },
+    night: { x: 50, y: 86 },
+  })[preset] || { x: 50, y: 86 };
+  const glowX = clamp(glowPos.x, 6, 94);
+  const glowY = clamp(glowPos.y, 8, 94);
+
+  const overlayAlpha = clamp(0.03 + 0.08 * (1 - sunT) + 0.05 * fragility, 0.02, 0.14);
+  const cardAlpha = clamp(0.68 + 0.06 * fragility - 0.04 * sunT, 0.60, 0.80);
+  const cardAlpha2 = clamp(cardAlpha - 0.10, 0.48, 0.70);
+
+  const skyAccent = hslToRgb(hue + 1, clamp(30 + sunT * 26, 24, 64), clamp(64 + sunT * 9, 60, 80));
+  const sunAccent = hslToRgb(glowHue, clamp(76 + 14 * sunT, 72, 95), clamp(64 + 8 * sunT, 60, 84));
+
+  return {
+    skyTop,
+    skyMid,
+    skyBottom,
+    glowCore: `hsl(${glowHue} ${Math.min(95, glowSat + 3)}% ${Math.min(92, glowLight + 8)}% / ${glowCoreAlpha.toFixed(3)})`,
+    glowHalo: `hsl(${glowHue} ${Math.max(56, glowSat - 6)}% ${Math.max(58, glowLight - 1)}% / ${glowStrongAlpha.toFixed(3)})`,
+    glowStrong: `hsl(${glowHue} ${glowSat}% ${glowLight}% / ${glowStrongAlpha.toFixed(3)})`,
+    glowSoft: `hsl(${glowHue} ${Math.max(48, glowSat - 16)}% ${Math.max(38, glowLight - 6)}% / ${glowSoftAlpha.toFixed(3)})`,
+    glowX: `${glowX.toFixed(1)}%`,
+    glowY: `${glowY.toFixed(1)}%`,
+    overlay: `rgba(255, 255, 255, ${overlayAlpha.toFixed(3)})`,
+    card: `rgba(255, 255, 255, ${cardAlpha.toFixed(3)})`,
+    card2: `rgba(255, 255, 255, ${cardAlpha2.toFixed(3)})`,
+    accents: { sky: skyAccent, sun: sunAccent },
+  };
+}
+
+function applyAtmosphericTheme(row) {
+  if (!document.body || document.body.classList.contains('solarApiPage')) return;
+  const root = document.documentElement;
+  if (!root) return;
+  const theme = computeAtmosphericTheme(row || null);
+  const themeKey = [
+    theme.skyTop,
+    theme.skyMid,
+    theme.skyBottom,
+    theme.glowCore,
+    theme.glowHalo,
+    theme.glowStrong,
+    theme.glowSoft,
+    theme.glowX,
+    theme.glowY,
+    theme.overlay,
+    theme.card,
+    theme.card2,
+    theme.accents?.sky?.r, theme.accents?.sky?.g, theme.accents?.sky?.b,
+    theme.accents?.sun?.r, theme.accents?.sun?.g, theme.accents?.sun?.b,
+  ].join('|');
+  if (themeKey === _lastAtmosThemeKey) return;
+  _lastAtmosThemeKey = themeKey;
+  root.style.setProperty('--atm-sky-top', theme.skyTop);
+  root.style.setProperty('--atm-sky-mid', theme.skyMid);
+  root.style.setProperty('--atm-sky-bottom', theme.skyBottom);
+  root.style.setProperty('--atm-glow-core', theme.glowCore);
+  root.style.setProperty('--atm-glow-halo', theme.glowHalo);
+  root.style.setProperty('--atm-glow-strong', theme.glowStrong);
+  root.style.setProperty('--atm-glow-soft', theme.glowSoft);
+  root.style.setProperty('--atm-glow-x', theme.glowX);
+  root.style.setProperty('--atm-glow-y', theme.glowY);
+  root.style.setProperty('--atm-overlay', theme.overlay);
+  root.style.setProperty('--atm-card', theme.card);
+  root.style.setProperty('--atm-card-2', theme.card2);
+  setThemeAccents(theme.accents);
 }
 
 // ===== Rate limit cooldown =====
@@ -948,6 +1224,10 @@ function renderChart(dayRows, win = null) {
   const padX = 14;
   const padTop = 14;
   const padBottom = 18;
+  const lightAtmosphere = Boolean(document.body && !document.body.classList.contains('solarApiPage'));
+  const gridStroke = lightAtmosphere ? 'rgba(20,24,28,0.12)' : 'rgba(0,0,0,0.10)';
+  const baseStroke = lightAtmosphere ? 'rgba(20,24,28,0.28)' : 'rgba(0,0,0,0.26)';
+  const nowStroke = lightAtmosphere ? 'rgba(20,24,28,0.24)' : 'rgba(0,0,0,0.22)';
 
   const yOf = (e) => {
     const usableH = h - padTop - padBottom;
@@ -959,7 +1239,7 @@ function renderChart(dayRows, win = null) {
   // grid lines
   ctx.lineWidth = 1;
   ctx.setLineDash([3, 4]);
-  ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+  ctx.strokeStyle = gridStroke;
   for (let d = 0; d <= maxElev; d += 10) {
     const y = yOf(d);
     ctx.beginPath();
@@ -995,9 +1275,15 @@ function renderChart(dayRows, win = null) {
   ctx.fill();
 
   const atmosphereGrad = ctx.createLinearGradient(0, padTop, 0, h - padBottom);
-  atmosphereGrad.addColorStop(0, "rgba(255,248,236,0.10)");
-  atmosphereGrad.addColorStop(0.42, "rgba(255,255,255,0.03)");
-  atmosphereGrad.addColorStop(1, "rgba(255,255,255,0.00)");
+  if (lightAtmosphere) {
+    atmosphereGrad.addColorStop(0, 'rgba(255,248,236,0.10)');
+    atmosphereGrad.addColorStop(0.42, 'rgba(255,255,255,0.03)');
+    atmosphereGrad.addColorStop(1, 'rgba(255,255,255,0.00)');
+  } else {
+    atmosphereGrad.addColorStop(0, 'rgba(255, 248, 236, 0.06)');
+    atmosphereGrad.addColorStop(0.42, 'rgba(255, 255, 255, 0.015)');
+    atmosphereGrad.addColorStop(1, 'rgba(255, 255, 255, 0.00)');
+  }
   ctx.fillStyle = atmosphereGrad;
   ctx.fill();
 
@@ -1009,7 +1295,7 @@ function renderChart(dayRows, win = null) {
     if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
     else ctx.lineTo(pts[i].x, pts[i].y);
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.26)';
+  ctx.strokeStyle = baseStroke;
   ctx.stroke();
 
   // score intensity strokes
@@ -1057,7 +1343,7 @@ function renderChart(dayRows, win = null) {
     const u = clamp((now - t0ms) / Math.max(1, (t1ms - t0ms)), 0, 1);
     const xn = padX + u * (w - 2 * padX);
 
-    ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+    ctx.strokeStyle = nowStroke;
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 4]);
     ctx.beginPath();
@@ -1076,12 +1362,12 @@ function renderChart(dayRows, win = null) {
     ctx.fill();
 
     // higher-contrast core so marker remains visible over bright curve segments
-    ctx.fillStyle = 'rgba(120,72,20,0.96)';
+    ctx.fillStyle = lightAtmosphere ? 'rgba(120,72,20,0.96)' : 'rgba(255,244,226,0.95)';
     ctx.beginPath();
     ctx.arc(xn, p.y, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255,248,232,0.92)';
+    ctx.strokeStyle = lightAtmosphere ? 'rgba(120,72,20,0.62)' : 'rgba(255,248,232,0.92)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(xn, p.y, 2.5, 0, Math.PI * 2);
@@ -1195,8 +1481,10 @@ function render() {
   // ------------------------------
   // Tomorrow view uses daylight average instead of single-hour snapshot
   // ------------------------------
+  let themeRow = null;
   if (dayIndex === 0) {
     const focusRow = nearestNowRow(dayRows);
+    themeRow = focusRow || nearestRowToLocalHour(dayRows, 12);
     renderDecision(focusRow, { label: 'now' });
   } else {
     const avg = dayAverages(dayRows);
@@ -1204,19 +1492,29 @@ function render() {
     if (!avg) {
       // No daylight tomorrow
       const fallback = nearestRowToLocalHour(dayRows, 12);
+      if (fallback) fallback._themeFallback = true;
+      themeRow = fallback;
       renderDecision(fallback, { label: 'tomorrow (no daylight)' });
     } else {
+      const anchor = nearestRowToLocalHour(dayRows, 12);
       // Synthetic row for decision UI
       const synthetic = {
         sun_score: avg.avgScore,
         confidence: avg.avgConf,
-        elevation: 1,
+        elevation: Number(anchor?.elevation || 1),
+        azimuth: Number(anchor?.azimuth || 180),
         is_daylight: true,
+        time_utc: anchor?.time_utc || null,
+        time_local: anchor?.time_local || null,
+        _themeFallback: true,
         cloud: avg.clouds,
       };
+      themeRow = synthetic;
       renderDecision(synthetic, { label: 'tomorrow (daylight average)' });
     }
   }
+
+  applyAtmosphericTheme(themeRow);
 
   // Next window
   let win = state.data.next_sunny_window_by_day
@@ -1564,6 +1862,7 @@ function getPresetLocation() {
 
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', () => {
+  applyAtmosphericTheme(null);
   loadRateLimitUntil();
   applyRateLimitUi();
 
