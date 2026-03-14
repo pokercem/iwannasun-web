@@ -85,7 +85,7 @@
         <div aria-labelledby="integrationHeading">
           <h2 id="integrationHeading">Integration</h2>
           <p><strong>Method:</strong> <code>GET</code> <strong>Endpoint:</strong> <code>/v1/features</code></p>
-          <p><strong>Access:</strong> currently provided for approved beta integrations (token-based).</p>
+          <p><strong>Access:</strong> optional token gate (header required only when enabled server-side).</p>
           <p>The API exposes interpretable intermediate signals rather than a black-box forecast.</p>
           <h3 class="small sectionHeading">Request parameters</h3>
           <ul class="solarList">
@@ -167,7 +167,7 @@
   <footer class="wrap siteFooter">
     <p class="muted small">iwannasun Solar Feature API is a B2B signal layer for beam-aware forecasting workflows.</p>
     <p class="muted small">
-      Core endpoint (approved beta access):
+      Core endpoint (beta):
       <a href="https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=local&amp;mode=full" target="_blank" rel="noopener noreferrer">/v1/features</a>
     </p>
   </footer>

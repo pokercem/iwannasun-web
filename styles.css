@@ -556,7 +556,10 @@ body:not(.solarApiPage) .suggest {
 }
 
 /* Inputs / buttons */
-#locPill { overflow-wrap: anywhere; word-break: break-word; }
+.modelModeNote {
+  margin-top: 8px;
+  line-height: 1.35;
+}
 
 .pill {
   padding: 6px 10px;

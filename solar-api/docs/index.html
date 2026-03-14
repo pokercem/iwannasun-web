@@ -46,13 +46,13 @@
       <h2 id="overviewHeading">Endpoint Overview</h2>
       <p><strong>Method:</strong> <code>GET</code></p>
       <p><strong>Endpoint:</strong> <code>https://api.iwannasun.com/v1/features</code></p>
-      <p><strong>Access model:</strong> approved beta integrations using request token header.</p>
+      <p><strong>Access model:</strong> optional token gate. Token header is required only when enabled server-side.</p>
       <p><strong>Output:</strong> <code>meta</code>, <code>feature_schema</code>, and timestamped <code>timeline</code> rows.</p>
     </section>
 
     <section class="card solarSection" aria-labelledby="authHeading">
       <h2 id="authHeading">Authentication</h2>
-      <p>For approved beta access, send the request token in header <code>X-IWS-Feature-Token</code>.</p>
+      <p>When token gate is enabled server-side, send <code>X-IWS-Feature-Token</code> with your request.</p>
       <div class="codePanel">
         <pre><code>X-IWS-Feature-Token: YOUR_TOKEN</code></pre>
       </div>
@@ -161,8 +161,8 @@
     <section class="card solarSection" aria-labelledby="checklistHeading">
       <h2 id="checklistHeading">Integration Checklist</h2>
       <ol class="solarList">
-        <li>Request beta access token and store it as a secret.</li>
-        <li>Integrate <code>/v1/features</code> with token header and retry handling for <code>429</code>/<code>503</code>.</li>
+        <li>If token gate is enabled for your integration, store the token as a secret and send <code>X-IWS-Feature-Token</code>.</li>
+        <li>Integrate <code>/v1/features</code> with retry handling for <code>429</code>/<code>503</code>.</li>
         <li>Start with core fields and validate downstream lift before adding advanced fields.</li>
         <li>Log <code>request_id</code> for traceability and support diagnostics.</li>
       </ol>

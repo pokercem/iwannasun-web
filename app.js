@@ -15,7 +15,6 @@ const DEFAULT_THRESHOLD = 70;
 const DAYS = 2;
 const COORD_STATE_DECIMALS = 3;
 const COORD_CACHE_KEY_DECIMALS = 3;
-const COORD_UI_DECIMALS = 2;
 
 // Timeline limits
 const TIMELINE_MAX_ROWS = 84;
@@ -29,11 +28,11 @@ const RL_USER_DEFAULT_COOLDOWN_S = 10;     // your API (slow down)
 const $ = (id) => document.getElementById(id);
 
 const els = {
-  locPill: $('locPill'),
   timePill: $('timePill'),
   cityInput: $('cityInput'),
   cityResults: $('cityResults'),
   errBox: $('errBox'),
+  modelModeNote: $('modelModeNote'),
   loadingOverlay: $('loadingOverlay'),
 
   btnHere: $('btnHere'),
@@ -67,6 +66,16 @@ const els = {
 
 const ctx = els.canvas ? els.canvas.getContext('2d') : null;
 
+if (!els.modelModeNote && els.errBox && els.errBox.parentNode) {
+  const note = document.createElement('div');
+  note.id = 'modelModeNote';
+  note.className = 'muted small modelModeNote';
+  note.setAttribute('aria-live', 'polite');
+  note.style.display = 'none';
+  els.errBox.insertAdjacentElement('afterend', note);
+  els.modelModeNote = note;
+}
+
 // ===== State =====
 const state = {
   lat: null,
@@ -75,6 +84,9 @@ const state = {
   data: null,
   days: null,
   tzName: null,
+  geometryMode: null,
+  rayFallbackActive: false,
+  rayFallbackReason: '',
   isBusy: false,
   rateLimitUntil: 0,
   rateLimitMsg: '',
@@ -691,9 +703,6 @@ function setLocation(lat, lon, label = '') {
   state.days = null;
   state.tzName = null;
 
-  if (els.locPill) {
-    els.locPill.textContent = state.label ? state.label : `${state.lat.toFixed(COORD_UI_DECIMALS)}, ${state.lon.toFixed(COORD_UI_DECIMALS)}`;
-  }
   if (els.timePill) {
     els.timePill.textContent = '—';
     els.timePill.title = '';
@@ -891,6 +900,11 @@ async function fetchDay(force = false) {
     if (cached) {
       state.data = cached;
       state.tzName = cached?.meta?.tz_name || null;
+      state.geometryMode = String(cached?.model || '').toLowerCase() || null;
+      state.rayFallbackActive = state.geometryMode === 'local';
+      state.rayFallbackReason = state.rayFallbackActive
+        ? 'Using local geometry fallback (ray unavailable on last successful fetch).'
+        : '';
       prepData(state.data);
       render();
       setBusy(false);
@@ -904,6 +918,9 @@ async function fetchDay(force = false) {
     const { signal } = _dayAbort;
 
     let usedModel = 'ray';
+    let fallbackFromRay = false;
+    let fallbackStatus = null;
+    let fallbackErrorCode = '';
     let res = await fetch(urlRay, { signal });
 
     if (!res.ok) {
@@ -913,6 +930,8 @@ async function fetchDay(force = false) {
         msg = (typeof errBody?.detail === 'string') ? errBody.detail : '';
       } catch {}
       const errCode = (res.headers?.get?.('X-IWS-Error-Code') || '').trim();
+      fallbackStatus = Number(res.status);
+      fallbackErrorCode = String(errCode || '');
 
       // Provider rate limit (Open-Meteo). Backend returns 503 and should include Retry-After.
       if (res.status === 503 && (errCode === 'UPSTREAM_RATE_LIMIT' || msg.toLowerCase().includes('rate limit'))) {
@@ -927,6 +946,7 @@ async function fetchDay(force = false) {
       }
 
       // Otherwise: fall back to local model if ray failed for non-rate-limit reasons.
+      fallbackFromRay = true;
       usedModel = 'local';
       res = await fetch(urlLocal, { signal });
     }
@@ -944,6 +964,19 @@ async function fetchDay(force = false) {
     const data = await res.json();
     state.data = data;
     state.tzName = data?.meta?.tz_name || null;
+    state.geometryMode = String(data?.model || usedModel || '').toLowerCase() || null;
+    state.rayFallbackActive = Boolean(fallbackFromRay && state.geometryMode === 'local');
+    state.rayFallbackReason = state.rayFallbackActive
+      ? 'Using local geometry fallback (ray request failed).'
+      : '';
+    if (state.rayFallbackActive) {
+      console.info('IWS_MODEL_FALLBACK', {
+        from: 'ray',
+        to: 'local',
+        status: fallbackStatus,
+        error_code: fallbackErrorCode || null,
+      });
+    }
     prepData(state.data);
 
     saveCached(lat, lon, threshold, data, { days: DAYS, model: usedModel, mode: wantedMode });
@@ -1457,7 +1490,10 @@ function nearestRowToLocalHour(dayRows, hour = 12) {
 }
 
 function render() {
-  if (!state.data) return;
+  if (!state.data) {
+    if (els.modelModeNote) els.modelModeNote.style.display = 'none';
+    return;
+  }
 
   // Local time pill
   if (els.timePill) {
@@ -1566,6 +1602,16 @@ function render() {
 
   // Keep refresh disabled if rate-limited
   applyRateLimitUi();
+
+  if (els.modelModeNote) {
+    if (state.rayFallbackActive) {
+      els.modelModeNote.style.display = 'block';
+      els.modelModeNote.textContent = state.rayFallbackReason;
+    } else {
+      els.modelModeNote.style.display = 'none';
+      els.modelModeNote.textContent = '';
+    }
+  }
 }
 
 // ===== Actions =====
@@ -1614,7 +1660,6 @@ async function useHere({ silent = false } = {}) {
           if (city) {
             // Only update label; keep the same lat/lon and don't clear state.data
             state.label = String(city).trim();
-            if (els.locPill) els.locPill.textContent = state.label;
             if (els.cityInput) els.cityInput.value = state.label;
           }
         } catch {
@@ -1869,8 +1914,9 @@ window.addEventListener('DOMContentLoaded', () => {
   state.lat = null;
   state.lon = null;
   state.data = null;
-
-  if (els.locPill) els.locPill.textContent = 'Choose a location';
+  state.geometryMode = null;
+  state.rayFallbackActive = false;
+  state.rayFallbackReason = '';
   if (els.timePill) { els.timePill.textContent = '—'; els.timePill.title = ''; }
 
   const preset = getPresetLocation();
