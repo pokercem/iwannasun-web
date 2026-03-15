@@ -46,7 +46,7 @@
             Call <code>/v1/features</code> to retrieve production-derived beam-state, cloud-geometry, and DNI-disagreement signals.
             Each timestamped row exposes interpretable features that allow downstream systems to apply residual correction, fragility detection, and regime-aware forecast logic.
           </p>
-          <p>Signals are evaluated against SURFRAD ground measurements to validate beam-blocked interval detection under real irradiance conditions.</p>
+          <p>Signals are evaluated against ground irradiance datasets to validate beam/occlusion behavior under real conditions, with results interpreted by regime.</p>
           <div class="codePanel">
             <pre><code>curl "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=local&amp;mode=full"</code></pre>
           </div>
@@ -85,16 +85,28 @@
         <div aria-labelledby="integrationHeading">
           <h2 id="integrationHeading">Integration</h2>
           <p><strong>Method:</strong> <code>GET</code> <strong>Endpoint:</strong> <code>/v1/features</code></p>
-          <p><strong>Access:</strong> optional token gate (header required only when enabled server-side).</p>
+          <p><strong>Access:</strong> optional token gate (when enabled, use either <code>X-IWS-Feature-Token</code> header or <code>apikey</code> query parameter).</p>
           <p>The API exposes interpretable intermediate signals rather than a black-box forecast.</p>
           <h3 class="small sectionHeading">Request parameters</h3>
           <ul class="solarList">
             <li><code>lat</code> (required, -90..90)</li>
             <li><code>lon</code> (required, -180..180)</li>
             <li><code>days</code> (optional, 1..3 forecast days, default 1)</li>
-            <li><code>model</code> (optional, <code>local|ray</code>, default <code>local</code>)</li>
+            <li><code>model</code> (optional, <code>local|ray</code>, default <code>local</code>; input mode for the same scorer, not separate model families)</li>
             <li><code>mode</code> (optional, <code>full|quick</code>, default <code>full</code>)</li>
           </ul>
+          <h3 class="small sectionHeading">Mode guidance</h3>
+          <ul class="solarList">
+            <li>Use <code>ray</code> by default for quality-sensitive B2B integrations.</li>
+            <li>Use <code>local</code> when you need simpler/faster geometry mode behavior or fallback handling.</li>
+          </ul>
+          <h3 class="small sectionHeading">Auth examples (when token gate is enabled)</h3>
+          <div class="codePanel">
+            <pre><code>curl -H "X-IWS-Feature-Token: YOUR_TOKEN" "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full"</code></pre>
+          </div>
+          <div class="codePanel">
+            <pre><code>https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full&amp;apikey=YOUR_TOKEN</code></pre>
+          </div>
           <h3 class="small sectionHeading">Response cadence</h3>
           <ul class="solarList">
             <li>Timeline interval: 10-minute timesteps.</li>
@@ -122,7 +134,12 @@
             <dt><code>score_cloud_minus_score_dni</code></dt><dd>Cloud-vs-DNI component delta.</dd>
             <dt><code>sun_score_minus_score_cloud</code></dt><dd>Final score delta vs cloud component.</dd>
             <dt><code>broken_cloud_flag</code></dt><dd>Broken-cloud regime indicator.</dd>
+            <dt><code>high_disagreement_flag</code></dt><dd>Lower-reliability regime indicator (<code>true</code> when <code>disagree &gt;= 0.35</code>).</dd>
           </dl>
+          <h3 class="small sectionHeading">Operational guardrail</h3>
+          <p class="muted">
+            When <code>high_disagreement_flag=true</code>, treat the row as lower reliability: reduce trust, and apply a fallback or dual-report policy in downstream systems.
+          </p>
         </div>
       </div>
     </section>
@@ -143,18 +160,19 @@
       <ul class="solarList">
         <li>Evaluated against SURFRAD ground irradiance measurements using production model signal outputs.</li>
         <li>Tested with station-holdout and time-holdout validation protocols.</li>
-        <li>Beam-state and disagreement signals consistently identify forecast-fragile intervals.</li>
-        <li>Residual-correction usefulness is strongest during broken-cloud and transition regimes.</li>
+        <li>Beam-state and disagreement signals are useful for identifying fragile intervals, but reliability varies by regime.</li>
+        <li>Residual-correction usefulness tends to be stronger in broken-cloud and transition regimes than in high-disagreement regimes.</li>
       </ul>
     </section>
 
     <section class="card solarSection" aria-labelledby="validationSnapshotNumbersHeading">
-      <h2 id="validationSnapshotNumbersHeading">Validation Snapshot</h2>
+      <h2 id="validationSnapshotNumbersHeading">Validation Context</h2>
       <ul class="solarList">
-        <li><strong>SURFRAD irradiance benchmark:</strong> ~11&ndash;20% DNI RMSE reduction in broken-cloud and cloud/DNI disagreement regimes using NOAA SURFRAD ground irradiance stations.</li>
-        <li><strong>PVDAQ plant-power backtest:</strong> ~2% overall RMSE improvement across 8 NREL PVDAQ solar plants (~6 months of historical data).</li>
+        <li><strong>Context date:</strong> 2026-03-15.</li>
+        <li><strong>Scope:</strong> internal SURFRAD/PVDAQ-style evaluations and ray-mode pair comparisons.</li>
+        <li><strong>Outcome shape:</strong> mixed and regime-dependent, not a universal uplift across all tasks/slices.</li>
       </ul>
-      <p class="muted">Signals appear strongest at the irradiance correction layer; plant-level gains depend on downstream forecasting and plant characteristics.</p>
+      <p class="muted">Use the signals as a reliability-aware feature layer, with explicit guardrails in high-disagreement intervals.</p>
     </section>
 
     <section class="card solarSection" aria-labelledby="accessHeading">
