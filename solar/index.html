@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iwannasun Solar Feature API | Beam-Aware Signals for Forecasting</title>
+  <meta name="description" content="Solar Feature API for B2B forecasting teams. Get beam-state, cloud, and disagreement signals from /v1/features with clear benchmark context and practical guardrails." />
+  <link rel="canonical" href="https://iwannasun.com/solar/" />
+  <meta property="og:title" content="iwannasun Solar Feature API" />
+  <meta property="og:description" content="Beam-aware solar feature signals for forecasting, PV prediction, and grid operations." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://iwannasun.com/solar/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="iwannasun Solar Feature API" />
+  <meta name="twitter:description" content="Beam-aware solar features via /v1/features." />
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+</head>
+<body class="solarApiPage">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="iwannasun home">
+      <img class="brandLogo" src="/iwannasunlogowtext.svg" alt="iwannasun" />
+      <div class="brandText">
+        <h1 class="sub">Solar feature API for B2B integration.</h1>
+      </div>
+    </a>
+
+    <div class="controls" aria-label="B2B page links">
+      <div class="btnRow">
+        <a class="btn" href="/">Back to Sun Planner</a>
+        <a class="btn" href="/solar/docs/">Feature API Guide</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap solarApiWrap">
+    <section class="card solarHero" aria-labelledby="heroHeading">
+      <div class="solarHeroSplit">
+        <div class="solarHeroCopy">
+          <p class="muted small solarEyebrow">Solar Feature API</p>
+          <h2 id="heroHeading">Decision-ready solar signals for short-horizon forecasting and trading.</h2>
+          <p class="solarLead">
+            Raw weather feeds describe atmospheric conditions, but they do not show when irradiance forecasts are fragile.
+          </p>
+          <p class="solarLead">
+            The <code>/v1/features</code> API adds beam-state evidence and disagreement signals so teams can adjust confidence, residual correction, and operational risk in real time.
+          </p>
+          <p class="solarLead solarAudienceLead">
+            Built for solar forecast engineers, intraday power traders, and energy analytics teams running PV and DNI forecasting workflows.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="signalsUsesHeading">
+      <h2 id="signalsUsesHeading">Signals and Typical Uses</h2>
+      <div class="solarSignalsUsesGrid">
+        <div class="solarSignalsUsesCol">
+          <h3>What It Provides</h3>
+          <ul class="solarList">
+            <li>Beam-state and cloud/DNI evidence signals at 10-minute resolution.</li>
+            <li>Not raw weather fields. Derived, model-ready signals (<code>sun_score</code>, <code>score_cloud</code>, <code>score_dni</code>, <code>disagree</code>, <code>high_disagreement_flag</code>) designed for operational forecasting decisions.</li>
+            <li><code>high_disagreement_flag</code> marks lower-reliability intervals so teams can gate trading decisions and flag fragile forecast windows.</li>
+            <li>Stable schema that plugs into residual correction and short-horizon forecast confidence controls.</li>
+          </ul>
+        </div>
+        <div class="solarSignalsUsesCol">
+          <h3>Typical Uses</h3>
+          <ul class="solarList">
+            <li><strong>Residual correction:</strong> adjust baseline DNI/PV forecasts when cloud and DNI evidence diverge.</li>
+            <li><strong>Reliability gating:</strong> down-weight or flag intervals when <code>high_disagreement_flag=true</code>.</li>
+            <li><strong>Ramp operations:</strong> trigger monitoring or alerts around likely cloud breakthrough events.</li>
+            <li><strong>Model features:</strong> feed interpretable signals into short-horizon forecasting models.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card solarSection solarCtaCard solarBenchmarkSection" aria-labelledby="evidenceHeading">
+      <h2 id="evidenceHeading">Benchmark Evidence</h2>
+      <div class="solarBenchmarkFactsGrid" aria-label="Benchmark facts">
+        <div class="solarFactCard">
+          <p class="solarFactLabel">Dataset</p>
+          <p class="solarFactValue">SURFRAD core stations</p>
+        </div>
+        <div class="solarFactCard">
+          <p class="solarFactLabel">Coverage</p>
+          <p class="solarFactValue">7 stations, full-year 2025</p>
+        </div>
+        <div class="solarFactCard">
+          <p class="solarFactLabel">Rows</p>
+          <p class="solarFactValue">30,500 daylight rows</p>
+        </div>
+        <div class="solarFactCard">
+          <p class="solarFactLabel">Protocol</p>
+          <p class="solarFactValue">main benchmark, time holdout, station holdout, and signal analysis (ray mode)</p>
+        </div>
+      </div>
+
+      <div class="solarBenchmarkOutcomeGrid">
+        <div class="solarBenchmarkOutcome">
+          <h3 class="small sectionHeading">Strengths observed</h3>
+          <ul class="solarList">
+            <li>Stronger DNI regression and residual-signal add-value.</li>
+            <li>Improved breakthrough timing behavior.</li>
+            <li>Higher ROC/AUC discrimination in beam-state classification tasks.</li>
+          </ul>
+        </div>
+        <div class="solarBenchmarkOutcome">
+          <h3 class="small sectionHeading">Tradeoffs observed</h3>
+          <ul class="solarList">
+            <li>Thresholded classification F1 is weaker in some regimes.</li>
+            <li>High-disagreement occlusion intervals remain difficult.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="validationPlotsHeading">
+      <h2 id="validationPlotsHeading">Validation Plots</h2>
+      <p class="solarValidationIntro">
+        Look for three patterns: signals track beam structure over time, error rises with disagreement, and skill varies by regime.
+      </p>
+
+      <div class="solarValidationSummary" aria-label="Benchmark summary">
+        <ul class="solarList solarValidationFacts">
+          <li><strong>Dataset:</strong> SURFRAD core stations</li>
+          <li><strong>Coverage:</strong> 7 stations, full-year 2025</li>
+          <li><strong>Rows:</strong> 30,500 daylight rows</li>
+          <li><strong>Protocol:</strong> main + time holdout + station holdout + signal analysis</li>
+        </ul>
+      </div>
+
+      <div class="solarPlotGrid">
+        <figure class="solarPlotCard solarPlotCardWide">
+          <picture class="solarPlotMedia">
+            <source srcset="/solar/plots/solar_plot_signal_timeline.svg" type="image/svg+xml" />
+            <img
+              class="solarPlotImage"
+              src="/solar/plots/solar_plot_signal_timeline.png"
+              alt="Timeline showing observed DNI and sun_score with shaded high-disagreement intervals."
+              loading="lazy"
+            />
+          </picture>
+          <figcaption class="solarPlotCaption">
+            Example SURFRAD day illustrating disagreement intervals: observed DNI (indexed to 0-100) and <code>sun_score</code>; shaded bands mark high-disagreement periods.
+          </figcaption>
+        </figure>
+
+        <figure class="solarPlotCard">
+          <picture class="solarPlotMedia">
+            <source srcset="/solar/plots/solar_plot_error_vs_disagreement.svg" type="image/svg+xml" />
+            <img
+              class="solarPlotImage"
+              src="/solar/plots/solar_plot_error_vs_disagreement.png"
+              alt="Bucketed chart showing disagreement versus median absolute DNI error."
+              loading="lazy"
+            />
+          </picture>
+          <figcaption class="solarPlotCaption">
+            Median absolute DNI error generally increases as <code>disagree</code> buckets rise.
+          </figcaption>
+        </figure>
+
+        <figure class="solarPlotCard">
+          <picture class="solarPlotMedia">
+            <source srcset="/solar/plots/solar_plot_regime_skill.svg" type="image/svg+xml" />
+            <img
+              class="solarPlotImage"
+              src="/solar/plots/solar_plot_regime_skill.png"
+              alt="Bar chart of DNI RMSE across clear-sky, broken-cloud, and high-disagreement regimes."
+              loading="lazy"
+            />
+          </picture>
+          <figcaption class="solarPlotCaption">
+            Forecast DNI RMSE varies by regime defined by the disagreement signal; lower values indicate better skill.
+          </figcaption>
+        </figure>
+      </div>
+      <p class="muted small">
+        Error metrics compare forecast DNI (<code>dni_val</code>) against observed DNI, with regimes defined by the disagreement signal.
+      </p>
+    </section>
+
+    <section class="card solarSection solarGetStarted" aria-labelledby="ctaHeading">
+      <h2 id="ctaHeading">Get Started</h2>
+      <p class="solarCtaLead">Review endpoint behavior and guardrails in the guide, then request access for evaluation and pilot integration.</p>
+      <ol class="solarCtaSteps">
+        <li>Validate payload shape and signals in the API guide.</li>
+        <li>Request access to start integration testing.</li>
+      </ol>
+      <div class="solarActions solarCtaActions">
+        <a class="btn solarCtaPrimary" href="/solar/docs/">Open the Feature API Guide</a>
+        <a class="btn btnSecondary solarCtaSecondary" href="mailto:api@iwannasun.com">Request Access via Email</a>
+      </div>
+      <p class="muted small solarCtaMeta">Direct access requests: <a href="mailto:api@iwannasun.com">api@iwannasun.com</a></p>
+    </section>
+  </main>
+
+  <footer class="wrap siteFooter">
+    <p class="muted small">iwannasun Solar Feature API for beam-aware forecasting workflows.</p>
+    <p class="muted small">
+      Endpoint:
+      <a href="https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full" target="_blank" rel="noopener noreferrer">/v1/features</a>
+    </p>
+  </footer>
+</body>
+</html>

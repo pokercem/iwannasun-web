@@ -3,114 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>iwannasun Solar Feature API | Beam-Aware Signals for Forecasting</title>
-  <meta name="description" content="Solar Feature API for B2B forecasting teams. Get beam-state, cloud, and disagreement signals from /v1/features with clear benchmark context and practical guardrails." />
-  <link rel="canonical" href="https://iwannasun.com/solar-api/" />
-  <meta property="og:title" content="iwannasun Solar Feature API" />
-  <meta property="og:description" content="Beam-aware solar feature signals for forecasting, PV prediction, and grid operations." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://iwannasun.com/solar-api/" />
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="iwannasun Solar Feature API" />
-  <meta name="twitter:description" content="Beam-aware solar features via /v1/features." />
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-  <link rel="manifest" href="/site.webmanifest">
+  <title>Moved Permanently | iwannasun</title>
+  <meta http-equiv="refresh" content="0; url=/solar/" />
+  <link rel="canonical" href="https://iwannasun.com/solar/" />
 </head>
-<body class="solarApiPage">
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="iwannasun home">
-      <img class="brandLogo" src="/iwannasunlogowtext.svg" alt="iwannasun" />
-      <div class="brandText">
-        <h1 class="sub">Solar feature API for B2B integration.</h1>
-      </div>
-    </a>
-
-    <div class="controls" aria-label="B2B page links">
-      <div class="btnRow">
-        <a class="btn" href="/">Back to Sun Planner</a>
-        <a class="btn" href="/solar-api/docs/">Feature API Guide</a>
-      </div>
-    </div>
-  </header>
-
-  <main class="wrap solarApiWrap">
-    <section class="card solarHero" aria-labelledby="heroHeading">
-      <div class="solarHeroSplit">
-        <div class="solarHeroCopy">
-          <p class="muted small solarEyebrow">Solar Feature API</p>
-          <h2 id="heroHeading">Decision-ready solar signals for short-horizon forecasting and trading.</h2>
-          <p class="solarLead">
-            Raw weather feeds describe atmospheric conditions, but they do not tell forecasting systems when irradiance predictions are fragile.
-          </p>
-          <p class="solarLead">
-            The <code>/v1/features</code> API adds beam-state evidence and disagreement signals so forecasting systems can adjust confidence, residuals, and operational risk in real time.
-          </p>
-          <p class="solarLead">
-            Built for solar forecast engineers, intraday power traders, and energy analytics teams integrating PV and DNI forecasting workflows.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <section class="card solarSection" aria-labelledby="providesHeading">
-      <h2 id="providesHeading">What It Provides</h2>
-      <ul class="solarList">
-        <li>Beam-state and cloud/DNI evidence signals at 10-minute resolution.</li>
-        <li>Not raw weather fields. Derived, model-ready signals (<code>sun_score</code>, <code>score_cloud</code>, <code>score_dni</code>, <code>disagree</code>, <code>high_disagreement_flag</code>) designed for operational forecasting decisions.</li>
-        <li><code>high_disagreement_flag</code> marks lower-reliability intervals so teams can gate trading decisions and flag fragile forecast windows.</li>
-        <li>Stable schema that plugs into residual correction and short-horizon forecast confidence controls.</li>
-      </ul>
-    </section>
-
-    <section class="card solarSection solarCtaCard" aria-labelledby="evidenceHeading">
-      <h2 id="evidenceHeading">Benchmark Evidence</h2>
-      <ul class="solarList">
-        <li><strong>Dataset:</strong> SURFRAD core stations.</li>
-        <li><strong>Coverage:</strong> 7 stations, full-year 2025, 30,500 daylight rows.</li>
-        <li><strong>Protocol:</strong> main benchmark, time holdout, station holdout, and signal analysis (ray mode).</li>
-      </ul>
-
-      <h3 class="small sectionHeading">Strengths observed</h3>
-      <ul class="solarList">
-        <li>Stronger DNI regression and residual-signal add-value.</li>
-        <li>Improved breakthrough timing behavior.</li>
-        <li>Higher ROC/AUC discrimination in beam-state classification tasks.</li>
-      </ul>
-
-      <h3 class="small sectionHeading">Tradeoffs observed</h3>
-      <ul class="solarList">
-        <li>Thresholded classification F1 is weaker in some regimes.</li>
-        <li>High-disagreement occlusion intervals remain difficult.</li>
-      </ul>
-    </section>
-
-    <section class="card solarSection" aria-labelledby="usesHeading">
-      <h2 id="usesHeading">Typical Uses</h2>
-      <ul class="solarList solarUseGrid">
-        <li><strong>Residual correction:</strong> adjust baseline DNI/PV forecasts when cloud and DNI evidence diverge.</li>
-        <li><strong>Reliability gating:</strong> down-weight or flag intervals when <code>high_disagreement_flag=true</code>.</li>
-        <li><strong>Ramp operations:</strong> trigger monitoring or alerts around likely cloud breakthrough events.</li>
-        <li><strong>Model features:</strong> feed interpretable signals into short-horizon forecasting models.</li>
-      </ul>
-    </section>
-
-    <section class="card solarSection" aria-labelledby="ctaHeading">
-      <h2 id="ctaHeading">Get Started</h2>
-      <p>Read the developer guide for endpoint details, auth, and field definitions.</p>
-      <p><a href="/solar-api/docs/">Open the Feature API Guide</a></p>
-      <p>Request access: <a href="mailto:api@iwannasun.com">api@iwannasun.com</a></p>
-    </section>
-  </main>
-
-  <footer class="wrap siteFooter">
-    <p class="muted small">iwannasun Solar Feature API for beam-aware forecasting workflows.</p>
-    <p class="muted small">
-      Endpoint:
-      <a href="https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full" target="_blank" rel="noopener noreferrer">/v1/features</a>
-    </p>
-  </footer>
+<body>
+  <p>This page moved to <a href="/solar/">/solar/</a>.</p>
+  <script>window.location.replace('/solar/');</script>
 </body>
 </html>

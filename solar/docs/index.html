@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Solar Feature API Developer Guide | iwannasun</title>
+  <meta name="description" content="Developer guide for iwannasun Solar Feature API (/v1/features): authentication, parameters, response schema, guardrails, and integration notes." />
+  <link rel="canonical" href="https://iwannasun.com/solar/docs/" />
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+</head>
+<body class="solarApiPage">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="iwannasun home">
+      <img class="brandLogo" src="/iwannasunlogowtext.svg" alt="iwannasun" />
+      <div class="brandText">
+        <h1 class="sub">Solar Feature API developer guide.</h1>
+      </div>
+    </a>
+    <div class="controls" aria-label="Guide navigation links">
+      <div class="btnRow">
+        <a class="btn" href="/solar/">Back to Solar API</a>
+        <a class="btn" href="/">Back to Sun Planner</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap solarApiWrap">
+    <section class="card solarHero" aria-labelledby="docsHeading">
+      <div class="solarHeroSplit">
+        <div class="solarHeroCopy">
+          <p class="muted small solarEyebrow">Developer Guide</p>
+          <h2 id="docsHeading">Integrate <code>/v1/features</code> with clear auth, schema, and guardrail behavior.</h2>
+        </div>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="benchmarkContextHeading">
+      <h2 id="benchmarkContextHeading">Benchmark Context</h2>
+      <ul class="solarList">
+        <li>SURFRAD 2025 ray-mode validation.</li>
+        <li>7 stations, 30,500 daylight rows.</li>
+        <li>Main run plus time holdout, station holdout, and signal analysis.</li>
+      </ul>
+    </section>
+
+    <section class="card solarSection solarDocsQuickstart" aria-labelledby="quickstartHeading">
+      <h2 id="quickstartHeading">Quickstart (ray mode)</h2>
+      <ol class="solarList">
+        <li>Use <code>model=ray</code> for quality-sensitive integrations.</li>
+        <li>Pass your token in header (<code>X-IWS-Feature-Token</code>) or query (<code>apikey</code>).</li>
+      </ol>
+      <div class="codePanel">
+        <pre><code>curl \
+  -H "X-IWS-Feature-Token: YOUR_TOKEN" \
+  "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full"</code></pre>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="overviewHeading">
+      <h2 id="overviewHeading">Endpoint Overview</h2>
+      <p><strong>Method:</strong> <code>GET</code></p>
+      <p><strong>Endpoint:</strong> <code>https://api.iwannasun.com/v1/features</code></p>
+      <p><strong>Output:</strong> <code>meta</code>, <code>feature_schema</code>, and timestamped <code>timeline</code> rows.</p>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="authHeading">
+      <h2 id="authHeading">Authentication</h2>
+      <p>When token gate is enabled server-side, use either method:</p>
+      <ul class="solarList">
+        <li>Header: <code>X-IWS-Feature-Token: YOUR_TOKEN</code></li>
+        <li>Query parameter: <code>apikey=YOUR_TOKEN</code></li>
+      </ul>
+
+      <h3 class="small sectionHeading">Header auth example</h3>
+      <div class="codePanel">
+        <pre><code>curl \
+  -H "X-IWS-Feature-Token: YOUR_TOKEN" \
+  "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full"</code></pre>
+      </div>
+
+      <h3 class="small sectionHeading">Query auth example</h3>
+      <div class="codePanel">
+        <pre><code>https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full&amp;apikey=YOUR_TOKEN</code></pre>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="requestHeading">
+      <h2 id="requestHeading">Request Parameters</h2>
+      <ul class="solarList">
+        <li><code>lat</code>: latitude in decimal degrees (<code>-90..90</code>), required.</li>
+        <li><code>lon</code>: longitude in decimal degrees (<code>-180..180</code>), required.</li>
+        <li><code>days</code>: forecast horizon in days (<code>1..3</code>), default <code>1</code>.</li>
+        <li><code>model</code>: geometry input mode (<code>local|ray</code>) for the same scorer, default <code>local</code>.</li>
+        <li><code>mode</code>: timeline density (<code>full|quick</code>), default <code>full</code>.</li>
+        <li><code>source</code>: optional, currently only <code>production</code>.</li>
+      </ul>
+      <p><strong>Mode guidance:</strong> use <code>model=ray</code> by default for quality-sensitive integrations; use <code>model=local</code> when you need a simpler fallback path.</p>
+
+      <h3 class="small sectionHeading">Request example</h3>
+      <div class="codePanel">
+        <pre><code>curl "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full"</code></pre>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="responseHeading">
+      <h2 id="responseHeading">Response Example</h2>
+      <div class="codePanel">
+        <pre><code>{
+  "meta": {
+    "lat": 39.74,
+    "lon": -104.99,
+    "days": 1,
+    "mode": "full",
+    "geometry_mode": "ray",
+    "source": "production",
+    "feature_api_version": "v1",
+    "request_id": "..."
+  },
+  "feature_schema": {
+    "sun_score": {
+      "tier": "core",
+      "type": "integer",
+      "description": "Final production sun visibility score (0-100)."
+    },
+    "disagree": {
+      "tier": "core",
+      "type": "number",
+      "description": "Normalized disagreement between cloud and DNI evidence (0-1)."
+    },
+    "high_disagreement_flag": {
+      "tier": "core",
+      "type": "boolean",
+      "description": "True when cloud-vs-DNI disagreement is high (disagree >= 0.35)."
+    }
+  },
+  "timeline": [
+    {
+      "time_utc": "2026-03-09T19:40:00+00:00",
+      "time_local": "2026-03-09T12:40:00-07:00",
+      "azimuth": 238.24,
+      "elevation": 25.31,
+      "is_daylight": true,
+      "features": {
+        "sun_score": 74,
+        "score_cloud": 81,
+        "score_dni": 63,
+        "disagree": 0.41,
+        "high_disagreement_flag": true,
+        "broken_cloud_flag": true
+      },
+      "inputs": {
+        "low_pct": 31.0,
+        "mid_pct": 44.0,
+        "high_pct": 22.0,
+        "dni_val": 540.0,
+        "dni_clear": 760.0
+      }
+    }
+  ]
+}</code></pre>
+      </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="fieldsHeading">
+      <h2 id="fieldsHeading">Field Explanations</h2>
+      <h3 class="small sectionHeading">Core fields</h3>
+      <ul class="solarList">
+        <li><code>sun_score</code>: final score (<code>0..100</code>).</li>
+        <li><code>score_cloud</code>: cloud component score (<code>0..100</code>).</li>
+        <li><code>score_dni</code>: DNI component score (<code>0..100</code>).</li>
+        <li><code>disagree</code>: cloud-vs-DNI disagreement (<code>0..1</code>).</li>
+        <li><code>broken_cloud_flag</code>: broken-cloud regime marker.</li>
+        <li><code>high_disagreement_flag</code>: true when <code>disagree &gt;= 0.35</code>.</li>
+      </ul>
+
+      <h3 class="small sectionHeading">Advanced fields</h3>
+      <ul class="solarList">
+        <li><code>confidence</code>, <code>w_dni</code>, <code>dni_ratio</code>, <code>cloud_transmission</code>.</li>
+        <li><code>instability</code>, <code>low_sun_flag</code>, <code>horizon_flag</code>, <code>fragility_proxy</code>.</li>
+        <li><code>dni_limiter_activated</code>, <code>low_cloud_cap_activated</code>, <code>horizon_rescue_activated</code>, <code>late_caps_activated</code>.</li>
+      </ul>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="guardrailHeading">
+      <h2 id="guardrailHeading">Guardrail Guidance</h2>
+      <p>Use <code>high_disagreement_flag</code> as a lower-reliability indicator.</p>
+      <ul class="solarList">
+        <li>Definition: <code>high_disagreement_flag = (disagree &gt;= 0.35)</code>.</li>
+        <li>When true, lower trust and apply fallback or dual-report handling.</li>
+      </ul>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="errorsHeading">
+      <h2 id="errorsHeading">Errors and Limits</h2>
+      <p>Error responses include a structured <code>error</code> object and a request trace id.</p>
+      <div class="codePanel">
+        <pre><code>{
+  "detail": "Feature access token required.",
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Feature access token required.",
+    "request_id": "..."
+  }
+}</code></pre>
+      </div>
+      <h3 class="small sectionHeading">Common error codes</h3>
+      <ul class="solarList">
+        <li><code>INVALID_ARGUMENT</code></li>
+        <li><code>UNAUTHORIZED</code></li>
+        <li><code>FORBIDDEN</code></li>
+        <li><code>API_RATE_LIMIT</code></li>
+        <li><code>UPSTREAM_RATE_LIMIT</code></li>
+        <li><code>UPSTREAM_BAD_RESPONSE</code></li>
+        <li><code>TEMPORARY_UNAVAILABLE</code></li>
+        <li><code>INTERNAL_ERROR</code></li>
+      </ul>
+      <p>Default API rate limit is <code>120</code> requests per <code>60</code> seconds (configurable).</p>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="integrationNotesHeading">
+      <h2 id="integrationNotesHeading">Integration Notes</h2>
+      <ol class="solarList">
+        <li>Use header auth for server-to-server; use <code>apikey</code> for browser/no-code constraints.</li>
+        <li>Handle <code>429</code> and <code>503</code> with retries/backoff.</li>
+        <li>Start with core fields, then add advanced fields based on measured value.</li>
+        <li>Log <code>request_id</code> for traceability.</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="wrap siteFooter">
+    <p class="muted small">Solar Feature API docs for early integrations.</p>
+    <p class="muted small">Support and access: <a href="mailto:api@iwannasun.com">api@iwannasun.com</a></p>
+  </footer>
+</body>
+</html>

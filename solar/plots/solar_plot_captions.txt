@@ -1,0 +1,8 @@
+solar_plot_signal_timeline:
+Observed DNI (indexed to 0-100) and sun_score are shown for one example SURFRAD day illustrating disagreement intervals; shaded bands mark high-disagreement periods.
+
+solar_plot_error_vs_disagreement:
+Median absolute DNI error generally increases as disagreement buckets rise.
+
+solar_plot_regime_skill:
+Forecast DNI RMSE varies by regime defined by the disagreement signal; lower values indicate better skill.
