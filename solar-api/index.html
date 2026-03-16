@@ -4,15 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>iwannasun Solar Feature API | Beam-Aware Signals for Forecasting</title>
-  <meta name="description" content="Solar Feature API for B2B forecasting teams. Get production-tested beam, cloud, and disagreement signals from /v1/features in a clean timeline format." />
+  <meta name="description" content="Solar Feature API for B2B forecasting teams. Get beam-state, cloud, and disagreement signals from /v1/features with clear benchmark context and practical guardrails." />
   <link rel="canonical" href="https://iwannasun.com/solar-api/" />
   <meta property="og:title" content="iwannasun Solar Feature API" />
-  <meta property="og:description" content="Beam-aware solar signal features for forecasting, PV prediction, and grid operations." />
+  <meta property="og:description" content="Beam-aware solar feature signals for forecasting, PV prediction, and grid operations." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://iwannasun.com/solar-api/" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="iwannasun Solar Feature API" />
-  <meta name="twitter:description" content="Production-tested solar signal features via /v1/features." />
+  <meta name="twitter:description" content="Beam-aware solar features via /v1/features." />
   <link rel="stylesheet" href="/styles.css">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -41,152 +41,75 @@
       <div class="solarHeroSplit">
         <div class="solarHeroCopy">
           <p class="muted small solarEyebrow">Solar Feature API</p>
-          <h2 id="heroHeading">Beam-aware solar signals for improving solar forecast reliability.</h2>
+          <h2 id="heroHeading">Decision-ready solar signals for short-horizon forecasting and trading.</h2>
           <p class="solarLead">
-            Call <code>/v1/features</code> to retrieve production-derived beam-state, cloud-geometry, and DNI-disagreement signals.
-            Each timestamped row exposes interpretable features that allow downstream systems to apply residual correction, fragility detection, and regime-aware forecast logic.
+            Raw weather feeds describe atmospheric conditions, but they do not tell forecasting systems when irradiance predictions are fragile.
           </p>
-          <p>Signals are evaluated against ground irradiance datasets to validate beam/occlusion behavior under real conditions, with results interpreted by regime.</p>
-          <div class="codePanel">
-            <pre><code>curl "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=local&amp;mode=full"</code></pre>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="card solarSection" aria-labelledby="problemHeading">
-      <div class="solarSplit">
-        <div>
-          <h2 id="problemHeading">Beam Visibility as a Forecasting Constraint</h2>
-          <p>
-            Direct beam visibility is a key driver of DNI and downstream PV output.
-            In broken-cloud and low-sun regimes, beam availability can switch quickly and destabilize short-horizon forecasts.
+          <p class="solarLead">
+            The <code>/v1/features</code> API adds beam-state evidence and disagreement signals so forecasting systems can adjust confidence, residuals, and operational risk in real time.
           </p>
-          <p>
-            Cloud-geometry path cues and local DNI-ratio cues often diverge in these intervals.
-            That divergence is a practical fragility signal for identifying when baseline forecasts are least reliable and targeted correction is needed.
-          </p>
-        </div>
-
-        <div aria-labelledby="useCasesHeading">
-          <h2 id="useCasesHeading">Use Cases</h2>
-          <ul class="solarList solarUseGrid">
-            <li><strong>Solar forecasting models:</strong> improve residual correction during broken-cloud beam transitions.</li>
-            <li><strong>PV production prediction:</strong> reduce forecast error during rapid cloud-driven irradiance changes.</li>
-            <li><strong>Grid operations:</strong> identify fragile beam conditions ahead of short-horizon irradiance swings.</li>
-            <li><strong>Solar analytics:</strong> evaluate model behavior by beam state and cloud regime.</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section class="card solarSection solarProvidesRow" id="integration" aria-labelledby="integrationHeading">
-      <div class="solarSplit">
-        <div aria-labelledby="integrationHeading">
-          <h2 id="integrationHeading">Integration</h2>
-          <p><strong>Method:</strong> <code>GET</code> <strong>Endpoint:</strong> <code>/v1/features</code></p>
-          <p><strong>Access:</strong> optional token gate (when enabled, use either <code>X-IWS-Feature-Token</code> header or <code>apikey</code> query parameter).</p>
-          <p>The API exposes interpretable intermediate signals rather than a black-box forecast.</p>
-          <h3 class="small sectionHeading">Request parameters</h3>
-          <ul class="solarList">
-            <li><code>lat</code> (required, -90..90)</li>
-            <li><code>lon</code> (required, -180..180)</li>
-            <li><code>days</code> (optional, 1..3 forecast days, default 1)</li>
-            <li><code>model</code> (optional, <code>local|ray</code>, default <code>local</code>; input mode for the same scorer, not separate model families)</li>
-            <li><code>mode</code> (optional, <code>full|quick</code>, default <code>full</code>)</li>
-          </ul>
-          <h3 class="small sectionHeading">Mode guidance</h3>
-          <ul class="solarList">
-            <li>Use <code>ray</code> by default for quality-sensitive B2B integrations.</li>
-            <li>Use <code>local</code> when you need simpler/faster geometry mode behavior or fallback handling.</li>
-          </ul>
-          <h3 class="small sectionHeading">Auth examples (when token gate is enabled)</h3>
-          <div class="codePanel">
-            <pre><code>curl -H "X-IWS-Feature-Token: YOUR_TOKEN" "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full"</code></pre>
-          </div>
-          <div class="codePanel">
-            <pre><code>https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full&amp;apikey=YOUR_TOKEN</code></pre>
-          </div>
-          <h3 class="small sectionHeading">Response cadence</h3>
-          <ul class="solarList">
-            <li>Timeline interval: 10-minute timesteps.</li>
-            <li><code>mode=full</code>: complete local-day timeline for each requested day.</li>
-            <li><code>mode=quick</code>: short near-term timeline for low-latency clients.</li>
-          </ul>
-        </div>
-
-        <div aria-labelledby="providesHeading">
-          <h2 id="providesHeading">What <code>/v1/features</code> Provides</h2>
-          <p class="muted">
-            A structured response with request <code>meta</code>, <code>feature_schema</code>, and per-timestamp rows in <code>timeline</code> that carry core and advanced signals.
-          </p>
-          <h3 class="small sectionHeading">Schema Stability (v1)</h3>
-          <p class="muted">
-            The <code>/v1/features</code> schema is stable within v1. New fields may be added, but existing fields will not change semantics without a version update.
-          </p>
-          <h3 class="small sectionHeading">Core signals (API v1)</h3>
-          <dl class="signalList">
-            <dt><code>sun_score</code></dt><dd>Final production sun visibility score (0-100).</dd>
-            <dt><code>score_cloud</code></dt><dd>Cloud-geometry component score (0-100).</dd>
-            <dt><code>score_dni</code></dt><dd>DNI-ratio component score (0-100).</dd>
-            <dt><code>disagree</code></dt><dd>Normalized cloud-vs-DNI disagreement (0-1).</dd>
-            <dt><code>sun_score_minus_score_dni</code></dt><dd>Final score delta vs DNI component.</dd>
-            <dt><code>score_cloud_minus_score_dni</code></dt><dd>Cloud-vs-DNI component delta.</dd>
-            <dt><code>sun_score_minus_score_cloud</code></dt><dd>Final score delta vs cloud component.</dd>
-            <dt><code>broken_cloud_flag</code></dt><dd>Broken-cloud regime indicator.</dd>
-            <dt><code>high_disagreement_flag</code></dt><dd>Lower-reliability regime indicator (<code>true</code> when <code>disagree &gt;= 0.35</code>).</dd>
-          </dl>
-          <h3 class="small sectionHeading">Operational guardrail</h3>
-          <p class="muted">
-            When <code>high_disagreement_flag=true</code>, treat the row as lower reliability: reduce trust, and apply a fallback or dual-report policy in downstream systems.
+          <p class="solarLead">
+            Built for solar forecast engineers, intraday power traders, and energy analytics teams integrating PV and DNI forecasting workflows.
           </p>
         </div>
       </div>
     </section>
 
-    <section class="card solarSection solarCtaCard" aria-labelledby="trustHeading">
-      <h2 id="trustHeading">Trust and Validation</h2>
-      <div class="solarTrustBody">
-        <p>
-          API v1 signals are computed from production model logic and evaluated in SURFRAD-style experiments.
-          Validation focused on beam/occlusion behavior, residual add-value, and transfer across station and time holdouts.
-        </p>
-        <p>
-          The endpoint exposes intermediate production signals rather than a black-box forecast output.
-          Downstream systems can combine these signals with existing models to apply targeted residual correction and regime-aware decision logic.
-        </p>
-      </div>
-      <h3 class="small sectionHeading">Validation Snapshot</h3>
+    <section class="card solarSection" aria-labelledby="providesHeading">
+      <h2 id="providesHeading">What It Provides</h2>
       <ul class="solarList">
-        <li>Evaluated against SURFRAD ground irradiance measurements using production model signal outputs.</li>
-        <li>Tested with station-holdout and time-holdout validation protocols.</li>
-        <li>Beam-state and disagreement signals are useful for identifying fragile intervals, but reliability varies by regime.</li>
-        <li>Residual-correction usefulness tends to be stronger in broken-cloud and transition regimes than in high-disagreement regimes.</li>
+        <li>Beam-state and cloud/DNI evidence signals at 10-minute resolution.</li>
+        <li>Not raw weather fields. Derived, model-ready signals (<code>sun_score</code>, <code>score_cloud</code>, <code>score_dni</code>, <code>disagree</code>, <code>high_disagreement_flag</code>) designed for operational forecasting decisions.</li>
+        <li><code>high_disagreement_flag</code> marks lower-reliability intervals so teams can gate trading decisions and flag fragile forecast windows.</li>
+        <li>Stable schema that plugs into residual correction and short-horizon forecast confidence controls.</li>
       </ul>
     </section>
 
-    <section class="card solarSection" aria-labelledby="validationSnapshotNumbersHeading">
-      <h2 id="validationSnapshotNumbersHeading">Validation Context</h2>
+    <section class="card solarSection solarCtaCard" aria-labelledby="evidenceHeading">
+      <h2 id="evidenceHeading">Benchmark Evidence</h2>
       <ul class="solarList">
-        <li><strong>Context date:</strong> 2026-03-15.</li>
-        <li><strong>Scope:</strong> internal SURFRAD/PVDAQ-style evaluations and ray-mode pair comparisons.</li>
-        <li><strong>Outcome shape:</strong> mixed and regime-dependent, not a universal uplift across all tasks/slices.</li>
+        <li><strong>Dataset:</strong> SURFRAD core stations.</li>
+        <li><strong>Coverage:</strong> 7 stations, full-year 2025, 30,500 daylight rows.</li>
+        <li><strong>Protocol:</strong> main benchmark, time holdout, station holdout, and signal analysis (ray mode).</li>
       </ul>
-      <p class="muted">Use the signals as a reliability-aware feature layer, with explicit guardrails in high-disagreement intervals.</p>
+
+      <h3 class="small sectionHeading">Strengths observed</h3>
+      <ul class="solarList">
+        <li>Stronger DNI regression and residual-signal add-value.</li>
+        <li>Improved breakthrough timing behavior.</li>
+        <li>Higher ROC/AUC discrimination in beam-state classification tasks.</li>
+      </ul>
+
+      <h3 class="small sectionHeading">Tradeoffs observed</h3>
+      <ul class="solarList">
+        <li>Thresholded classification F1 is weaker in some regimes.</li>
+        <li>High-disagreement occlusion intervals remain difficult.</li>
+      </ul>
     </section>
 
-    <section class="card solarSection" aria-labelledby="accessHeading">
-      <h2 id="accessHeading">API Access</h2>
-      <p><code>/v1/features</code> is currently available for early integrations.</p>
+    <section class="card solarSection" aria-labelledby="usesHeading">
+      <h2 id="usesHeading">Typical Uses</h2>
+      <ul class="solarList solarUseGrid">
+        <li><strong>Residual correction:</strong> adjust baseline DNI/PV forecasts when cloud and DNI evidence diverge.</li>
+        <li><strong>Reliability gating:</strong> down-weight or flag intervals when <code>high_disagreement_flag=true</code>.</li>
+        <li><strong>Ramp operations:</strong> trigger monitoring or alerts around likely cloud breakthrough events.</li>
+        <li><strong>Model features:</strong> feed interpretable signals into short-horizon forecasting models.</li>
+      </ul>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="ctaHeading">
+      <h2 id="ctaHeading">Get Started</h2>
+      <p>Read the developer guide for endpoint details, auth, and field definitions.</p>
+      <p><a href="/solar-api/docs/">Open the Feature API Guide</a></p>
       <p>Request access: <a href="mailto:api@iwannasun.com">api@iwannasun.com</a></p>
     </section>
   </main>
 
   <footer class="wrap siteFooter">
-    <p class="muted small">iwannasun Solar Feature API is a B2B signal layer for beam-aware forecasting workflows.</p>
+    <p class="muted small">iwannasun Solar Feature API for beam-aware forecasting workflows.</p>
     <p class="muted small">
-      Core endpoint (beta):
-      <a href="https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=local&amp;mode=full" target="_blank" rel="noopener noreferrer">/v1/features</a>
+      Endpoint:
+      <a href="https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full" target="_blank" rel="noopener noreferrer">/v1/features</a>
     </p>
   </footer>
 </body>

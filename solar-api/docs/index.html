@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Solar Feature API Developer Guide | iwannasun</title>
-  <meta name="description" content="Developer guide for iwannasun Solar Feature API (/v1/features): authentication, parameters, response schema, errors, limits, and onboarding." />
+  <meta name="description" content="Developer guide for iwannasun Solar Feature API (/v1/features): authentication, parameters, response schema, guardrails, and integration notes." />
   <link rel="canonical" href="https://iwannasun.com/solar-api/docs/" />
   <link rel="stylesheet" href="/styles.css">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -33,47 +33,50 @@
       <div class="solarHeroSplit">
         <div class="solarHeroCopy">
           <p class="muted small solarEyebrow">Developer Guide</p>
-          <h2 id="docsHeading">Integrate <code>/v1/features</code> in a controlled beta workflow.</h2>
-          <p class="solarLead">
-            <code>/v1/features</code> returns production-derived solar feature signals as a timestamped timeline.
-            It is designed as a feature layer for downstream forecasting, PV modeling, and operational analytics systems.
-          </p>
+          <h2 id="docsHeading">Integrate <code>/v1/features</code> with clear auth, schema, and guardrail behavior.</h2>
         </div>
       </div>
+    </section>
+
+    <section class="card solarSection" aria-labelledby="benchmarkContextHeading">
+      <h2 id="benchmarkContextHeading">Benchmark Context</h2>
+      <ul class="solarList">
+        <li>SURFRAD 2025 ray-mode validation.</li>
+        <li>7 stations, 30,500 daylight rows.</li>
+        <li>Main run plus time holdout, station holdout, and signal analysis.</li>
+      </ul>
     </section>
 
     <section class="card solarSection" aria-labelledby="overviewHeading">
       <h2 id="overviewHeading">Endpoint Overview</h2>
       <p><strong>Method:</strong> <code>GET</code></p>
       <p><strong>Endpoint:</strong> <code>https://api.iwannasun.com/v1/features</code></p>
-      <p><strong>Access model:</strong> optional token gate. When enabled, send token via <code>X-IWS-Feature-Token</code> header or <code>apikey</code> query parameter.</p>
       <p><strong>Output:</strong> <code>meta</code>, <code>feature_schema</code>, and timestamped <code>timeline</code> rows.</p>
     </section>
 
     <section class="card solarSection" aria-labelledby="authHeading">
       <h2 id="authHeading">Authentication</h2>
-      <p>When token gate is enabled server-side, use either of these methods:</p>
+      <p>When token gate is enabled server-side, use either method:</p>
       <ul class="solarList">
         <li>Header: <code>X-IWS-Feature-Token: YOUR_TOKEN</code></li>
         <li>Query parameter: <code>apikey=YOUR_TOKEN</code></li>
       </ul>
-      <div class="codePanel">
-        <pre><code>X-IWS-Feature-Token: YOUR_TOKEN</code></pre>
-      </div>
-      <h3 class="small sectionHeading">Header auth curl example</h3>
+
+      <h3 class="small sectionHeading">Header auth example</h3>
       <div class="codePanel">
         <pre><code>curl \
   -H "X-IWS-Feature-Token: YOUR_TOKEN" \
-  "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=local&amp;mode=full"</code></pre>
+  "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full"</code></pre>
       </div>
-      <h3 class="small sectionHeading">Query auth example (browser/no-code friendly)</h3>
+
+      <h3 class="small sectionHeading">Query auth example</h3>
       <div class="codePanel">
         <pre><code>https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full&amp;apikey=YOUR_TOKEN</code></pre>
       </div>
     </section>
 
-    <section class="card solarSection" aria-labelledby="paramsHeading">
-      <h2 id="paramsHeading">Request Parameters</h2>
+    <section class="card solarSection" aria-labelledby="requestHeading">
+      <h2 id="requestHeading">Request Parameters</h2>
       <ul class="solarList">
         <li><code>lat</code>: latitude in decimal degrees (<code>-90..90</code>), required.</li>
         <li><code>lon</code>: longitude in decimal degrees (<code>-180..180</code>), required.</li>
@@ -82,11 +85,16 @@
         <li><code>mode</code>: timeline density (<code>full|quick</code>), default <code>full</code>.</li>
         <li><code>source</code>: optional, currently only <code>production</code>.</li>
       </ul>
-      <p><strong>Mode guidance:</strong> prefer <code>ray</code> for quality-sensitive B2B integrations; use <code>local</code> when you need a simpler/faster geometry mode or fallback path.</p>
+      <p><strong>Mode guidance:</strong> use <code>model=ray</code> by default for quality-sensitive integrations; use <code>model=local</code> when you need a simpler fallback path.</p>
+
+      <h3 class="small sectionHeading">Request example</h3>
+      <div class="codePanel">
+        <pre><code>curl "https://api.iwannasun.com/v1/features?lat=39.74&amp;lon=-104.99&amp;days=1&amp;model=ray&amp;mode=full"</code></pre>
+      </div>
     </section>
 
     <section class="card solarSection" aria-labelledby="responseHeading">
-      <h2 id="responseHeading">Example Response Structure</h2>
+      <h2 id="responseHeading">Response Example</h2>
       <div class="codePanel">
         <pre><code>{
   "meta": {
@@ -94,7 +102,7 @@
     "lon": -104.99,
     "days": 1,
     "mode": "full",
-    "geometry_mode": "local",
+    "geometry_mode": "ray",
     "source": "production",
     "feature_api_version": "v1",
     "request_id": "..."
@@ -108,12 +116,12 @@
     "disagree": {
       "tier": "core",
       "type": "number",
-      "description": "Normalized disagreement magnitude between cloud and DNI evidence (0-1)."
+      "description": "Normalized disagreement between cloud and DNI evidence (0-1)."
     },
     "high_disagreement_flag": {
       "tier": "core",
       "type": "boolean",
-      "description": "True when cloud-vs-DNI disagreement is high (disagree &gt;= 0.35)."
+      "description": "True when cloud-vs-DNI disagreement is high (disagree >= 0.35)."
     }
   },
   "timeline": [
@@ -144,12 +152,32 @@
       </div>
     </section>
 
+    <section class="card solarSection" aria-labelledby="fieldsHeading">
+      <h2 id="fieldsHeading">Field Explanations</h2>
+      <h3 class="small sectionHeading">Core fields</h3>
+      <ul class="solarList">
+        <li><code>sun_score</code>: final score (<code>0..100</code>).</li>
+        <li><code>score_cloud</code>: cloud component score (<code>0..100</code>).</li>
+        <li><code>score_dni</code>: DNI component score (<code>0..100</code>).</li>
+        <li><code>disagree</code>: cloud-vs-DNI disagreement (<code>0..1</code>).</li>
+        <li><code>broken_cloud_flag</code>: broken-cloud regime marker.</li>
+        <li><code>high_disagreement_flag</code>: true when <code>disagree &gt;= 0.35</code>.</li>
+      </ul>
+
+      <h3 class="small sectionHeading">Advanced fields</h3>
+      <ul class="solarList">
+        <li><code>confidence</code>, <code>w_dni</code>, <code>dni_ratio</code>, <code>cloud_transmission</code>.</li>
+        <li><code>instability</code>, <code>low_sun_flag</code>, <code>horizon_flag</code>, <code>fragility_proxy</code>.</li>
+        <li><code>dni_limiter_activated</code>, <code>low_cloud_cap_activated</code>, <code>horizon_rescue_activated</code>, <code>late_caps_activated</code>.</li>
+      </ul>
+    </section>
+
     <section class="card solarSection" aria-labelledby="guardrailHeading">
-      <h2 id="guardrailHeading">High-Disagreement Guardrail</h2>
+      <h2 id="guardrailHeading">Guardrail Guidance</h2>
       <p>Use <code>high_disagreement_flag</code> as a lower-reliability indicator.</p>
       <ul class="solarList">
         <li>Definition: <code>high_disagreement_flag = (disagree &gt;= 0.35)</code>.</li>
-        <li>Operational guidance: reduce trust and apply your fallback or dual-report policy when this flag is true.</li>
+        <li>When true, lower trust and apply fallback or dual-report handling.</li>
       </ul>
     </section>
 
@@ -168,47 +196,31 @@
       </div>
       <h3 class="small sectionHeading">Common error codes</h3>
       <ul class="solarList">
-        <li><code>INVALID_ARGUMENT</code>: invalid query parameter values.</li>
-        <li><code>UNAUTHORIZED</code>: access token missing when token gate is enabled.</li>
-        <li><code>FORBIDDEN</code>: access token present but invalid.</li>
-        <li><code>API_RATE_LIMIT</code>: request rate exceeded.</li>
-        <li><code>UPSTREAM_RATE_LIMIT</code>: upstream forecast provider is rate-limiting requests.</li>
-        <li><code>UPSTREAM_BAD_RESPONSE</code>: upstream response could not be used.</li>
-        <li><code>TEMPORARY_UNAVAILABLE</code>: upstream/provider issue.</li>
-        <li><code>INTERNAL_ERROR</code>: unhandled server error.</li>
+        <li><code>INVALID_ARGUMENT</code></li>
+        <li><code>UNAUTHORIZED</code></li>
+        <li><code>FORBIDDEN</code></li>
+        <li><code>API_RATE_LIMIT</code></li>
+        <li><code>UPSTREAM_RATE_LIMIT</code></li>
+        <li><code>UPSTREAM_BAD_RESPONSE</code></li>
+        <li><code>TEMPORARY_UNAVAILABLE</code></li>
+        <li><code>INTERNAL_ERROR</code></li>
       </ul>
-      <h3 class="small sectionHeading">Rate limit behavior</h3>
-      <p>Requests are rate-limited per client IP. Default server configuration is <code>120</code> requests per <code>60</code> seconds (configurable).</p>
-      <p>When limited, the API returns <code>429</code> with <code>Retry-After</code> and <code>X-IWS-Error-Code: API_RATE_LIMIT</code>.</p>
+      <p>Default API rate limit is <code>120</code> requests per <code>60</code> seconds (configurable).</p>
     </section>
 
-    <section class="card solarSection" aria-labelledby="checklistHeading">
-      <h2 id="checklistHeading">Integration Checklist</h2>
+    <section class="card solarSection" aria-labelledby="integrationNotesHeading">
+      <h2 id="integrationNotesHeading">Integration Notes</h2>
       <ol class="solarList">
-        <li>If token gate is enabled, store the token as a secret; use header auth for server-to-server and <code>apikey</code> only where browser/no-code workflows require it.</li>
-        <li>Integrate <code>/v1/features</code> with retry handling for <code>429</code>/<code>503</code>.</li>
-        <li>Default to <code>model=ray</code> for quality-sensitive workloads unless there is a reason to prefer <code>local</code>.</li>
-        <li>Start with core fields and validate downstream lift before adding advanced fields.</li>
-        <li>Add a high-disagreement guardrail: when <code>high_disagreement_flag=true</code>, reduce trust and apply fallback/dual-report handling.</li>
-        <li>Log <code>request_id</code> for traceability and support diagnostics.</li>
+        <li>Use header auth for server-to-server; use <code>apikey</code> for browser/no-code constraints.</li>
+        <li>Handle <code>429</code> and <code>503</code> with retries/backoff.</li>
+        <li>Start with core fields, then add advanced fields based on measured value.</li>
+        <li>Log <code>request_id</code> for traceability.</li>
       </ol>
-    </section>
-
-    <section class="card solarSection" aria-labelledby="validationHeading">
-      <h2 id="validationHeading">Validation Context</h2>
-      <ul class="solarList">
-        <li>Context date: 2026-03-15.</li>
-        <li>Scope: internal SURFRAD/PVDAQ-style evaluations and ray-mode pair comparisons.</li>
-        <li>Station-holdout and time-holdout validation protocols were used.</li>
-        <li>Analysis focused on broken-cloud, low-sun, and high-disagreement regimes where beam-state uncertainty is highest.</li>
-        <li>Observed outcomes are mixed and regime-dependent rather than uniformly positive across all metrics.</li>
-        <li>Current product framing is a feature layer for downstream models, not a forecast replacement.</li>
-      </ul>
     </section>
   </main>
 
   <footer class="wrap siteFooter">
-    <p class="muted small">Solar Feature API docs for controlled beta integrations.</p>
+    <p class="muted small">Solar Feature API docs for early integrations.</p>
     <p class="muted small">Support and access: <a href="mailto:api@iwannasun.com">api@iwannasun.com</a></p>
   </footer>
 </body>
