@@ -15,6 +15,7 @@ const DEFAULT_THRESHOLD = 70;
 const DAYS = 2;
 const COORD_STATE_DECIMALS = 3;
 const COORD_CACHE_KEY_DECIMALS = 3;
+const MEANINGFUL_WINDOW_MINUTES = 20;
 
 // Timeline limits
 const TIMELINE_MAX_ROWS = 84;
@@ -29,8 +30,10 @@ const $ = (id) => document.getElementById(id);
 
 const els = {
   timePill: $('timePill'),
+  cityWrap: document.querySelector('.cityWrap'),
   cityInput: $('cityInput'),
   cityResults: $('cityResults'),
+  btnClearLocation: $('btnClearLocation'),
   errBox: $('errBox'),
   modelModeNote: $('modelModeNote'),
   loadingOverlay: $('loadingOverlay'),
@@ -54,6 +57,7 @@ const els = {
   meterConf: $('meterConf'),
 
   nextWindow: $('nextWindow'),
+  nextWindowHeading: $('nextWindowHeading'),
   nextWindowSub: $('nextWindowSub'),
   sunriseTime: $('sunriseTime'),
   sunsetTime: $('sunsetTime'),
@@ -65,6 +69,29 @@ const els = {
 };
 
 const ctx = els.canvas ? els.canvas.getContext('2d') : null;
+
+function ensureClearLocationButton() {
+  if (els.btnClearLocation) return;
+  if (!els.cityWrap) return;
+  const btn = document.createElement('button');
+  btn.id = 'btnClearLocation';
+  btn.className = 'clearInputBtn';
+  btn.type = 'button';
+  btn.setAttribute('aria-label', 'Clear location');
+  btn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><line x1="4" y1="4" x2="12" y2="12"></line><line x1="12" y1="4" x2="4" y2="12"></line></svg>';
+  els.cityWrap.insertAdjacentElement('beforeend', btn);
+  els.btnClearLocation = btn;
+}
+
+function updateClearLocationButton() {
+  if (!els.btnClearLocation || !els.cityInput) return;
+  const hasValue = String(els.cityInput.value || '').trim().length > 0;
+  els.btnClearLocation.hidden = !hasValue;
+  els.btnClearLocation.disabled = !hasValue;
+}
+
+ensureClearLocationButton();
+updateClearLocationButton();
 
 if (!els.modelModeNote && els.errBox && els.errBox.parentNode) {
   const note = document.createElement('div');
@@ -711,6 +738,7 @@ function setLocation(lat, lon, label = '') {
   if (els.cityInput) {
     els.cityInput.value = (state.label && state.label !== 'My location') ? state.label : '';
   }
+  updateClearLocationButton();
 }
 
 // ===== City search (Open-Meteo geocoding) =====
@@ -781,6 +809,7 @@ function chooseCityResult(r) {
 
 if (els.cityInput) {
   els.cityInput.addEventListener('input', (e) => {
+    updateClearLocationButton();
     clearTimeout(_cityTimer);
     _cityTimer = setTimeout(() => searchCities(e.target.value), 220);
   });
@@ -807,6 +836,17 @@ if (els.cityInput) {
       const r = (_cityActiveIndex >= 0) ? _lastCityResults[_cityActiveIndex] : _lastCityResults[0];
       chooseCityResult(r);
     }
+  });
+}
+
+if (els.btnClearLocation) {
+  els.btnClearLocation.addEventListener('click', () => {
+    if (!els.cityInput) return;
+    els.cityInput.value = '';
+    hideCityResults();
+    updateClearLocationButton();
+    els.cityInput.focus();
+    els.cityInput.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }
 
@@ -998,6 +1038,108 @@ function setMeter(fillEl, pct, color) {
   fillEl.style.background = color || 'rgba(51,51,51,0.22)';
 }
 
+function sunQualityFromScore(score, isNight) {
+  if (isNight) {
+    return {
+      label: 'No sun',
+      emoji: '🌙',
+      support: 'Sun is below the horizon.',
+      mood: 'blocked',
+    };
+  }
+
+  const s = clamp(Number(score || 0), 0, 100);
+  if (s <= 20) {
+    return {
+      label: 'Very weak sun',
+      emoji: '☁️',
+      support: 'Sunlight is mostly blocked right now.',
+      mood: 'blocked',
+    };
+  }
+  if (s <= 40) {
+    return {
+      label: 'Weak sun',
+      emoji: '🌥️',
+      support: 'Only brief or faint sunlight possible.',
+      mood: 'blocked',
+    };
+  }
+  if (s <= 60) {
+    return {
+      label: 'Limited sun',
+      emoji: '⛅',
+      support: 'Sunlight may break through at times.',
+      mood: 'mixed',
+    };
+  }
+  if (s <= 80) {
+    return {
+      label: 'Good sun',
+      emoji: '🌤️',
+      support: 'Sunlight is likely, with some interruptions.',
+      mood: 'sunny',
+    };
+  }
+  return {
+    label: 'Excellent sun',
+    emoji: '☀️',
+    support: 'Strong, uninterrupted sunlight.',
+    mood: 'sunny',
+  };
+}
+
+function sunQualityFromScoreTomorrow(score, isNight) {
+  if (isNight) {
+    return {
+      label: 'No sun',
+      emoji: '🌙',
+      support: 'The sun stays below the horizon tomorrow.',
+      mood: 'blocked',
+    };
+  }
+
+  const s = clamp(Number(score || 0), 0, 100);
+  if (s <= 20) {
+    return {
+      label: 'Very weak sun',
+      emoji: '☁️',
+      support: 'Direct sunlight looks limited for most of tomorrow.',
+      mood: 'blocked',
+    };
+  }
+  if (s <= 40) {
+    return {
+      label: 'Weak sun',
+      emoji: '🌥️',
+      support: 'Only brief or faint sunlight looks likely tomorrow.',
+      mood: 'blocked',
+    };
+  }
+  if (s <= 60) {
+    return {
+      label: 'Limited sun',
+      emoji: '⛅',
+      support: 'Sunlight may break through at times tomorrow.',
+      mood: 'mixed',
+    };
+  }
+  if (s <= 80) {
+    return {
+      label: 'Good sun',
+      emoji: '🌤️',
+      support: 'Sunlight looks likely for much of tomorrow.',
+      mood: 'sunny',
+    };
+  }
+  return {
+    label: 'Excellent sun',
+    emoji: '☀️',
+    support: 'Strong sunlight looks likely for most of tomorrow.',
+    mood: 'sunny',
+  };
+}
+
 function renderDecision(focusRow, context = { label: 'now' }) {
   if (!focusRow) {
     if (els.decisionText) els.decisionText.textContent = '—';
@@ -1013,9 +1155,8 @@ function renderDecision(focusRow, context = { label: 'now' }) {
 
   const label = String(context?.label || '');
   const isNow = label === 'now';
+  const isTomorrow = label.toLowerCase().startsWith('tomorrow');
   const isAvg = label.toLowerCase().includes('average');
-
-  if (els.decisionContext) els.decisionContext.textContent = isNow ? '' : `Based on ${label}`;
   if (els.labelScore) els.labelScore.textContent = isNow ? 'Sun score now' : (isAvg ? 'Sun score (avg)' : 'Sun score');
   // Confidence label text adjusts depending on context (now vs average)
   if (els.labelConf) els.labelConf.firstChild && (els.labelConf.firstChild.textContent = isNow ? 'Confidence now ' : (isAvg ? 'Confidence (avg) ' : 'Confidence '));
@@ -1047,81 +1188,159 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     setMeter(els.meterConf, cp, 'rgba(51,51,51,0.28)');
   }
 
-  // Decision text (same thresholds / behavior)
-  const decision = (s >= DEFAULT_THRESHOLD) ? 'Sunny' : (s >= DEFAULT_THRESHOLD - 15 ? 'Mixed' : 'Blocked');
-  if (els.decisionText) els.decisionText.textContent = decision;
+  const isNight = Number(focusRow.elevation || 0) <= 0;
+  const quality = isTomorrow
+    ? sunQualityFromScoreTomorrow(s, isNight)
+    : sunQualityFromScore(s, isNight);
+
+  if (els.decisionText) els.decisionText.textContent = `${quality.label} ${quality.emoji}`;
   if (els.decisionWrap) {
     els.decisionWrap.className = 'big';
     els.decisionWrap.style.color = sunColor;
   }
 
   // Set wellness mood class on <html> root
-  if (decision === 'Sunny') setMood('sunny');
-  else if (decision === 'Mixed') setMood('mixed');
-  else setMood('blocked');
+  setMood(quality.mood);
 
-  // WHY (short, decision-oriented)
+  // Primary support line: deterministic by horizon/score band only.
+  if (els.decisionContext) els.decisionContext.textContent = quality.support;
+
+  // Secondary line: context + rain modifier (rain is secondary only).
   if (els.whyInline) {
-    if (Number(focusRow.elevation || 0) <= 0) {
-      els.whyInline.textContent = 'Sun below the horizon.';
-    } else {
-      const low = focusRow.cloud?.low ?? null;
-      const mid = focusRow.cloud?.mid ?? null;
-      const high = focusRow.cloud?.high ?? null;
-      const precip = focusRow.cloud?.precip_mm ?? 0;
-
-      const parts = [];
-      if (precip && precip > 0.2) parts.push('rain');
-
-      const layers = [
-        { name: 'low clouds', v: low },
-        { name: 'mid clouds', v: mid },
-        { name: 'high clouds', v: high },
-      ].filter(x => typeof x.v === 'number');
-
-      if (layers.length) {
-        layers.sort((a, b) => b.v - a.v);
-        if (layers[0].v >= 20) parts.push(`${layers[0].name} (${Math.round(layers[0].v)}%)`);
-      }
-
-      if (!parts.length) {
-        els.whyInline.textContent = isAvg
-          ? 'Mostly clear overall (daylight average).'
-          : 'Clear sky and sun above the horizon.';
-      } else {
-        const prefix = isAvg
-          ? ((s >= DEFAULT_THRESHOLD) ? 'Overall clear despite ' : 'Overall mostly blocked by ')
-          : ((s >= DEFAULT_THRESHOLD) ? 'Clear despite ' : 'Mostly blocked by ');
-        els.whyInline.textContent = prefix + parts.join(' + ') + '.';
-      }
+    const secondary = [];
+    if (Number(focusRow.cloud?.precip_mm ?? 0) > 0.2) {
+      secondary.push('Rain may reduce direct sunlight.');
     }
+    els.whyInline.textContent = secondary.join(' ');
+    els.whyInline.classList.toggle('secondaryLine', secondary.length > 0);
   }
 }
 
-function renderNextWindow(win, label = null) {
+function ensureSunQualityLegend() {
+  if (document.getElementById('sunQualityLegend')) return;
+  const kpi = document.querySelector('.kpi');
+  if (!kpi) return;
+
+  const el = document.createElement('div');
+  el.id = 'sunQualityLegend';
+  el.className = 'sunQualityLegend muted small';
+  el.setAttribute('aria-label', 'Sun quality score legend');
+  el.textContent = 'Sun score: ☁️ 0–20 · 🌥️ 20–40 · ⛅ 40–60 · 🌤️ 60–80 · ☀️ 80–100';
+  kpi.insertAdjacentElement('afterend', el);
+}
+
+function timelineIntervalMinutes(dayRows) {
+  const rows = dayRows || [];
+  if (rows.length >= 2) {
+    const dt = Math.round((tMs(rows[1]) - tMs(rows[0])) / 60000);
+    if (Number.isFinite(dt) && dt > 0) return dt;
+  }
+  const apiDt = Number(state?.data?.meta?.interval_minutes || 0);
+  if (Number.isFinite(apiDt) && apiDt > 0) return apiDt;
+  return 10;
+}
+
+function meaningfulWindows(dayRows, threshold = DEFAULT_THRESHOLD, minMinutes = MEANINGFUL_WINDOW_MINUTES) {
+  const rows = dayRows || [];
+  if (!rows.length) return [];
+
+  const intervalMinutes = timelineIntervalMinutes(rows);
+  const minMs = minMinutes * 60000;
+  const out = [];
+  let startMs = null;
+  let endMs = null;
+
+  for (const r of rows) {
+    const ok = isDaylightRow(r) && Number(r.sun_score || 0) >= threshold;
+    const ms = tMs(r);
+
+    if (ok && startMs == null) {
+      startMs = ms;
+      endMs = ms + intervalMinutes * 60000;
+      continue;
+    }
+    if (ok && startMs != null) {
+      endMs = ms + intervalMinutes * 60000;
+      continue;
+    }
+
+    if (!ok && startMs != null && endMs != null) {
+      if ((endMs - startMs) >= minMs) {
+        out.push({
+          start: new Date(startMs).toISOString(),
+          end: new Date(endMs).toISOString(),
+          minutes: Math.max(0, Math.round((endMs - startMs) / 60000)),
+        });
+      }
+      startMs = null;
+      endMs = null;
+    }
+  }
+
+  if (startMs != null && endMs != null && (endMs - startMs) >= minMs) {
+    out.push({
+      start: new Date(startMs).toISOString(),
+      end: new Date(endMs).toISOString(),
+      minutes: Math.max(0, Math.round((endMs - startMs) / 60000)),
+    });
+  }
+
+  return out;
+}
+
+function pickSideWindowState(dayRows, tomorrowWin) {
+  const nowMs = Date.now();
+  const wins = meaningfulWindows(dayRows, DEFAULT_THRESHOLD, MEANINGFUL_WINDOW_MINUTES);
+  const active = wins.find((w) => {
+    const a = new Date(w.start).getTime();
+    const b = new Date(w.end).getTime();
+    return nowMs >= a && nowMs < b;
+  });
+  if (active) return { mode: 'active_today', win: active };
+
+  const upcoming = wins.find((w) => new Date(w.start).getTime() > nowMs);
+  if (upcoming) return { mode: 'next_today', win: upcoming };
+
+  return { mode: 'fallback_tomorrow', win: tomorrowWin || null };
+}
+
+function renderNextWindow(win, opts = {}) {
   if (!els.nextWindow || !els.nextWindowSub) return;
+  if (els.nextWindowHeading && typeof opts.heading === 'string' && opts.heading.trim()) {
+    els.nextWindowHeading.textContent = opts.heading;
+  }
 
   if (!win) {
     els.nextWindow.textContent = 'No sunny window';
     els.nextWindow.className = 'big bad';
-    els.nextWindowSub.textContent = 'Try again later.';
+    els.nextWindowSub.textContent = opts.emptySub || 'Try again later.';
     return;
   }
 
   const a = fmtTime(win.start);
   const b = fmtTime(win.end);
-  els.nextWindow.textContent = `${a} – ${b}`;
-  els.nextWindow.className = 'big good';
-
-  if (label) {
-    els.nextWindowSub.textContent = label;
-    return;
-  }
-
   const mins = (win.minutes != null)
     ? win.minutes
     : Math.max(0, Math.round((new Date(win.end) - new Date(win.start)) / 60000));
-  els.nextWindowSub.textContent = `${mins} minutes above threshold`;
+
+  if (opts.activeNow) {
+    els.nextWindow.textContent = `Until ${b}`;
+  } else {
+    els.nextWindow.textContent = `${a} – ${b}`;
+  }
+  els.nextWindow.className = 'big good';
+
+  if (opts.subLabel) {
+    els.nextWindowSub.textContent = opts.subLabel;
+    return;
+  }
+
+  if (opts.activeNow) {
+    const rem = Math.max(0, Math.round((new Date(win.end).getTime() - Date.now()) / 60000));
+    els.nextWindowSub.textContent = `${rem} minutes likely remaining`;
+  } else {
+    els.nextWindowSub.textContent = `${mins} minutes above threshold`;
+  }
 }
 
 function renderTimeline(dayRows, dayIndex = 0, win = null) {
@@ -1552,20 +1771,36 @@ function render() {
 
   applyAtmosphericTheme(themeRow);
 
-  // Next window
+  // Side summary window (today-first priority unless user explicitly selected tomorrow)
   let win = state.data.next_sunny_window_by_day
     ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
     : (state.data.next_sunny_window || null);
+  const tomorrowWin = state.data.next_sunny_window_by_day
+    ? (state.data.next_sunny_window_by_day['1'] || null)
+    : null;
 
-  if (dayIndex === 0 && !win && state.data.next_sunny_window_by_day) {
-    const w1 = state.data.next_sunny_window_by_day['1'] || null;
-    if (w1) {
-      renderNextWindow(w1, 'Tomorrow');
-    } else {
-      renderNextWindow(null);
-    }
+  if (dayIndex === 1) {
+    renderNextWindow(win, {
+      heading: 'Tomorrow’s likely sun window',
+      emptySub: 'No meaningful window tomorrow.',
+    });
   } else {
-    renderNextWindow(win);
+    const side = pickSideWindowState(dayRows, tomorrowWin);
+    if (side.mode === 'active_today') {
+      renderNextWindow(side.win, {
+        heading: 'Sunlight likely now',
+        activeNow: true,
+      });
+    } else if (side.mode === 'next_today') {
+      renderNextWindow(side.win, {
+        heading: 'Next likely sun window today',
+      });
+    } else {
+      renderNextWindow(side.win, {
+        heading: 'Tomorrow’s likely sun window',
+        emptySub: 'No meaningful window left today.',
+      });
+    }
   }
 
   // Sunrise/sunset (derived from daylight range like before)
@@ -1661,6 +1896,7 @@ async function useHere({ silent = false } = {}) {
             // Only update label; keep the same lat/lon and don't clear state.data
             state.label = String(city).trim();
             if (els.cityInput) els.cityInput.value = state.label;
+            updateClearLocationButton();
           }
         } catch {
           // ignore, keep "My location"
@@ -1907,6 +2143,8 @@ function getPresetLocation() {
 
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', () => {
+  updateClearLocationButton();
+  ensureSunQualityLegend();
   applyAtmosphericTheme(null);
   loadRateLimitUntil();
   applyRateLimitUi();

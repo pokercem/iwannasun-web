@@ -537,6 +537,12 @@ body:not(.solarApiPage) .suggest {
   color: rgba(20, 24, 28, 0.76);
 }
 
+.whyInline.secondaryLine {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(20, 24, 28, 0.62);
+}
+
 /* Make the answer feel like a "moment" */
 #decisionWrap {
   display: inline-flex;
@@ -613,11 +619,65 @@ input:focus, select:focus {
   cursor: help;
 }
 
-.cityWrap { position: relative; }
+.cityWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 
 .cityInput {
   width: 170px;
   max-width: 100%;
+  padding-right: 34px;
+  font-size: 16px;
+}
+
+.clearInputBtn {
+  position: absolute;
+  right: 8px;
+  top: 0;
+  bottom: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  width: auto;
+  height: 100%;
+  border-radius: 0;
+  padding: 6px;
+  font-size: 16px;
+  line-height: 1;
+  color: rgba(20, 24, 28, 0.72);
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clearInputBtn:hover,
+.clearInputBtn:focus-visible {
+  opacity: 0.75;
+  background: transparent;
+}
+
+/* Override generic button skin so clear control doesn't render as a separate segment */
+body:not(.solarApiPage) .cityWrap .clearInputBtn,
+body:not(.solarApiPage) .cityWrap .clearInputBtn:hover,
+body:not(.solarApiPage) .cityWrap .clearInputBtn:focus-visible,
+body:not(.solarApiPage) .cityWrap .clearInputBtn:active {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.clearInputBtn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+  pointer-events: none;
 }
 
 @media (max-width: 700px) {
@@ -846,6 +906,20 @@ input:focus, select:focus {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   margin-top: 14px;
+}
+
+.sunQualityLegend {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(20, 24, 28, 0.09);
+  background: rgba(255, 255, 255, 0.42);
+  line-height: 1.45;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .kpi .box {
