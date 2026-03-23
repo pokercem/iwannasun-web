@@ -49,20 +49,16 @@
   --atm-sky-top: hsl(205 62% 80%);
   --atm-sky-mid: hsl(206 66% 88%);
   --atm-sky-bottom: hsl(208 74% 96%);
-  --atm-glow-core: hsl(38 94% 80% / 0.42);
-  --atm-glow-halo: hsl(34 90% 74% / 0.30);
-  --atm-glow-strong: hsl(40 92% 76% / 0.36);
-  --atm-glow-soft: hsl(34 84% 70% / 0.21);
-  --atm-glow-x: 52%;
-  --atm-glow-y: 34%;
-  --atm-overlay: rgba(255, 255, 255, 0.08);
+  --atm-tw-top: hsl(286 18% 65% / 0);
+  --atm-tw-mid: hsl(332 22% 72% / 0);
+  --atm-tw-bottom: hsl(24 20% 74% / 0);
   --atm-card: rgba(255, 255, 255, 0.82);
   --atm-card-2: rgba(255, 255, 255, 0.70);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
-/* Always provide a calm warm base background (mood classes will gently override) */
+/* Base page background */
 html {
   background:
     radial-gradient(1100px 620px at 18% -12%, rgba(244, 184, 96, 0.18), rgba(244, 184, 96, 0.00) 64%),
@@ -96,27 +92,6 @@ body > main.wrap {
   flex: 1 0 auto;
 }
 
-/* --- Wellness mood shifts (apply to root html) --- */
-html.mood-sunny {
-  background:
-    radial-gradient(1100px 620px at 18% -12%, rgba(244, 184, 96, 0.26), rgba(244, 184, 96, 0.00) 66%),
-    radial-gradient(1000px 700px at 92% 0%, rgba(255, 210, 120, 0.16), rgba(255, 210, 120, 0.00) 62%),
-    linear-gradient(180deg, #fff6e6 0%, #f7f1e6 58%, #f2f7ff 100%);
-}
-
-html.mood-mixed {
-  background:
-    radial-gradient(1100px 620px at 18% -12%, rgba(244, 184, 96, 0.16), rgba(244, 184, 96, 0.00) 64%),
-    radial-gradient(1000px 700px at 92% 0%, rgba(155, 189, 217, 0.18), rgba(155, 189, 217, 0.00) 64%),
-    linear-gradient(180deg, #fff7ea 0%, #f5f0e6 56%, #eef5ff 100%);
-}
-
-html.mood-blocked {
-  background:
-    radial-gradient(1000px 700px at 92% 0%, rgba(155, 189, 217, 0.22), rgba(155, 189, 217, 0.00) 66%),
-    linear-gradient(180deg, #f7f3ea 0%, #eef2f7 60%, #eaf1fb 100%);
-}
-
 /* --- B2C atmospheric prototype (dynamic sky + restrained glass) --- */
 body:not(.solarApiPage) {
   color-scheme: light;
@@ -129,12 +104,11 @@ body:not(.solarApiPage) {
   --stroke: rgba(20, 26, 34, 0.10);
   --shadow: 0 14px 36px rgba(18, 35, 62, 0.12);
   --shadowSoft: 0 10px 24px rgba(18, 35, 62, 0.09);
+  --ptr-pull: 0px;
   position: relative;
   color: var(--text);
   background:
-    radial-gradient(circle 300px at var(--atm-glow-x) var(--atm-glow-y), var(--atm-glow-core) 0%, rgba(255, 255, 255, 0) 72%),
-    radial-gradient(circle 760px at var(--atm-glow-x) var(--atm-glow-y), var(--atm-glow-halo) 0%, var(--atm-glow-soft) 40%, transparent 72%),
-    radial-gradient(circle 1450px at var(--atm-glow-x) var(--atm-glow-y), var(--atm-glow-soft) 0%, transparent 75%),
+    linear-gradient(to bottom, var(--atm-tw-top) 0%, var(--atm-tw-mid) 48%, var(--atm-tw-bottom) 100%),
     linear-gradient(to bottom, var(--atm-sky-top), var(--atm-sky-mid) 45%, var(--atm-sky-bottom) 100%);
   background-size: cover;
   background-position: center;
@@ -142,13 +116,16 @@ body:not(.solarApiPage) {
   background-attachment: fixed;
 }
 
+body.ptrPulling > main.wrap {
+  transform: translateY(calc(var(--ptr-pull) * 0.55));
+}
+
+body.ptrSettling > main.wrap {
+  transition: transform 180ms ease;
+}
+
 body:not(.solarApiPage)::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(180deg, var(--atm-overlay) 0%, rgba(255, 255, 255, 0.03) 70%, rgba(255, 255, 255, 0.00) 100%);
-  z-index: 0;
-  pointer-events: none;
+  content: none;
 }
 
 body:not(.solarApiPage)::after {
@@ -283,7 +260,6 @@ body:not(.solarApiPage) .bar {
 body:not(.solarApiPage) canvas {
   border-color: rgba(20, 26, 34, 0.12);
   background:
-    radial-gradient(circle 640px at var(--atm-glow-x) var(--atm-glow-y), var(--atm-glow-soft) 0%, rgba(255, 255, 255, 0.06) 35%, rgba(255, 255, 255, 0) 65%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(155, 189, 217, 0.08) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58), inset 0 -12px 22px rgba(155, 189, 217, 0.11);
 }
@@ -430,6 +406,10 @@ body:not(.solarApiPage) .suggest {
   border-color: rgba(20, 24, 28, 0.08);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.80), rgba(255, 255, 255, 0.62));
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.side .card.notes {
+  padding: 12px 17px;
 }
 
 .side .card > .muted.small:first-child {
@@ -629,7 +609,12 @@ input:focus, select:focus {
   width: 170px;
   max-width: 100%;
   padding-right: 34px;
-  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .cityInput {
+    font-size: 16px;
+  }
 }
 
 .clearInputBtn {
@@ -1016,7 +1001,7 @@ body:not(.solarApiPage) .cityWrap .clearInputBtn:active {
 
 .aboutText {
   line-height: 1.6;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 /* About paragraph rhythm (avoid large gaps from manual <br>) */
@@ -1025,7 +1010,7 @@ body:not(.solarApiPage) .cityWrap .clearInputBtn:active {
 }
 
 .aboutText p:first-child {
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .aboutText .aboutTip {
@@ -1039,6 +1024,12 @@ body:not(.solarApiPage) .cityWrap .clearInputBtn:active {
   font-size: 12px;
   line-height: 1.5;
   color: rgba(20, 24, 28, 0.62);
+}
+
+.aboutFeedback {
+  margin-top: 12px;
+  padding-top: 6px;
+  opacity: 0.92;
 }
 
 .aboutAttrib a {
@@ -1058,6 +1049,10 @@ body:not(.solarApiPage) .cityWrap .clearInputBtn:active {
   margin-top: 6px;
 }
 
+.notes .aboutText p:first-child b {
+  margin-top: 0;
+}
+
 .notes .aboutText {
   color: rgba(20, 24, 28, 0.68);
   line-height: 1.55;
@@ -1065,6 +1060,14 @@ body:not(.solarApiPage) .cityWrap .clearInputBtn:active {
 
 .notes .aboutText p {
   margin: 5px 0;
+}
+
+.notes .aboutText p:first-child {
+  margin-top: 0;
+}
+
+.notes .aboutText p:last-child {
+  margin-bottom: 0;
 }
 
 .notes .muted.small b#about {
@@ -1242,7 +1245,7 @@ canvas {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 8px);
   left: 50%;
-  transform: translate(-50%, -14px);
+  transform: translate(-50%, calc(-14px + (var(--ptr-pull) * 0.60)));
   opacity: 0;
   pointer-events: none;
   z-index: 90;
@@ -1259,7 +1262,6 @@ canvas {
 
 .ptrIndicator.active {
   opacity: 1;
-  transform: translate(-50%, 0);
 }
 
 .ptrIndicator.armed {

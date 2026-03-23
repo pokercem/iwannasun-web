@@ -12,10 +12,12 @@ const API_BASE =
     ? 'http://127.0.0.1:8000'
     : 'https://api.iwannasun.com';
 const DEFAULT_THRESHOLD = 70;
+const SIDE_CARD_THRESHOLD = 60;
 const DAYS = 2;
 const COORD_STATE_DECIMALS = 3;
 const COORD_CACHE_KEY_DECIMALS = 3;
 const MEANINGFUL_WINDOW_MINUTES = 20;
+const SIDE_CARD_MEANINGFUL_WINDOW_MINUTES = 10;
 
 // Timeline limits
 const TIMELINE_MAX_ROWS = 84;
@@ -119,20 +121,14 @@ const state = {
   rateLimitMsg: '',
 };
 
-// Theme accent anchors used by chart/timeline score coloring.
-const themeAccents = {
-  sky: { r: 0x9b, g: 0xbe, b: 0xd9 },
-  sun: { r: 0xf4, g: 0xb8, b: 0x60 },
-};
 let _lastAtmosThemeKey = '';
 
 // ===== Mood =====
 function setMood(mood) {
-  // Apply mood classes to <html> (root), not <body>
+  // Background is now fully continuous; keep mood classes disabled.
   const root = document.documentElement; // <html>
   if (!root) return;
   root.classList.remove('mood-sunny', 'mood-mixed', 'mood-blocked');
-  if (mood) root.classList.add(`mood-${mood}`);
 }
 
 
@@ -147,32 +143,6 @@ function roundCoord(x, decimals = 3) {
 }
 const nextPaint = () => new Promise((r) => requestAnimationFrame(r));
 
-function hslToRgb(h, s, l) {
-  const hh = (((Number(h) % 360) + 360) % 360) / 360;
-  const ss = clamp(Number(s) / 100, 0, 1);
-  const ll = clamp(Number(l) / 100, 0, 1);
-  if (ss === 0) {
-    const g = Math.round(ll * 255);
-    return { r: g, g, b: g };
-  }
-  const q = ll < 0.5 ? ll * (1 + ss) : ll + ss - ll * ss;
-  const p = 2 * ll - q;
-  const hue2rgb = (t) => {
-    let tt = t;
-    if (tt < 0) tt += 1;
-    if (tt > 1) tt -= 1;
-    if (tt < 1 / 6) return p + (q - p) * 6 * tt;
-    if (tt < 1 / 2) return q;
-    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
-    return p;
-  };
-  return {
-    r: Math.round(hue2rgb(hh + 1 / 3) * 255),
-    g: Math.round(hue2rgb(hh) * 255),
-    b: Math.round(hue2rgb(hh - 1 / 3) * 255),
-  };
-}
-
 function blendRgb(a, b, t) {
   const u = clamp(Number(t || 0), 0, 1);
   return {
@@ -182,21 +152,19 @@ function blendRgb(a, b, t) {
   };
 }
 
-function setThemeAccents({ sky, sun }) {
-  if (sky && Number.isFinite(sky.r) && Number.isFinite(sky.g) && Number.isFinite(sky.b)) {
-    themeAccents.sky = {
-      r: clamp(Math.round(sky.r), 0, 255),
-      g: clamp(Math.round(sky.g), 0, 255),
-      b: clamp(Math.round(sky.b), 0, 255),
-    };
-  }
-  if (sun && Number.isFinite(sun.r) && Number.isFinite(sun.g) && Number.isFinite(sun.b)) {
-    themeAccents.sun = {
-      r: clamp(Math.round(sun.r), 0, 255),
-      g: clamp(Math.round(sun.g), 0, 255),
-      b: clamp(Math.round(sun.b), 0, 255),
-    };
-  }
+function sunScoreRgb(t) {
+  const u = clamp(Number(t || 0), 0, 1);
+  // Shared score palette used by chart/title/timeline and now atmospheric source glow.
+  const mutedLow = { r: 160, g: 162, b: 144 };
+  const muted = { r: 186, g: 176, b: 136 };
+  const pale = { r: 214, g: 190, b: 118 };
+  const warm = { r: 236, g: 176, b: 74 };
+  const gold = { r: 246, g: 186, b: 62 };
+
+  if (u >= 0.9) return blendRgb(warm, gold, (u - 0.9) / 0.1);
+  if (u >= 0.7) return blendRgb(pale, warm, (u - 0.7) / 0.2);
+  if (u >= 0.5) return blendRgb(muted, pale, (u - 0.5) / 0.2);
+  return blendRgb(mutedLow, muted, u / 0.5);
 }
 
 // Debounce helper (mobile resize/orientation can fire many events)
@@ -464,35 +432,7 @@ function dayAverages(dayRows) {
 
 // Color mix: 0 = cloudy, 1 = sunny
 function mixSunColor(t, alpha = 1) {
-  t = clamp(Number(t || 0), 0, 1);
-
-  // Piecewise palette tuned for readability and score semantics:
-  // >90: strong golden amber, 70-90: warm amber, 50-70: pale amber, <50: muted amber-grey.
-  // Kept slightly deeper than background glow so chart accents remain legible.
-  const mutedLow = { r: 160, g: 162, b: 144 };
-  const muted = { r: 186, g: 176, b: 136 };
-  const pale = { r: 214, g: 190, b: 118 };
-  const warm = { r: 236, g: 176, b: 74 };
-  const gold = { r: 246, g: 186, b: 62 };
-
-  let rgb = mutedLow;
-  if (t >= 0.9) {
-    rgb = blendRgb(warm, gold, (t - 0.9) / 0.1);
-  } else if (t >= 0.7) {
-    rgb = blendRgb(pale, warm, (t - 0.7) / 0.2);
-  } else if (t >= 0.5) {
-    rgb = blendRgb(muted, pale, (t - 0.5) / 0.2);
-  } else {
-    rgb = blendRgb(mutedLow, muted, t / 0.5);
-  }
-
-  // Keep palette gently aligned with atmospheric accents.
-  if (t >= 0.6) {
-    rgb = blendRgb(rgb, themeAccents.sun, 0.12 * clamp((t - 0.6) / 0.4, 0, 1));
-  } else {
-    rgb = blendRgb(rgb, themeAccents.sky, 0.08 * clamp((0.6 - t) / 0.6, 0, 1));
-  }
-
+  const rgb = sunScoreRgb(t);
   const aa = clamp(alpha, 0, 1);
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${aa})`;
 }
@@ -515,22 +455,17 @@ function cloudFragilityFromRow(row) {
   return clamp(0.4 * spread + 0.35 * transition, 0, 1);
 }
 
-function directionalGlowPreset(localHour, elevationDeg, isFallback) {
-  if (isFallback || !Number.isFinite(elevationDeg) || elevationDeg <= 0.25) {
-    return 'night';
-  }
-  const h = Number(localHour);
-  if (!Number.isFinite(h)) return 'night';
-  if (h < 7.5) return 'sunrise';
-  if (h < 9.5) return 'morning';
-  if (h < 11.5) return 'late_morning';
-  if (h < 13.5) return 'noon';
-  if (h < 15.5) return 'afternoon';
-  if (h < 17.5) return 'late_afternoon';
-  return 'sunset';
+function twilightBellAt(nowMs, centerMs, leftMinutes, rightMinutes) {
+  if (!Number.isFinite(nowMs) || !Number.isFinite(centerMs)) return 0;
+  const leftMs = Math.max(1, Number(leftMinutes || 0) * 60000);
+  const rightMs = Math.max(1, Number(rightMinutes || 0) * 60000);
+  const dt = nowMs - centerMs;
+  if (dt < -leftMs || dt > rightMs) return 0;
+  const norm = dt < 0 ? (-dt / leftMs) : (dt / rightMs); // 0 at center, 1 at edge
+  return 0.5 * (Math.cos(Math.PI * norm) + 1);
 }
 
-function computeAtmosphericTheme(row) {
+function computeAtmosphericTheme(row, twilightContext = null) {
   const now = new Date();
   const score = clamp(toNumberOrNaN(row?.sun_score) || 0, 0, 100);
   const sunT = score / 100;
@@ -540,115 +475,84 @@ function computeAtmosphericTheme(row) {
   const refDate = (rowDate instanceof Date && !Number.isNaN(rowDate.getTime()))
     ? rowDate
     : now;
-  const localHour = localHourForDate(refDate);
-  const dayPhase = clamp((localHour - 6) / 12, 0, 1);
-  const midday = Math.sin(dayPhase * Math.PI);
-  const elevClamped = Number.isFinite(elev) ? clamp(elev, 0, 90) : (midday * 55);
+  const elevClamped = Number.isFinite(elev) ? clamp(elev, -10, 90) : 0;
   const elevT = clamp(elevClamped / 90, 0, 1);
-  const fallbackMode = Boolean(row?._themeFallback);
-  const preset = directionalGlowPreset(localHour, elevClamped, fallbackMode);
-
   const fragility = clamp(cloudFragilityFromRow(row), 0, 1);
-  const saturation = clamp(24 + 54 * sunT - 10 * fragility, 18, 76);
-  const hue = clamp(203 + (1 - sunT) * 7, 201, 214);
+  // Base sky = clarity only, regardless of below-horizon status.
+  const skyHueBlue = clamp(216 - 8 * sunT, 208, 216);
+  const overcastT = clamp(1 - sunT, 0, 1);
+  // Pull low-score sky away from blue so overcast reads neutral-gray.
+  const skyHue = clamp(
+    (skyHueBlue * (1 - (overcastT * 0.85))) + (198 * (overcastT * 0.85)),
+    198,
+    214
+  );
+  const skySat = clamp(7 + 46 * sunT - 8 * fragility, 5, 54);
+  const skyTop = `hsl(${skyHue} ${clamp(skySat * 0.92, 5, 52)}% ${clamp(72 - 30 * sunT + 5 * (1 - elevT) + 5 * fragility, 40, 76)}%)`;
+  const skyMid = `hsl(${skyHue} ${clamp(skySat * 0.84, 5, 48)}% ${clamp(82 - 22 * sunT + 3 * (1 - elevT) + 4 * fragility, 52, 86)}%)`;
+  const skyBottom = `hsl(${clamp(skyHue - 2, 196, 216)} ${clamp(skySat * 0.70, 4, 38)}% ${clamp(90 - 12 * sunT + 2 * fragility, 70, 94)}%)`;
 
-  // Three-layer light atmosphere: deeper top, sky-rich middle, bright horizon.
-  const skyTop = `hsl(${hue} ${clamp(saturation * 0.78, 16, 60)}% ${clamp(69 + 11 * sunT + 5 * elevT - 5 * fragility, 60, 86)}%)`;
-  const skyMid = `hsl(${hue} ${clamp(saturation, 18, 76)}% ${clamp(81 + 11 * sunT + 4 * elevT - 3 * fragility, 72, 95)}%)`;
-  const skyBottom = `hsl(${clamp(hue - 2, 198, 216)} ${clamp(saturation * 0.86, 16, 66)}% ${clamp(93 + 5 * sunT + 2 * (1 - elevT), 88, 99)}%)`;
+  // Optional twilight tint from real sunrise/sunset timestamps only.
+  const nowMs = refDate.getTime();
+  const sunriseMs = Number.isFinite(twilightContext?.sunrise?.getTime?.())
+    ? twilightContext.sunrise.getTime()
+    : NaN;
+  const sunsetMs = Number.isFinite(twilightContext?.sunset?.getTime?.())
+    ? twilightContext.sunset.getTime()
+    : NaN;
+  const sunriseW = Number.isFinite(sunriseMs)
+    ? twilightBellAt(nowMs, sunriseMs, 30, 60)
+    : 0;
+  const sunsetW = Number.isFinite(sunsetMs)
+    ? twilightBellAt(nowMs, sunsetMs, 60, 30)
+    : 0;
+  const twilightW = Math.max(sunriseW, sunsetW);
+  const twSatBase = clamp(12 + 34 * sunT - 10 * fragility, 8, 42);
+  const twAlpha = clamp(twilightW * (0.08 + 0.16 * sunT) * (0.92 - 0.24 * fragility), 0, 0.24);
+  const twTop = `hsl(286 ${clamp(twSatBase + 6, 8, 48)}% 65% / ${(twAlpha * 0.72).toFixed(3)})`;
+  const twMid = `hsl(332 ${clamp(twSatBase + 10, 10, 52)}% 72% / ${(twAlpha * 0.88).toFixed(3)})`;
+  const twBottom = `hsl(24 ${clamp(twSatBase + 8, 9, 50)}% 74% / ${(twAlpha * 0.82).toFixed(3)})`;
 
-  const presetWarm = ({
-    sunrise: 1.0,
-    morning: 0.62,
-    late_morning: 0.34,
-    noon: 0.18,
-    afternoon: 0.34,
-    late_afternoon: 0.62,
-    sunset: 1.0,
-    night: 0.42,
-  })[preset] ?? 0.5;
-  const sunWarm = clamp(0.55 * presetWarm + 0.35 * (1 - elevT) + 0.10 * (1 - midday), 0, 1);
-  const glowHue = clamp(Math.round(52 - 29 * sunWarm), 20, 52);
-  const glowSat = clamp(Math.round(72 + 18 * sunT - 4 * fragility), 62, 94);
-  const glowLight = clamp(Math.round(71 + 8 * sunT + 4 * midday), 65, 89);
-  const glowCoreAlpha = clamp(0.20 + 0.22 * sunT * (0.45 + 0.55 * elevT), 0.16, 0.46);
-  const glowStrongAlpha = clamp(0.16 + 0.20 * sunT * (0.50 + 0.50 * elevT), 0.13, 0.38);
-  const glowSoftAlpha = clamp(0.09 + 0.11 * sunT * (0.55 + 0.45 * elevT), 0.08, 0.24);
-
-  // Intentionally discrete directional communication for user-facing sky feel.
-  const glowPos = ({
-    sunrise: { x: 16, y: 84 },
-    morning: { x: 46, y: 82 },
-    late_morning: { x: 28, y: 24 },
-    noon: { x: 50, y: 14 },
-    afternoon: { x: 74, y: 24 },
-    late_afternoon: { x: 84, y: 50 },
-    sunset: { x: 82, y: 84 },
-    night: { x: 50, y: 86 },
-  })[preset] || { x: 50, y: 86 };
-  const glowX = clamp(glowPos.x, 6, 94);
-  const glowY = clamp(glowPos.y, 8, 94);
-
-  const overlayAlpha = clamp(0.03 + 0.08 * (1 - sunT) + 0.05 * fragility, 0.02, 0.14);
   const cardAlpha = clamp(0.68 + 0.06 * fragility - 0.04 * sunT, 0.60, 0.80);
   const cardAlpha2 = clamp(cardAlpha - 0.10, 0.48, 0.70);
-
-  const skyAccent = hslToRgb(hue + 1, clamp(30 + sunT * 26, 24, 64), clamp(64 + sunT * 9, 60, 80));
-  const sunAccent = hslToRgb(glowHue, clamp(76 + 14 * sunT, 72, 95), clamp(64 + 8 * sunT, 60, 84));
 
   return {
     skyTop,
     skyMid,
     skyBottom,
-    glowCore: `hsl(${glowHue} ${Math.min(95, glowSat + 3)}% ${Math.min(92, glowLight + 8)}% / ${glowCoreAlpha.toFixed(3)})`,
-    glowHalo: `hsl(${glowHue} ${Math.max(56, glowSat - 6)}% ${Math.max(58, glowLight - 1)}% / ${glowStrongAlpha.toFixed(3)})`,
-    glowStrong: `hsl(${glowHue} ${glowSat}% ${glowLight}% / ${glowStrongAlpha.toFixed(3)})`,
-    glowSoft: `hsl(${glowHue} ${Math.max(48, glowSat - 16)}% ${Math.max(38, glowLight - 6)}% / ${glowSoftAlpha.toFixed(3)})`,
-    glowX: `${glowX.toFixed(1)}%`,
-    glowY: `${glowY.toFixed(1)}%`,
-    overlay: `rgba(255, 255, 255, ${overlayAlpha.toFixed(3)})`,
+    twTop,
+    twMid,
+    twBottom,
     card: `rgba(255, 255, 255, ${cardAlpha.toFixed(3)})`,
     card2: `rgba(255, 255, 255, ${cardAlpha2.toFixed(3)})`,
-    accents: { sky: skyAccent, sun: sunAccent },
   };
 }
 
-function applyAtmosphericTheme(row) {
+function applyAtmosphericTheme(row, twilightContext = null) {
   if (!document.body || document.body.classList.contains('solarApiPage')) return;
   const root = document.documentElement;
   if (!root) return;
-  const theme = computeAtmosphericTheme(row || null);
+  const theme = computeAtmosphericTheme(row || null, twilightContext);
   const themeKey = [
     theme.skyTop,
     theme.skyMid,
     theme.skyBottom,
-    theme.glowCore,
-    theme.glowHalo,
-    theme.glowStrong,
-    theme.glowSoft,
-    theme.glowX,
-    theme.glowY,
-    theme.overlay,
+    theme.twTop,
+    theme.twMid,
+    theme.twBottom,
     theme.card,
     theme.card2,
-    theme.accents?.sky?.r, theme.accents?.sky?.g, theme.accents?.sky?.b,
-    theme.accents?.sun?.r, theme.accents?.sun?.g, theme.accents?.sun?.b,
   ].join('|');
   if (themeKey === _lastAtmosThemeKey) return;
   _lastAtmosThemeKey = themeKey;
   root.style.setProperty('--atm-sky-top', theme.skyTop);
   root.style.setProperty('--atm-sky-mid', theme.skyMid);
   root.style.setProperty('--atm-sky-bottom', theme.skyBottom);
-  root.style.setProperty('--atm-glow-core', theme.glowCore);
-  root.style.setProperty('--atm-glow-halo', theme.glowHalo);
-  root.style.setProperty('--atm-glow-strong', theme.glowStrong);
-  root.style.setProperty('--atm-glow-soft', theme.glowSoft);
-  root.style.setProperty('--atm-glow-x', theme.glowX);
-  root.style.setProperty('--atm-glow-y', theme.glowY);
-  root.style.setProperty('--atm-overlay', theme.overlay);
+  root.style.setProperty('--atm-tw-top', theme.twTop);
+  root.style.setProperty('--atm-tw-mid', theme.twMid);
+  root.style.setProperty('--atm-tw-bottom', theme.twBottom);
   root.style.setProperty('--atm-card', theme.card);
   root.style.setProperty('--atm-card-2', theme.card2);
-  setThemeAccents(theme.accents);
 }
 
 // ===== Rate limit cooldown =====
@@ -1069,7 +973,7 @@ function sunQualityFromScore(score, isNight) {
     return {
       label: 'Limited sun',
       emoji: '⛅',
-      support: 'Sunlight may break through at times.',
+      support: 'Sunlight is faint or appears briefly.',
       mood: 'mixed',
     };
   }
@@ -1077,7 +981,7 @@ function sunQualityFromScore(score, isNight) {
     return {
       label: 'Good sun',
       emoji: '🌤️',
-      support: 'Sunlight is likely, with some interruptions.',
+      support: 'Sunlight is mostly clear, but slightly faint or briefly blocked.',
       mood: 'sunny',
     };
   }
@@ -1112,7 +1016,7 @@ function sunQualityFromScoreTomorrow(score, isNight) {
     return {
       label: 'Weak sun',
       emoji: '🌥️',
-      support: 'Only brief or faint sunlight looks likely tomorrow.',
+      support: 'Only brief or faint sunlight for most of tomorrow.',
       mood: 'blocked',
     };
   }
@@ -1120,7 +1024,7 @@ function sunQualityFromScoreTomorrow(score, isNight) {
     return {
       label: 'Limited sun',
       emoji: '⛅',
-      support: 'Sunlight may break through at times tomorrow.',
+      support: 'Sunlight is faint or appears briefly tomorrow.',
       mood: 'mixed',
     };
   }
@@ -1128,23 +1032,32 @@ function sunQualityFromScoreTomorrow(score, isNight) {
     return {
       label: 'Good sun',
       emoji: '🌤️',
-      support: 'Sunlight looks likely for much of tomorrow.',
+      support: 'Sunlight is mostly clear for much of tomorrow, but slightly faint.',
       mood: 'sunny',
     };
   }
   return {
     label: 'Excellent sun',
     emoji: '☀️',
-    support: 'Strong sunlight looks likely for most of tomorrow.',
+    support: 'Strong sunlight for most of tomorrow.',
     mood: 'sunny',
   };
 }
 
 function renderDecision(focusRow, context = { label: 'now' }) {
+  let decisionLead = document.getElementById('decisionLead');
+  if (!decisionLead && els.decisionContext && els.decisionContext.parentNode) {
+    decisionLead = document.createElement('div');
+    decisionLead.id = 'decisionLead';
+    decisionLead.className = 'muted small decisionLead';
+    els.decisionContext.insertAdjacentElement('beforebegin', decisionLead);
+  }
+
   if (!focusRow) {
     if (els.decisionText) els.decisionText.textContent = '—';
     if (els.scoreNow) els.scoreNow.textContent = '—';
     if (els.confNow) els.confNow.textContent = '—';
+    if (decisionLead) decisionLead.textContent = '';
     if (els.decisionContext) els.decisionContext.textContent = '';
     if (els.whyInline) els.whyInline.textContent = '';
     setMeter(els.meterScore, 0, 'rgba(51,51,51,0.10)');
@@ -1163,6 +1076,13 @@ function renderDecision(focusRow, context = { label: 'now' }) {
 
   const s = Number(focusRow.sun_score || 0);
   const c = Number(focusRow.confidence || 0);
+  const chartMaxElevation = Number(context?.chartMaxElevation);
+  const isNightByRow = Number(focusRow.elevation || 0) <= 0;
+  // Today: hard below-horizon override from current/nearest-now row.
+  // Tomorrow: keep day-level guard from chart dataset.
+  const isNight = isTomorrow
+    ? (Number.isFinite(chartMaxElevation) ? (chartMaxElevation <= 0) : isNightByRow)
+    : isNightByRow;
 
   if (els.scoreNow) els.scoreNow.textContent = Math.round(s) + '%';
   const sunT = clamp(s / 100, 0, 1);
@@ -1188,7 +1108,6 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     setMeter(els.meterConf, cp, 'rgba(51,51,51,0.28)');
   }
 
-  const isNight = Number(focusRow.elevation || 0) <= 0;
   const quality = isTomorrow
     ? sunQualityFromScoreTomorrow(s, isNight)
     : sunQualityFromScore(s, isNight);
@@ -1201,6 +1120,10 @@ function renderDecision(focusRow, context = { label: 'now' }) {
 
   // Set wellness mood class on <html> root
   setMood(quality.mood);
+
+  if (decisionLead) {
+    decisionLead.textContent = isTomorrow ? 'Based on daylight sun score average.' : '';
+  }
 
   // Primary support line: deterministic by horizon/score band only.
   if (els.decisionContext) els.decisionContext.textContent = quality.support;
@@ -1225,7 +1148,7 @@ function ensureSunQualityLegend() {
   el.id = 'sunQualityLegend';
   el.className = 'sunQualityLegend muted small';
   el.setAttribute('aria-label', 'Sun quality score legend');
-  el.textContent = 'Sun score: ☁️ 0–20 · 🌥️ 20–40 · ⛅ 40–60 · 🌤️ 60–80 · ☀️ 80–100';
+  el.textContent = 'Sun score: 0–20 ☁️ · 20–40 🌥️ · 40–60 ⛅ · 60–80 🌤️ · 80–100 ☀️';
   kpi.insertAdjacentElement('afterend', el);
 }
 
@@ -1290,7 +1213,7 @@ function meaningfulWindows(dayRows, threshold = DEFAULT_THRESHOLD, minMinutes = 
 
 function pickSideWindowState(dayRows, tomorrowWin) {
   const nowMs = Date.now();
-  const wins = meaningfulWindows(dayRows, DEFAULT_THRESHOLD, MEANINGFUL_WINDOW_MINUTES);
+  const wins = meaningfulWindows(dayRows, SIDE_CARD_THRESHOLD, SIDE_CARD_MEANINGFUL_WINDOW_MINUTES);
   const active = wins.find((w) => {
     const a = new Date(w.start).getTime();
     const b = new Date(w.end).getTime();
@@ -1394,6 +1317,33 @@ function renderTimeline(dayRows, dayIndex = 0, win = null) {
   els.timeline.innerHTML = parts.join('');
 }
 
+function chartRowsForWindow(dayRows, win = null) {
+  if (!dayRows || !dayRows.length) return [];
+  if (!win) return [];
+
+  let startIdx = 0;
+  let endIdx = dayRows.length - 1;
+
+  for (let i = 0; i < dayRows.length; i++) {
+    if (tUtc(dayRows[i]) >= win.start) { startIdx = Math.max(0, i); break; }
+  }
+  for (let i = dayRows.length - 1; i >= 0; i--) {
+    if (tUtc(dayRows[i]) <= win.end) { endIdx = Math.min(dayRows.length - 1, i); break; }
+  }
+
+  if (endIdx < startIdx) return [];
+  return dayRows.slice(startIdx, endIdx + 1);
+}
+
+function maxElevationFromRows(rows) {
+  let maxElev = -Infinity;
+  for (const r of (rows || [])) {
+    const e = Number(r?.elevation);
+    if (Number.isFinite(e) && e > maxElev) maxElev = e;
+  }
+  return maxElev;
+}
+
 function renderChart(dayRows, win = null) {
   if (!els.canvas || !ctx) return;
 
@@ -1432,17 +1382,13 @@ function renderChart(dayRows, win = null) {
     return;
   }
 
-  let startIdx = 0;
-  let endIdx = dayRows.length - 1;
-
-  for (let i = 0; i < dayRows.length; i++) {
-    if (tUtc(dayRows[i]) >= win.start) { startIdx = Math.max(0, i); break; }
+  const rows = chartRowsForWindow(dayRows, win);
+  if (!rows.length) {
+    _chartGeom = null;
+    if (els.yAxis) els.yAxis.innerHTML = '';
+    if (els.xAxis) els.xAxis.innerHTML = '';
+    return;
   }
-  for (let i = dayRows.length - 1; i >= 0; i--) {
-    if (tUtc(dayRows[i]) <= win.end) { endIdx = Math.min(dayRows.length - 1, i); break; }
-  }
-
-  const rows = dayRows.slice(startIdx, endIdx + 1);
 
   const elevs = rows.map(r => Math.max(0, Number(r.elevation || 0)));
   const maxElevRaw = Math.max(...elevs, 1);
@@ -1732,6 +1678,9 @@ function render() {
     prepData(state.data);
     dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : [];
   }
+  const dayWin30 = daylightWindow(dayRows, 30);
+  const chartRows = chartRowsForWindow(dayRows, dayWin30);
+  const chartMaxElevation = maxElevationFromRows(chartRows);
 
   // ------------------------------
   // Tomorrow view uses daylight average instead of single-hour snapshot
@@ -1740,7 +1689,7 @@ function render() {
   if (dayIndex === 0) {
     const focusRow = nearestNowRow(dayRows);
     themeRow = focusRow || nearestRowToLocalHour(dayRows, 12);
-    renderDecision(focusRow, { label: 'now' });
+    renderDecision(focusRow, { label: 'now', chartMaxElevation });
   } else {
     const avg = dayAverages(dayRows);
 
@@ -1749,7 +1698,7 @@ function render() {
       const fallback = nearestRowToLocalHour(dayRows, 12);
       if (fallback) fallback._themeFallback = true;
       themeRow = fallback;
-      renderDecision(fallback, { label: 'tomorrow (no daylight)' });
+      renderDecision(fallback, { label: 'tomorrow (no daylight)', chartMaxElevation });
     } else {
       const anchor = nearestRowToLocalHour(dayRows, 12);
       // Synthetic row for decision UI
@@ -1765,11 +1714,12 @@ function render() {
         cloud: avg.clouds,
       };
       themeRow = synthetic;
-      renderDecision(synthetic, { label: 'tomorrow (daylight average)' });
+      renderDecision(synthetic, { label: 'tomorrow (daylight average)', chartMaxElevation });
     }
   }
 
-  applyAtmosphericTheme(themeRow);
+  const dayWin = daylightWindow(dayRows, 0);
+  applyAtmosphericTheme(themeRow, dayWin ? { sunrise: dayWin.start, sunset: dayWin.end } : null);
 
   // Side summary window (today-first priority unless user explicitly selected tomorrow)
   let win = state.data.next_sunny_window_by_day
@@ -1804,7 +1754,6 @@ function render() {
   }
 
   // Sunrise/sunset (derived from daylight range like before)
-  const dayWin = daylightWindow(dayRows, 0);
   if (els.sunriseTime && els.sunsetTime) {
     if (!dayWin) {
       els.sunriseTime.textContent = '—';
@@ -1819,7 +1768,6 @@ function render() {
     }
   }
 
-  const dayWin30 = daylightWindow(dayRows, 30);
   renderChart(dayRows, dayWin30);
 
   // Hide timeline if no daylight ahead for selected day
@@ -2019,9 +1967,32 @@ function initMobilePullToRefresh() {
   let startY = 0;
   let isPulling = false;
   let isArmed = false;
+  let settleTimer = null;
 
-  const hideIndicator = () => {
+  const setPullPx = (px) => {
+    if (!document.body) return;
+    document.body.style.setProperty('--ptr-pull', `${Math.round(Math.max(0, Number(px) || 0))}px`);
+  };
+
+  const beginSettling = () => {
+    if (!document.body) return;
+    if (settleTimer) {
+      clearTimeout(settleTimer);
+      settleTimer = null;
+    }
+    document.body.classList.remove('ptrPulling');
+    document.body.classList.add('ptrSettling');
+    setPullPx(0);
+    settleTimer = window.setTimeout(() => {
+      if (!document.body) return;
+      document.body.classList.remove('ptrSettling');
+      settleTimer = null;
+    }, 200);
+  };
+
+  const hideIndicator = (settle = true) => {
     indicator.classList.remove('active', 'armed', 'loading');
+    if (settle) beginSettling();
   };
 
   const canStart = (event) => {
@@ -2049,7 +2020,12 @@ function initMobilePullToRefresh() {
     isPulling = true;
     isArmed = false;
     indicator.textContent = 'Pull to refresh';
-    hideIndicator();
+    if (document.body) {
+      document.body.classList.remove('ptrSettling');
+      document.body.classList.remove('ptrPulling');
+    }
+    setPullPx(0);
+    hideIndicator(false);
   }, { passive: true });
 
   window.addEventListener('touchmove', (e) => {
@@ -2059,11 +2035,16 @@ function initMobilePullToRefresh() {
 
     const pull = clamp(t.clientY - startY, 0, MAX_PULL_PX);
     if (pull <= 0) {
-      hideIndicator();
+      hideIndicator(false);
       return;
     }
 
     if (e.cancelable) e.preventDefault();
+    if (document.body) {
+      document.body.classList.remove('ptrSettling');
+      document.body.classList.add('ptrPulling');
+    }
+    setPullPx(pull);
     indicator.classList.add('active');
     isArmed = pull >= THRESHOLD_PX;
     indicator.classList.toggle('armed', isArmed);
@@ -2080,10 +2061,11 @@ function initMobilePullToRefresh() {
     activeTouchId = null;
 
     if (!shouldRefresh) {
-      hideIndicator();
+      hideIndicator(true);
       return;
     }
 
+    beginSettling();
     indicator.classList.remove('armed');
     indicator.classList.add('active', 'loading');
     indicator.textContent = 'Refreshing…';
