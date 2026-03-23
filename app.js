@@ -478,19 +478,19 @@ function computeAtmosphericTheme(row, twilightContext = null) {
   const elevClamped = Number.isFinite(elev) ? clamp(elev, -10, 90) : 0;
   const elevT = clamp(elevClamped / 90, 0, 1);
   const fragility = clamp(cloudFragilityFromRow(row), 0, 1);
-  // Base sky = clarity only, regardless of below-horizon status.
-  const skyHueBlue = clamp(216 - 8 * sunT, 208, 216);
-  const overcastT = clamp(1 - sunT, 0, 1);
-  // Pull low-score sky away from blue so overcast reads neutral-gray.
-  const skyHue = clamp(
-    (skyHueBlue * (1 - (overcastT * 0.85))) + (198 * (overcastT * 0.85)),
-    198,
-    214
-  );
-  const skySat = clamp(7 + 46 * sunT - 8 * fragility, 5, 54);
-  const skyTop = `hsl(${skyHue} ${clamp(skySat * 0.92, 5, 52)}% ${clamp(72 - 30 * sunT + 5 * (1 - elevT) + 5 * fragility, 40, 76)}%)`;
-  const skyMid = `hsl(${skyHue} ${clamp(skySat * 0.84, 5, 48)}% ${clamp(82 - 22 * sunT + 3 * (1 - elevT) + 4 * fragility, 52, 86)}%)`;
-  const skyBottom = `hsl(${clamp(skyHue - 2, 196, 216)} ${clamp(skySat * 0.70, 4, 38)}% ${clamp(90 - 12 * sunT + 2 * fragility, 70, 94)}%)`;
+  // Day: richer blue at high score, gray-blue at low score.
+  const dayHue = clamp(214 - 10 * sunT, 204, 214);
+  const daySat = clamp(14 + 62 * sunT - 12 * fragility, 12, 72);
+  // Night: deeper indigo/purple-blue that can fully take over in real night.
+  const belowHorizonT = clamp((2 - elevClamped) / 12, 0, 1);
+  const nightBlend = clamp(belowHorizonT * 0.95 + (1 - elevT) * 0.20, 0, 1);
+  const nightHue = clamp(236 + 10 * belowHorizonT, 236, 246);
+  const nightSat = clamp(34 + 18 * sunT - 5 * fragility, 28, 52);
+  const skyHue = clamp((dayHue * (1 - nightBlend)) + (nightHue * nightBlend), 204, 246);
+  const skySat = clamp((daySat * (1 - nightBlend)) + (nightSat * nightBlend), 12, 72);
+  const skyTop = `hsl(${skyHue} ${clamp(skySat * 1.00, 12, 68)}% ${clamp(72 - 30 * sunT + 4 * fragility - 18 * nightBlend, 22, 76)}%)`;
+  const skyMid = `hsl(${skyHue} ${clamp(skySat * 0.90, 11, 62)}% ${clamp(82 - 22 * sunT + 3 * fragility - 15 * nightBlend, 34, 86)}%)`;
+  const skyBottom = `hsl(${clamp(skyHue - 2, 202, 246)} ${clamp(skySat * 0.76, 10, 48)}% ${clamp(90 - 12 * sunT + 2 * fragility - 10 * nightBlend, 50, 94)}%)`;
 
   // Optional twilight tint from real sunrise/sunset timestamps only.
   const nowMs = refDate.getTime();
@@ -506,15 +506,18 @@ function computeAtmosphericTheme(row, twilightContext = null) {
   const sunsetW = Number.isFinite(sunsetMs)
     ? twilightBellAt(nowMs, sunsetMs, 60, 30)
     : 0;
-  const twilightW = Math.max(sunriseW, sunsetW);
-  const twSatBase = clamp(12 + 34 * sunT - 10 * fragility, 8, 42);
-  const twAlpha = clamp(twilightW * (0.08 + 0.16 * sunT) * (0.92 - 0.24 * fragility), 0, 0.24);
-  const twTop = `hsl(286 ${clamp(twSatBase + 6, 8, 48)}% 65% / ${(twAlpha * 0.72).toFixed(3)})`;
-  const twMid = `hsl(332 ${clamp(twSatBase + 10, 10, 52)}% 72% / ${(twAlpha * 0.88).toFixed(3)})`;
-  const twBottom = `hsl(24 ${clamp(twSatBase + 8, 9, 50)}% 74% / ${(twAlpha * 0.82).toFixed(3)})`;
+  const twilightRaw = Math.max(sunriseW, sunsetW);
+  // Keep twilight clearly visible across the full window while still peaking at event center.
+  const twilightW = twilightRaw > 0 ? (0.52 + 0.48 * twilightRaw) : 0;
+  // Twilight overlay should be mostly timing-driven; keep only light score influence.
+  const twSatBase = clamp(54 + 8 * sunT - 6 * fragility, 46, 70);
+  const twAlpha = clamp(twilightW * (0.42 + 0.10 * sunT) * (0.96 - 0.06 * fragility), 0, 0.62);
+  const twTop = `hsl(280 ${clamp(twSatBase + 14, 34, 88)}% 62% / ${(twAlpha * 0.90).toFixed(3)})`;
+  const twMid = `hsl(328 ${clamp(twSatBase + 18, 30, 88)}% 71% / ${(twAlpha * 1.00).toFixed(3)})`;
+  const twBottom = `hsl(30 ${clamp(twSatBase + 16, 34, 88)}% 76% / ${(twAlpha * 0.96).toFixed(3)})`;
 
-  const cardAlpha = clamp(0.68 + 0.06 * fragility - 0.04 * sunT, 0.60, 0.80);
-  const cardAlpha2 = clamp(cardAlpha - 0.10, 0.48, 0.70);
+  const cardAlpha = clamp(0.70 + 0.06 * fragility - 0.04 * sunT, 0.62, 0.82);
+  const cardAlpha2 = clamp(cardAlpha - 0.09, 0.52, 0.74);
 
   return {
     skyTop,
