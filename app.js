@@ -499,14 +499,14 @@ function computeAtmosphericTheme(row, twilightContext = null) {
 
   // 1) Day base (score only)
   const dayHue = 205 - 10 * sunT;
-  const daySat = 20 + 60 * sunT;
-  const topL = 60 + 20 * sunT;
-  const midL = 75 + 15 * sunT;
-  const botL = 90 + 8 * sunT;
+  const daySat = 18 + 70 * sunT;
+  const topL = 56 + 24 * sunT;
+  const midL = 72 + 18 * sunT;
+  const botL = 88 + 10 * sunT;
 
-  const baseTop = { h: dayHue, s: clamp(daySat * 0.9, 0, 100), l: clamp(topL, 0, 100) };
-  const baseMid = { h: dayHue, s: clamp(daySat * 0.7, 0, 100), l: clamp(midL, 0, 100) };
-  const baseBottom = { h: dayHue, s: clamp(daySat * 0.3, 0, 100), l: clamp(botL, 0, 100) };
+  const baseTop = { h: dayHue, s: clamp(daySat * 0.95, 0, 100), l: clamp(topL, 0, 100) };
+  const baseMid = { h: dayHue, s: clamp(daySat * 0.75, 0, 100), l: clamp(midL, 0, 100) };
+  const baseBottom = { h: dayHue, s: clamp(daySat * 0.36, 0, 100), l: clamp(botL, 0, 100) };
 
   // 2) Night tint (elevation only), disabled for tomorrow summary mode.
   const nightT = isTomorrowSummary ? 0 : clamp((0 - elevClamped) / 10, 0, 1);
@@ -1210,8 +1210,13 @@ function renderDecision(focusRow, context = { label: 'now' }) {
 
   if (els.decisionText) els.decisionText.textContent = `${quality.label} ${quality.emoji}`;
   if (els.decisionWrap) {
+    const neutralDecisionColor = (els.decisionContext && window.getComputedStyle)
+      ? window.getComputedStyle(els.decisionContext).color
+      : '';
     els.decisionWrap.classList.add('big');
-    els.decisionWrap.style.color = sunColor;
+    els.decisionWrap.style.color = isNight
+      ? (neutralDecisionColor || 'var(--muted)')
+      : sunColor;
   }
 
   // Set wellness mood class on <html> root
