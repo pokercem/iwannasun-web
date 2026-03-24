@@ -510,10 +510,10 @@ function computeAtmosphericTheme(row, twilightContext = null) {
 
   // 2) Night tint (elevation only), disabled for tomorrow summary mode.
   const nightT = isTomorrowSummary ? 0 : clamp((0 - elevClamped) / 10, 0, 1);
-  const nightAlpha = 0.6 * nightT;
-  const nightTop = { h: 245, s: 30, l: 30, a: nightAlpha };
-  const nightMid = { h: 245, s: 25, l: 35, a: nightAlpha };
-  const nightBottom = { h: 245, s: 20, l: 45, a: nightAlpha };
+  const nightAlpha = 0.55 * nightT;
+  const nightTop = { h: 250, s: 55, l: 38, a: nightAlpha };
+  const nightMid = { h: 248, s: 50, l: 45, a: nightAlpha };
+  const nightBottom = { h: 245, s: 45, l: 58, a: nightAlpha };
 
   function hslToRgb(h, s, l) {
     const hh = ((Number(h) % 360) + 360) % 360;
