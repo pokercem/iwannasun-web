@@ -134,6 +134,8 @@ function setMood(mood) {
 
 // ===== Request control =====
 let _dayAbort = null;
+let _fetchDaySeq = 0;
+let _activeFetchDaySeq = 0;
 
 // ===== Helpers =====
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -228,6 +230,23 @@ function clearError() {
   if (!els.errBox) return;
   els.errBox.style.display = 'none';
   els.errBox.textContent = '';
+}
+
+function setLabelLeadText(el, text) {
+  if (!el) return;
+  let lead = el.querySelector('[data-label-lead]');
+  if (!lead) {
+    lead = document.createElement('span');
+    lead.setAttribute('data-label-lead', 'true');
+    const first = el.firstChild;
+    if (first && first.nodeType === Node.TEXT_NODE) {
+      lead.textContent = first.textContent || '';
+      el.replaceChild(lead, first);
+    } else {
+      el.insertAdjacentElement('afterbegin', lead);
+    }
+  }
+  lead.textContent = text;
 }
 
 function setBusy(isBusy) {
@@ -476,23 +495,74 @@ function computeAtmosphericTheme(row, twilightContext = null) {
     ? rowDate
     : now;
   const elevClamped = Number.isFinite(elev) ? clamp(elev, -10, 90) : 0;
-  const elevT = clamp(elevClamped / 90, 0, 1);
-  const fragility = clamp(cloudFragilityFromRow(row), 0, 1);
-  // Day: richer blue at high score, gray-blue at low score.
-  const dayHue = clamp(214 - 10 * sunT, 204, 214);
-  const daySat = clamp(14 + 62 * sunT - 12 * fragility, 12, 72);
-  // Night: deeper indigo/purple-blue that can fully take over in real night.
-  const belowHorizonT = clamp((2 - elevClamped) / 12, 0, 1);
-  const nightBlend = clamp(belowHorizonT * 0.95 + (1 - elevT) * 0.20, 0, 1);
-  const nightHue = clamp(236 + 10 * belowHorizonT, 236, 246);
-  const nightSat = clamp(34 + 18 * sunT - 5 * fragility, 28, 52);
-  const skyHue = clamp((dayHue * (1 - nightBlend)) + (nightHue * nightBlend), 204, 246);
-  const skySat = clamp((daySat * (1 - nightBlend)) + (nightSat * nightBlend), 12, 72);
-  const skyTop = `hsl(${skyHue} ${clamp(skySat * 1.00, 12, 68)}% ${clamp(72 - 30 * sunT + 4 * fragility - 18 * nightBlend, 22, 76)}%)`;
-  const skyMid = `hsl(${skyHue} ${clamp(skySat * 0.90, 11, 62)}% ${clamp(82 - 22 * sunT + 3 * fragility - 15 * nightBlend, 34, 86)}%)`;
-  const skyBottom = `hsl(${clamp(skyHue - 2, 202, 246)} ${clamp(skySat * 0.76, 10, 48)}% ${clamp(90 - 12 * sunT + 2 * fragility - 10 * nightBlend, 50, 94)}%)`;
+  const isTomorrowSummary = Boolean(row && row._themeFallback === true);
 
-  // Optional twilight tint from real sunrise/sunset timestamps only.
+  // 1) Day base (score only)
+  const dayHue = 205 - 10 * sunT;
+  const daySat = 20 + 60 * sunT;
+  const topL = 60 + 20 * sunT;
+  const midL = 75 + 15 * sunT;
+  const botL = 90 + 8 * sunT;
+
+  const baseTop = { h: dayHue, s: clamp(daySat * 0.9, 0, 100), l: clamp(topL, 0, 100) };
+  const baseMid = { h: dayHue, s: clamp(daySat * 0.7, 0, 100), l: clamp(midL, 0, 100) };
+  const baseBottom = { h: dayHue, s: clamp(daySat * 0.3, 0, 100), l: clamp(botL, 0, 100) };
+
+  // 2) Night tint (elevation only), disabled for tomorrow summary mode.
+  const nightT = isTomorrowSummary ? 0 : clamp((0 - elevClamped) / 10, 0, 1);
+  const nightAlpha = 0.6 * nightT;
+  const nightTop = { h: 245, s: 30, l: 30, a: nightAlpha };
+  const nightMid = { h: 245, s: 25, l: 35, a: nightAlpha };
+  const nightBottom = { h: 245, s: 20, l: 45, a: nightAlpha };
+
+  function hslToRgb(h, s, l) {
+    const hh = ((Number(h) % 360) + 360) % 360;
+    const ss = clamp(Number(s) / 100, 0, 1);
+    const ll = clamp(Number(l) / 100, 0, 1);
+    const c = (1 - Math.abs(2 * ll - 1)) * ss;
+    const x = c * (1 - Math.abs(((hh / 60) % 2) - 1));
+    const m = ll - c / 2;
+    let r1 = 0, g1 = 0, b1 = 0;
+    if (hh < 60) { r1 = c; g1 = x; b1 = 0; }
+    else if (hh < 120) { r1 = x; g1 = c; b1 = 0; }
+    else if (hh < 180) { r1 = 0; g1 = c; b1 = x; }
+    else if (hh < 240) { r1 = 0; g1 = x; b1 = c; }
+    else if (hh < 300) { r1 = x; g1 = 0; b1 = c; }
+    else { r1 = c; g1 = 0; b1 = x; }
+    return {
+      r: Math.round((r1 + m) * 255),
+      g: Math.round((g1 + m) * 255),
+      b: Math.round((b1 + m) * 255),
+    };
+  }
+
+  function overlayRgb(base, over) {
+    const a = clamp(Number(over.a || 0), 0, 1);
+    return {
+      r: Math.round(base.r * (1 - a) + over.r * a),
+      g: Math.round(base.g * (1 - a) + over.g * a),
+      b: Math.round(base.b * (1 - a) + over.b * a),
+    };
+  }
+
+  const skyTopRgb = overlayRgb(
+    hslToRgb(baseTop.h, baseTop.s, baseTop.l),
+    { ...hslToRgb(nightTop.h, nightTop.s, nightTop.l), a: nightTop.a }
+  );
+  const skyMidRgb = overlayRgb(
+    hslToRgb(baseMid.h, baseMid.s, baseMid.l),
+    { ...hslToRgb(nightMid.h, nightMid.s, nightMid.l), a: nightMid.a }
+  );
+  const skyBottomRgb = overlayRgb(
+    hslToRgb(baseBottom.h, baseBottom.s, baseBottom.l),
+    { ...hslToRgb(nightBottom.h, nightBottom.s, nightBottom.l), a: nightBottom.a }
+  );
+
+  const skyTop = `rgb(${skyTopRgb.r}, ${skyTopRgb.g}, ${skyTopRgb.b})`;
+  const skyMid = `rgb(${skyMidRgb.r}, ${skyMidRgb.g}, ${skyMidRgb.b})`;
+  const skyBottom = `rgb(${skyBottomRgb.r}, ${skyBottomRgb.g}, ${skyBottomRgb.b})`;
+
+  // 3) Twilight overlay (timing only), disabled for tomorrow summary mode.
   const nowMs = refDate.getTime();
   const sunriseMs = Number.isFinite(twilightContext?.sunrise?.getTime?.())
     ? twilightContext.sunrise.getTime()
@@ -507,17 +577,14 @@ function computeAtmosphericTheme(row, twilightContext = null) {
     ? twilightBellAt(nowMs, sunsetMs, 60, 30)
     : 0;
   const twilightRaw = Math.max(sunriseW, sunsetW);
-  // Keep twilight clearly visible across the full window while still peaking at event center.
-  const twilightW = twilightRaw > 0 ? (0.52 + 0.48 * twilightRaw) : 0;
-  // Twilight overlay should be mostly timing-driven; keep only light score influence.
-  const twSatBase = clamp(54 + 8 * sunT - 6 * fragility, 46, 70);
-  const twAlpha = clamp(twilightW * (0.42 + 0.10 * sunT) * (0.96 - 0.06 * fragility), 0, 0.62);
-  const twTop = `hsl(280 ${clamp(twSatBase + 14, 34, 88)}% 62% / ${(twAlpha * 0.90).toFixed(3)})`;
-  const twMid = `hsl(328 ${clamp(twSatBase + 18, 30, 88)}% 71% / ${(twAlpha * 1.00).toFixed(3)})`;
-  const twBottom = `hsl(30 ${clamp(twSatBase + 16, 34, 88)}% 76% / ${(twAlpha * 0.96).toFixed(3)})`;
+  const twilightW = isTomorrowSummary ? 0 : twilightRaw;
+  const twAlpha = clamp(twilightW * 0.5, 0, 1);
+  const twTop = `hsl(280 70% 60% / ${(twAlpha * 0.8).toFixed(3)})`;
+  const twMid = `hsl(330 75% 70% / ${(twAlpha * 1.0).toFixed(3)})`;
+  const twBottom = `hsl(30 80% 75% / ${(twAlpha * 0.9).toFixed(3)})`;
 
-  const cardAlpha = clamp(0.70 + 0.06 * fragility - 0.04 * sunT, 0.62, 0.82);
-  const cardAlpha2 = clamp(cardAlpha - 0.09, 0.52, 0.74);
+  const cardAlpha = clamp(0.60 - 0.04 * sunT, 0.54, 0.72);
+  const cardAlpha2 = clamp(cardAlpha - 0.07, 0.46, 0.64);
 
   return {
     skyTop,
@@ -653,6 +720,8 @@ let _cityTimer = null;
 let _lastCityQuery = '';
 let _lastCityResults = [];
 let _cityActiveIndex = -1;
+let _citySearchSeq = 0;
+let _activeCitySearchSeq = 0;
 
 function hideCityResults() {
   if (!els.cityResults) return;
@@ -686,6 +755,10 @@ function renderCityResults(list) {
 }
 
 async function searchCities(q) {
+  const reqSeq = ++_citySearchSeq;
+  _activeCitySearchSeq = reqSeq;
+  const isCurrent = () => reqSeq === _activeCitySearchSeq;
+
   const query = (q || '').trim();
   if (query.length < 2) return hideCityResults();
   if (query === _lastCityQuery) return;
@@ -694,12 +767,15 @@ async function searchCities(q) {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
   try {
     const res = await fetch(url);
+    if (!isCurrent()) return;
     if (!res.ok) throw new Error('geocoding failed');
     const data = await res.json();
+    if (!isCurrent()) return;
     _lastCityResults = data?.results || [];
     _cityActiveIndex = -1;
     renderCityResults(_lastCityResults);
   } catch {
+    if (!isCurrent()) return;
     hideCityResults();
   }
 }
@@ -816,23 +892,32 @@ function buildDayUrls(lat, lon, threshold, days, mode) {
 }
 
 async function fetchDay(force = false) {
+  const reqSeq = ++_fetchDaySeq;
+  _activeFetchDaySeq = reqSeq;
+  const isCurrent = () => reqSeq === _activeFetchDaySeq;
+
   // Respect cooldown (even if user spams Refresh)
   // IMPORTANT: if we return early, make sure we aren't leaving the UI in a busy state.
   if (rateLimitRemainingMs() > 0) {
-    applyRateLimitUi();
-    setBusy(false);
+    if (isCurrent()) {
+      applyRateLimitUi();
+      setBusy(false);
+    }
     return;
   }
 
   setBusy(true);
   await nextPaint();
+  if (!isCurrent()) return;
   clearError();
 
   const lat = state.lat;
   const lon = state.lon;
   if (lat == null || lon == null) {
-    showError('No location set');
-    setBusy(false);
+    if (isCurrent()) {
+      showError('No location set');
+      setBusy(false);
+    }
     return;
   }
 
@@ -845,6 +930,7 @@ async function fetchDay(force = false) {
     let cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'ray', mode: wantedMode });
     if (!cached) cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'local', mode: wantedMode });
     if (cached) {
+      if (!isCurrent()) return;
       state.data = cached;
       state.tzName = cached?.meta?.tz_name || null;
       state.geometryMode = String(cached?.model || '').toLowerCase() || null;
@@ -854,7 +940,7 @@ async function fetchDay(force = false) {
         : '';
       prepData(state.data);
       render();
-      setBusy(false);
+      if (isCurrent()) setBusy(false);
       return;
     }
   }
@@ -869,6 +955,7 @@ async function fetchDay(force = false) {
     let fallbackStatus = null;
     let fallbackErrorCode = '';
     let res = await fetch(urlRay, { signal });
+    if (!isCurrent()) return;
 
     if (!res.ok) {
       let msg = '';
@@ -882,13 +969,17 @@ async function fetchDay(force = false) {
 
       // Provider rate limit (Open-Meteo). Backend returns 503 and should include Retry-After.
       if (res.status === 503 && (errCode === 'UPSTREAM_RATE_LIMIT' || msg.toLowerCase().includes('rate limit'))) {
-        handleCooldownResponse(res, RL_PROVIDER_DEFAULT_COOLDOWN_S, 15 * 60, 'Rate limited by forecast provider. Please wait.');
+        if (isCurrent()) {
+          handleCooldownResponse(res, RL_PROVIDER_DEFAULT_COOLDOWN_S, 15 * 60, 'Rate limited by forecast provider. Please wait.');
+        }
         return;
       }
 
       // Your API limiter (user spamming). Backend returns 429 and should include Retry-After.
       if (res.status === 429) {
-        handleCooldownResponse(res, RL_USER_DEFAULT_COOLDOWN_S, 60, 'Slow down, too many requests to our service.');
+        if (isCurrent()) {
+          handleCooldownResponse(res, RL_USER_DEFAULT_COOLDOWN_S, 60, 'Slow down, too many requests to our service.');
+        }
         return;
       }
 
@@ -896,6 +987,7 @@ async function fetchDay(force = false) {
       fallbackFromRay = true;
       usedModel = 'local';
       res = await fetch(urlLocal, { signal });
+      if (!isCurrent()) return;
     }
 
     if (!res.ok) {
@@ -904,11 +996,12 @@ async function fetchDay(force = false) {
         const j = await res.json();
         if (typeof j?.detail === 'string') msg = j.detail;
       } catch {}
-      showError(msg);
+      if (isCurrent()) showError(msg);
       return;
     }
 
     const data = await res.json();
+    if (!isCurrent()) return;
     state.data = data;
     state.tzName = data?.meta?.tz_name || null;
     state.geometryMode = String(data?.model || usedModel || '').toLowerCase() || null;
@@ -930,10 +1023,10 @@ async function fetchDay(force = false) {
     render();
   } catch (e) {
     if (e && (e.name === 'AbortError' || e.code === 20)) return;
-    showError('Network error (could not reach API).');
+    if (isCurrent()) showError('Network error (could not reach API).');
     console.error(e);
   } finally {
-    setBusy(false);
+    if (isCurrent()) setBusy(false);
   }
 }
 
@@ -1075,7 +1168,7 @@ function renderDecision(focusRow, context = { label: 'now' }) {
   const isAvg = label.toLowerCase().includes('average');
   if (els.labelScore) els.labelScore.textContent = isNow ? 'Sun score now' : (isAvg ? 'Sun score (avg)' : 'Sun score');
   // Confidence label text adjusts depending on context (now vs average)
-  if (els.labelConf) els.labelConf.firstChild && (els.labelConf.firstChild.textContent = isNow ? 'Confidence now ' : (isAvg ? 'Confidence (avg) ' : 'Confidence '));
+  if (els.labelConf) setLabelLeadText(els.labelConf, isNow ? 'Confidence now ' : (isAvg ? 'Confidence (avg) ' : 'Confidence '));
 
   const s = Number(focusRow.sun_score || 0);
   const c = Number(focusRow.confidence || 0);
@@ -1117,7 +1210,7 @@ function renderDecision(focusRow, context = { label: 'now' }) {
 
   if (els.decisionText) els.decisionText.textContent = `${quality.label} ${quality.emoji}`;
   if (els.decisionWrap) {
-    els.decisionWrap.className = 'big';
+    els.decisionWrap.classList.add('big');
     els.decisionWrap.style.color = sunColor;
   }
 
@@ -1238,7 +1331,9 @@ function renderNextWindow(win, opts = {}) {
 
   if (!win) {
     els.nextWindow.textContent = 'No sunny window';
-    els.nextWindow.className = 'big bad';
+    els.nextWindow.classList.add('big');
+    els.nextWindow.classList.remove('good');
+    els.nextWindow.classList.add('bad');
     els.nextWindowSub.textContent = opts.emptySub || 'Try again later.';
     return;
   }
@@ -1254,7 +1349,9 @@ function renderNextWindow(win, opts = {}) {
   } else {
     els.nextWindow.textContent = `${a} – ${b}`;
   }
-  els.nextWindow.className = 'big good';
+  els.nextWindow.classList.add('big');
+  els.nextWindow.classList.remove('bad');
+  els.nextWindow.classList.add('good');
 
   if (opts.subLabel) {
     els.nextWindowSub.textContent = opts.subLabel;
@@ -1657,6 +1754,108 @@ function nearestRowToLocalHour(dayRows, hour = 12) {
   return best;
 }
 
+function buildTomorrowSyntheticDecisionRow(avg, anchor) {
+  return {
+    sun_score: avg.avgScore,
+    confidence: avg.avgConf,
+    elevation: Number(anchor?.elevation || 1),
+    azimuth: Number(anchor?.azimuth || 180),
+    is_daylight: true,
+    time_utc: anchor?.time_utc || null,
+    time_local: anchor?.time_local || null,
+    _themeFallback: true,
+    cloud: avg.clouds,
+  };
+}
+
+function selectDecisionRenderState(dayIndex, dayRows, chartMaxElevation) {
+  if (dayIndex === 0) {
+    const focusRow = nearestNowRow(dayRows);
+    const themeRow = focusRow || nearestRowToLocalHour(dayRows, 12);
+    return {
+      decisionRow: focusRow,
+      decisionContext: { label: 'now', chartMaxElevation },
+      themeRow,
+    };
+  }
+
+  const avg = dayAverages(dayRows);
+  if (!avg) {
+    const fallback = nearestRowToLocalHour(dayRows, 12);
+    const themeFallbackRow = fallback ? { ...fallback, _themeFallback: true } : fallback;
+    return {
+      decisionRow: themeFallbackRow,
+      decisionContext: { label: 'tomorrow (no daylight)', chartMaxElevation },
+      themeRow: themeFallbackRow,
+    };
+  }
+
+  const anchor = nearestRowToLocalHour(dayRows, 12);
+  const synthetic = buildTomorrowSyntheticDecisionRow(avg, anchor);
+  return {
+    decisionRow: synthetic,
+    decisionContext: { label: 'tomorrow (daylight average)', chartMaxElevation },
+    themeRow: synthetic,
+  };
+}
+
+function selectSideWindowRenderState(dayIndex, dayRows, data) {
+  const win = data?.next_sunny_window_by_day
+    ? (data.next_sunny_window_by_day[String(dayIndex)] || null)
+    : (data?.next_sunny_window || null);
+  const tomorrowWin = data?.next_sunny_window_by_day
+    ? (data.next_sunny_window_by_day['1'] || null)
+    : null;
+
+  if (dayIndex === 1) {
+    return {
+      win,
+      opts: {
+        heading: 'Tomorrow’s likely sun window',
+        emptySub: 'No meaningful window tomorrow.',
+      },
+    };
+  }
+
+  const side = pickSideWindowState(dayRows, tomorrowWin);
+  if (side.mode === 'active_today') {
+    return {
+      win: side.win,
+      opts: {
+        heading: 'Sunlight likely now',
+        activeNow: true,
+      },
+    };
+  }
+  if (side.mode === 'next_today') {
+    return {
+      win: side.win,
+      opts: {
+        heading: 'Next likely sun window today',
+      },
+    };
+  }
+  return {
+    win: side.win,
+    opts: {
+      heading: 'Tomorrow’s likely sun window',
+      emptySub: 'No meaningful window left today.',
+    },
+  };
+}
+
+function buildAtmosphericThemeInput(dayIndex, dayRows, themeRow) {
+  const dayWin = daylightWindow(dayRows, 0);
+  const useTwilightOverlay = dayIndex === 0;
+  return {
+    themeRow,
+    twilightContext: (useTwilightOverlay && dayWin)
+      ? { sunrise: dayWin.start, sunset: dayWin.end }
+      : null,
+    dayWin,
+  };
+}
+
 function render() {
   if (!state.data) {
     if (els.modelModeNote) els.modelModeNote.style.display = 'none';
@@ -1685,76 +1884,15 @@ function render() {
   const chartRows = chartRowsForWindow(dayRows, dayWin30);
   const chartMaxElevation = maxElevationFromRows(chartRows);
 
-  // ------------------------------
-  // Tomorrow view uses daylight average instead of single-hour snapshot
-  // ------------------------------
-  let themeRow = null;
-  if (dayIndex === 0) {
-    const focusRow = nearestNowRow(dayRows);
-    themeRow = focusRow || nearestRowToLocalHour(dayRows, 12);
-    renderDecision(focusRow, { label: 'now', chartMaxElevation });
-  } else {
-    const avg = dayAverages(dayRows);
+  const decisionState = selectDecisionRenderState(dayIndex, dayRows, chartMaxElevation);
+  renderDecision(decisionState.decisionRow, decisionState.decisionContext);
 
-    if (!avg) {
-      // No daylight tomorrow
-      const fallback = nearestRowToLocalHour(dayRows, 12);
-      if (fallback) fallback._themeFallback = true;
-      themeRow = fallback;
-      renderDecision(fallback, { label: 'tomorrow (no daylight)', chartMaxElevation });
-    } else {
-      const anchor = nearestRowToLocalHour(dayRows, 12);
-      // Synthetic row for decision UI
-      const synthetic = {
-        sun_score: avg.avgScore,
-        confidence: avg.avgConf,
-        elevation: Number(anchor?.elevation || 1),
-        azimuth: Number(anchor?.azimuth || 180),
-        is_daylight: true,
-        time_utc: anchor?.time_utc || null,
-        time_local: anchor?.time_local || null,
-        _themeFallback: true,
-        cloud: avg.clouds,
-      };
-      themeRow = synthetic;
-      renderDecision(synthetic, { label: 'tomorrow (daylight average)', chartMaxElevation });
-    }
-  }
+  const atmosphereInput = buildAtmosphericThemeInput(dayIndex, dayRows, decisionState.themeRow);
+  const dayWin = atmosphereInput.dayWin;
+  applyAtmosphericTheme(atmosphereInput.themeRow, atmosphereInput.twilightContext);
 
-  const dayWin = daylightWindow(dayRows, 0);
-  applyAtmosphericTheme(themeRow, dayWin ? { sunrise: dayWin.start, sunset: dayWin.end } : null);
-
-  // Side summary window (today-first priority unless user explicitly selected tomorrow)
-  let win = state.data.next_sunny_window_by_day
-    ? (state.data.next_sunny_window_by_day[String(dayIndex)] || null)
-    : (state.data.next_sunny_window || null);
-  const tomorrowWin = state.data.next_sunny_window_by_day
-    ? (state.data.next_sunny_window_by_day['1'] || null)
-    : null;
-
-  if (dayIndex === 1) {
-    renderNextWindow(win, {
-      heading: 'Tomorrow’s likely sun window',
-      emptySub: 'No meaningful window tomorrow.',
-    });
-  } else {
-    const side = pickSideWindowState(dayRows, tomorrowWin);
-    if (side.mode === 'active_today') {
-      renderNextWindow(side.win, {
-        heading: 'Sunlight likely now',
-        activeNow: true,
-      });
-    } else if (side.mode === 'next_today') {
-      renderNextWindow(side.win, {
-        heading: 'Next likely sun window today',
-      });
-    } else {
-      renderNextWindow(side.win, {
-        heading: 'Tomorrow’s likely sun window',
-        emptySub: 'No meaningful window left today.',
-      });
-    }
-  }
+  const sideWindowState = selectSideWindowRenderState(dayIndex, dayRows, state.data);
+  renderNextWindow(sideWindowState.win, sideWindowState.opts);
 
   // Sunrise/sunset (derived from daylight range like before)
   if (els.sunriseTime && els.sunsetTime) {
