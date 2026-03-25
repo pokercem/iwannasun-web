@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iwannasun Frontend Logic Regression Tests</title>
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f1e8;
+      --panel: rgba(255, 255, 255, 0.88);
+      --ink: #1b2026;
+      --muted: rgba(27, 32, 38, 0.68);
+      --ok: #1f8f53;
+      --fail: #c54444;
+      --border: rgba(27, 32, 38, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f7f4ec 0%, #efe6d6 100%);
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 20px 45px rgba(39, 34, 20, 0.08);
+    }
+    .hero {
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1.05;
+    }
+    .hero p, .meta { margin: 0; color: var(--muted); }
+    .panel {
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .summary {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .status {
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .status.ok { color: var(--ok); }
+    .status.fail { color: var(--fail); }
+    .results {
+      display: grid;
+      gap: 10px;
+    }
+    .result {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+    .result.pass { border-color: rgba(31, 143, 83, 0.22); }
+    .result.fail { border-color: rgba(197, 68, 68, 0.28); }
+    .result h2 {
+      margin: 0 0 4px;
+      font-size: 16px;
+    }
+    .result p {
+      margin: 0;
+      color: var(--muted);
+      white-space: pre-wrap;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.95em;
+    }
+    .testRig {
+      position: absolute;
+      left: -10000px;
+      top: 0;
+      width: 360px;
+      height: 240px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+  </style>
+  <script>
+    window.IWS_SELECTOR_TEST_MODE = true;
+  </script>
+  <script src="../forecast-selectors.js" defer></script>
+  <script src="../app.js" defer></script>
+  <script src="./selectors.js" defer></script>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>Frontend Logic Regression Tests</h1>
+      <p>Lightweight fixture checks for normalization, derived-state selectors, and narrowed render behavior in <code>app.js</code>.</p>
+    </section>
+
+    <section class="panel summary">
+      <div>
+        <div id="summaryStatus" class="status">Running…</div>
+        <p id="summaryMeta" class="meta">Waiting for selector test API.</p>
+      </div>
+      <p class="meta">Open this page in a browser after changes to selector logic.</p>
+    </section>
+
+    <section class="panel">
+      <div id="results" class="results"></div>
+    </section>
+
+    <div class="testRig" aria-hidden="true">
+      <select id="daySelect">
+        <option value="0" selected>Today</option>
+        <option value="1">Tomorrow</option>
+      </select>
+      <div id="timePill"></div>
+      <div id="decisionWrap"></div>
+      <div id="decisionLead"></div>
+      <div id="decisionText"></div>
+      <div id="decisionContext"></div>
+      <div id="whyInline"></div>
+      <div id="labelScore"></div>
+      <div id="labelConf">Confidence <span data-label-lead="true"></span></div>
+      <div id="scoreNow"></div>
+      <div id="confNow"></div>
+      <div id="meterScore"></div>
+      <div id="meterConf"></div>
+      <div id="nextWindowHeading"></div>
+      <div id="nextWindow"></div>
+      <div id="nextWindowSub"></div>
+      <div id="sunriseTime"></div>
+      <div id="sunsetTime"></div>
+      <div id="timeline"></div>
+      <div id="modelModeNote"></div>
+      <div id="yAxis"></div>
+      <div id="xAxis"></div>
+      <canvas id="sunChart" width="320" height="160" style="width:320px;height:160px;"></canvas>
+    </div>
+  </main>
+</body>
+</html>

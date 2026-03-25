@@ -13,7 +13,8 @@
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="When Will the Sun Come Out in Barcelona? | iwannasun Sun Forecast" />
   <meta name="twitter:description" content="See likely sun breaks in Barcelona with a practical timeline forecast." />
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <link rel="stylesheet" href="/styles/app.css">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
@@ -67,6 +68,12 @@
           aria-controls="cityResults"
           aria-expanded="false"
         />
+        <button id="btnClearLocation" class="clearInputBtn" type="button" aria-label="Clear location">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <line x1="4" y1="4" x2="12" y2="12"></line>
+            <line x1="12" y1="4" x2="4" y2="12"></line>
+          </svg>
+        </button>
         <div id="cityResults" class="suggest" role="listbox"></div>
       </div>
 
@@ -93,6 +100,7 @@
         <div class="row rowBetweenTop">
           <div class="decisionBlock">
             <div class="big" id="decisionWrap"><span id="decisionText">—</span></div>
+            <div class="muted small decisionLead" id="decisionLead"></div>
             <div class="muted small decisionContext" id="decisionContext"></div>
             <div class="muted small whyInline" id="whyInline"></div>
           </div>
@@ -137,9 +145,13 @@
             </div>
           </div>
         </div>
+        <div id="sunQualityLegend" class="sunQualityLegend muted small" aria-label="Sun quality score legend">
+          Sun score: 0–20 ☁️ · 20–40 🌥️ · 40–60 ⛅ · 60–80 🌤️ · 80–100 ☀️
+        </div>
 
         <div class="timeline" id="timeline" aria-label="Sun score timeline"></div>
         <div class="err" id="errBox" role="status" aria-live="polite"></div>
+        <div class="muted small modelModeNote" id="modelModeNote" aria-live="polite" style="display:none"></div>
       </section>
 
       <aside class="side" aria-label="Supplementary forecast details">
@@ -164,8 +176,7 @@
           </div>
         </section>
 
-        <section class="card notes" aria-labelledby="about">
-          <h2 class="muted small sectionHeading" id="about">About iwannasun</h2>
+        <section class="card notes" aria-label="About iwannasun">
           <div class="muted small aboutText">
             <p><b>Why cloud percentage can mislead:</b> Cloud percentage does not tell you if the sun is actually blocked, especially when the sun is low on the horizon.</p>
 
@@ -181,6 +192,7 @@
               (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>).
               Data may be modified for presentation. Model: iwannasun.
             </p>
+            <p class="aboutAttrib aboutFeedback">Tell us what you think → <a href="mailto:hello@iwannasun.com">hello@iwannasun.com</a></p>
           </div>
         </section>
       </aside>
@@ -191,6 +203,7 @@
     <p class="muted small">iwannasun is a weather-based sunlight planning tool for daily outdoor decisions.</p>
   </footer>
 
+  <script src="/forecast-selectors.js" defer></script>
   <script src="/app.js" defer></script>
 </body>
 </html>

@@ -45,6 +45,7 @@ const els = {
   daySelect: $('daySelect'),
 
   decisionWrap: $('decisionWrap'),
+  decisionLead: $('decisionLead'),
   decisionText: $('decisionText'),
   decisionContext: $('decisionContext'),
   whyInline: $('whyInline'),
@@ -57,6 +58,7 @@ const els = {
 
   meterScore: $('meterScore'),
   meterConf: $('meterConf'),
+  sunQualityLegend: $('sunQualityLegend'),
 
   nextWindow: $('nextWindow'),
   nextWindowHeading: $('nextWindowHeading'),
@@ -71,19 +73,9 @@ const els = {
 };
 
 const ctx = els.canvas ? els.canvas.getContext('2d') : null;
-
-function ensureClearLocationButton() {
-  if (els.btnClearLocation) return;
-  if (!els.cityWrap) return;
-  const btn = document.createElement('button');
-  btn.id = 'btnClearLocation';
-  btn.className = 'clearInputBtn';
-  btn.type = 'button';
-  btn.setAttribute('aria-label', 'Clear location');
-  btn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><line x1="4" y1="4" x2="12" y2="12"></line><line x1="12" y1="4" x2="4" y2="12"></line></svg>';
-  els.cityWrap.insertAdjacentElement('beforeend', btn);
-  els.btnClearLocation = btn;
-}
+const IWS_SELECTOR_TEST_MODE = Boolean(
+  typeof window !== 'undefined' && window.IWS_SELECTOR_TEST_MODE === true
+);
 
 function updateClearLocationButton() {
   if (!els.btnClearLocation || !els.cityInput) return;
@@ -92,18 +84,7 @@ function updateClearLocationButton() {
   els.btnClearLocation.disabled = !hasValue;
 }
 
-ensureClearLocationButton();
 updateClearLocationButton();
-
-if (!els.modelModeNote && els.errBox && els.errBox.parentNode) {
-  const note = document.createElement('div');
-  note.id = 'modelModeNote';
-  note.className = 'muted small modelModeNote';
-  note.setAttribute('aria-live', 'polite');
-  note.style.display = 'none';
-  els.errBox.insertAdjacentElement('afterend', note);
-  els.modelModeNote = note;
-}
 
 // ===== State =====
 const state = {
@@ -122,20 +103,14 @@ const state = {
 };
 
 let _lastAtmosThemeKey = '';
-
-// ===== Mood =====
-function setMood(mood) {
-  // Background is now fully continuous; keep mood classes disabled.
-  const root = document.documentElement; // <html>
-  if (!root) return;
-  root.classList.remove('mood-sunny', 'mood-mixed', 'mood-blocked');
-}
-
+let _lastRenderSnapshot = null;
+let _chartAxisKey = '';
 
 // ===== Request control =====
 let _dayAbort = null;
 let _fetchDaySeq = 0;
 let _activeFetchDaySeq = 0;
+let _locationSeq = 0;
 
 // ===== Helpers =====
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -197,7 +172,7 @@ function clearChartHover() {
   if (!_chartHover.active && _chartHover.idx < 0) return;
   _chartHover.active = false;
   _chartHover.idx = -1;
-  renderSoon();
+  redrawChartOnly();
 }
 
 function chartHoverIndexFromClientX(clientX) {
@@ -218,7 +193,7 @@ function updateChartHoverFromClientX(clientX) {
   if (_chartHover.active && _chartHover.idx === idx) return;
   _chartHover.active = true;
   _chartHover.idx = idx;
-  renderSoon();
+  redrawChartOnly();
 }
 
 function showError(msg) {
@@ -247,6 +222,69 @@ function setLabelLeadText(el, text) {
     }
   }
   lead.textContent = text;
+}
+
+function clearForecastUi() {
+  _chartHover.active = false;
+  _chartHover.idx = -1;
+  _chartGeom = null;
+  _lastAtmosThemeKey = '';
+  _lastRenderSnapshot = null;
+  _chartAxisKey = '';
+
+  if (els.timePill) {
+    els.timePill.textContent = '—';
+    els.timePill.title = '';
+  }
+
+  if (els.decisionLead) els.decisionLead.textContent = '';
+  if (els.labelScore) els.labelScore.textContent = 'Sun score now';
+  if (els.labelConf) setLabelLeadText(els.labelConf, 'Confidence now ');
+  if (els.decisionText) els.decisionText.textContent = '—';
+  if (els.decisionWrap) els.decisionWrap.style.color = '';
+  if (els.scoreNow) els.scoreNow.textContent = '—';
+  if (els.confNow) {
+    els.confNow.textContent = '—';
+    els.confNow.title = '';
+  }
+  if (els.decisionContext) els.decisionContext.textContent = '';
+  if (els.whyInline) {
+    els.whyInline.textContent = '';
+    els.whyInline.classList.remove('secondaryLine');
+  }
+  setMeter(els.meterScore, 0, 'rgba(51,51,51,0.10)');
+  setMeter(els.meterConf, 0, 'rgba(51,51,51,0.10)');
+
+  if (els.nextWindowHeading) els.nextWindowHeading.textContent = 'Your next sun break';
+  if (els.nextWindow) {
+    els.nextWindow.textContent = '—';
+    els.nextWindow.classList.add('big');
+    els.nextWindow.classList.remove('good', 'bad');
+  }
+  if (els.nextWindowSub) els.nextWindowSub.textContent = '—';
+
+  if (els.sunriseTime) {
+    els.sunriseTime.textContent = '—';
+    els.sunriseTime.title = '';
+  }
+  if (els.sunsetTime) {
+    els.sunsetTime.textContent = '—';
+    els.sunsetTime.title = '';
+  }
+
+  if (els.timeline) {
+    els.timeline.style.display = 'none';
+    els.timeline.innerHTML = '';
+  }
+
+  renderChart([], null);
+
+  if (els.modelModeNote) {
+    els.modelModeNote.style.display = 'none';
+    els.modelModeNote.textContent = '';
+  }
+
+  applyAtmosphericTheme(null);
 }
 
 function setBusy(isBusy) {
@@ -358,95 +396,217 @@ function tUtc(r) {
 }
 const tMs = (r) => (r && typeof r._tMs === 'number') ? r._tMs : (tUtc(r)?.getTime() ?? NaN);
 
-function daylightWindow(dayRows, padMinutes = 30) {
-  const rows = (dayRows || []);
-  let first = null;
-  let last = null;
+// Derived forecast selectors live in a dedicated file so rules stay decoupled from DOM rendering.
+const forecastSelectors = window.IWSForecastSelectors?.createForecastSelectors?.({
+  isDaylightRow,
+  tUtc,
+  tMs,
+  localHourForDate,
+  config: {
+    DEFAULT_THRESHOLD,
+    MEANINGFUL_WINDOW_MINUTES,
+    SIDE_CARD_THRESHOLD,
+    SIDE_CARD_MEANINGFUL_WINDOW_MINUTES,
+    TIMELINE_MAX_ROWS,
+  },
+});
 
-  for (const r of rows) {
-    if (isDaylightRow(r)) { first = tUtc(r); break; }
-  }
-  for (let i = rows.length - 1; i >= 0; i--) {
-    if (isDaylightRow(rows[i])) { last = tUtc(rows[i]); break; }
-  }
-  if (!first || !last) return null;
-
-  const start = new Date(first.getTime() - padMinutes * 60000);
-  const end = new Date(last.getTime() + padMinutes * 60000);
-  return { start, end };
+if (!forecastSelectors) {
+  throw new Error('IWS forecast selectors module failed to load.');
 }
 
+const {
+  daylightWindow,
+  meaningfulWindows,
+  chartRowsForWindow,
+  maxElevationFromRows,
+  nearestRowToLocalHour,
+  selectDecisionViewState,
+  selectSideCardViewState,
+  selectThemeViewState,
+  selectChartViewState,
+  visibleTimelineRows,
+  selectTimelineViewState,
+  deriveForecastRenderState,
+} = forecastSelectors;
+
+class ForecastNormalizationError extends Error {
+  constructor(message, details = null) {
+    super(message);
+    this.name = 'ForecastNormalizationError';
+    this.details = details;
+  }
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function toTrimmedStringOrNull(value) {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return s ? s : null;
+}
+
+function toFiniteNumberOrFallback(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeClampedNumber(value, {
+  fallback = 0,
+  min = -Infinity,
+  max = Infinity,
+} = {}) {
+  return clamp(toFiniteNumberOrFallback(value, fallback), min, max);
+}
+
+function normalizeTimestamp(value) {
+  if (value == null || value === '') return null;
+  const d = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function normalizeForecastWindow(rawWindow) {
+  if (!isPlainObject(rawWindow)) return null;
+  const startDate = normalizeTimestamp(rawWindow.start);
+  const endDate = normalizeTimestamp(rawWindow.end);
+  if (!startDate || !endDate) return null;
+
+  const startMs = startDate.getTime();
+  const endMs = endDate.getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
+
+  const minutesRaw = Number(rawWindow.minutes);
+  const minutes = (Number.isFinite(minutesRaw) && minutesRaw >= 0)
+    ? Math.round(minutesRaw)
+    : Math.max(0, Math.round((endMs - startMs) / 60000));
+
+  return {
+    ...rawWindow,
+    start: startDate.toISOString(),
+    end: endDate.toISOString(),
+    minutes,
+  };
+}
+
+function normalizeForecastWindowMap(rawMap) {
+  if (!isPlainObject(rawMap)) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(rawMap)) {
+    out[String(key)] = normalizeForecastWindow(value);
+  }
+  return out;
+}
+
+function normalizeCloudFields(rawCloud) {
+  const cloud = isPlainObject(rawCloud) ? rawCloud : {};
+  return {
+    ...cloud,
+    low: normalizeClampedNumber(cloud.low, { fallback: 0, min: 0, max: 100 }),
+    mid: normalizeClampedNumber(cloud.mid, { fallback: 0, min: 0, max: 100 }),
+    high: normalizeClampedNumber(cloud.high, { fallback: 0, min: 0, max: 100 }),
+    precip_mm: Math.max(0, toFiniteNumberOrFallback(cloud.precip_mm, 0)),
+  };
+}
+
+function normalizeDayIndex(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.trunc(n));
+}
+
+function normalizeTimelineRow(rawRow, rowIndex = 0) {
+  if (!isPlainObject(rawRow)) {
+    throw new ForecastNormalizationError('Malformed forecast row: expected object.', { rowIndex });
+  }
+
+  const parsedUtc = normalizeTimestamp(rawRow.time_utc || rawRow.time_local);
+  if (!parsedUtc) {
+    throw new ForecastNormalizationError('Malformed forecast row: missing valid timestamp.', {
+      rowIndex,
+      time_utc: rawRow.time_utc ?? null,
+      time_local: rawRow.time_local ?? null,
+    });
+  }
+
+  const elevation = toFiniteNumberOrFallback(rawRow.elevation, 0);
+  const confidence = normalizeClampedNumber(rawRow.confidence, { fallback: 0, min: 0, max: 1 });
+  const sunScore = normalizeClampedNumber(rawRow.sun_score, { fallback: 0, min: 0, max: 100 });
+
+  const normalized = {
+    ...rawRow,
+    day_index: normalizeDayIndex(rawRow.day_index),
+    time_utc: parsedUtc.toISOString(),
+    time_local: toTrimmedStringOrNull(rawRow.time_local),
+    sun_score: sunScore,
+    confidence,
+    elevation,
+    azimuth: toFiniteNumberOrFallback(rawRow.azimuth, 180),
+    is_daylight: (typeof rawRow.is_daylight === 'boolean') ? rawRow.is_daylight : elevation > 0,
+    cloud: normalizeCloudFields(rawRow.cloud),
+    _tUtc: parsedUtc,
+    _tMs: parsedUtc.getTime(),
+  };
+
+  return normalized;
+}
+
+function bucketForecastRowsByDay(timelineRows) {
+  const days = {};
+  for (const row of (timelineRows || [])) {
+    const dayIndex = normalizeDayIndex(row?.day_index);
+    (days[dayIndex] ||= []).push(row);
+  }
+  for (const key of Object.keys(days)) {
+    days[key].sort((a, b) => tMs(a) - tMs(b));
+  }
+  return days;
+}
+
+function normalizeForecastMeta(rawMeta) {
+  const meta = isPlainObject(rawMeta) ? rawMeta : {};
+  const intervalMinutes = toFiniteNumberOrFallback(meta.interval_minutes, 0);
+  return {
+    ...meta,
+    tz_name: toTrimmedStringOrNull(meta.tz_name),
+    interval_minutes: (Number.isFinite(intervalMinutes) && intervalMinutes > 0) ? intervalMinutes : 0,
+  };
+}
+
+function normalizeForecastPayload(rawData) {
+  if (!isPlainObject(rawData)) {
+    throw new ForecastNormalizationError('Malformed forecast payload: expected object.');
+  }
+  if (!Array.isArray(rawData.timeline)) {
+    throw new ForecastNormalizationError('Malformed forecast payload: timeline must be an array.');
+  }
+
+  const timeline = rawData.timeline.map((row, idx) => normalizeTimelineRow(row, idx));
+  const days = bucketForecastRowsByDay(timeline);
+
+  return {
+    ...rawData,
+    model: toTrimmedStringOrNull(rawData.model),
+    meta: normalizeForecastMeta(rawData.meta),
+    timeline,
+    days,
+    next_sunny_window: normalizeForecastWindow(rawData.next_sunny_window),
+    next_sunny_window_by_day: normalizeForecastWindowMap(rawData.next_sunny_window_by_day),
+  };
+}
 
 // Day bucketing
 function prepData(data) {
-  if (!data?.timeline) return;
-  const days = {};
-  for (const r of data.timeline) {
-    tUtc(r);
-    const di = Number(r.day_index || 0);
-    (days[di] ||= []).push(r);
+  if (!data) {
+    state.days = null;
+    return;
   }
-  // Ensure stable ordering (just in case)
-  for (const k of Object.keys(days)) {
-    days[k].sort((a, b) => tMs(a) - tMs(b));
+  if (isPlainObject(data.days)) {
+    state.days = data.days;
+    return;
   }
-  state.days = days;
-}
-
-// ===== Metrics (Tomorrow averages) =====
-function dayAverages(dayRows) {
-  const rows = (dayRows || []).filter(r => isDaylightRow(r));
-  if (!rows.length) return null;
-
-  let sumScore = 0;
-  let sumConf = 0;
-  let nScore = 0;
-  let nConf = 0;
-
-  // Keep separate counters per field so missing values do not bias averages.
-  let sumLow = 0, sumMid = 0, sumHigh = 0, sumPrecip = 0;
-  let nLow = 0, nMid = 0, nHigh = 0, nPrecip = 0;
-
-  for (const r of rows) {
-    const s = Number(r.sun_score);
-    if (Number.isFinite(s)) { sumScore += s; nScore++; }
-
-    const c = Number(r.confidence);
-    if (Number.isFinite(c)) { sumConf += c; nConf++; }
-
-    const low = Number(r.cloud?.low);
-    if (Number.isFinite(low)) { sumLow += low; nLow++; }
-
-    const mid = Number(r.cloud?.mid);
-    if (Number.isFinite(mid)) { sumMid += mid; nMid++; }
-
-    const high = Number(r.cloud?.high);
-    if (Number.isFinite(high)) { sumHigh += high; nHigh++; }
-
-    const pr = Number(r.cloud?.precip_mm);
-    if (Number.isFinite(pr)) { sumPrecip += pr; nPrecip++; }
-  }
-
-  const avgScore = nScore ? (sumScore / nScore) : 0;
-  const avgConf = nConf ? (sumConf / nConf) : 0;
-
-  const avgLow = nLow ? (sumLow / nLow) : 0;
-  const avgMid = nMid ? (sumMid / nMid) : 0;
-  const avgHigh = nHigh ? (sumHigh / nHigh) : 0;
-  const avgPrecip = nPrecip ? (sumPrecip / nPrecip) : 0;
-
-  const layers = [
-    { name: 'low clouds', v: avgLow },
-    { name: 'mid clouds', v: avgMid },
-    { name: 'high clouds', v: avgHigh },
-  ].sort((a, b) => b.v - a.v);
-
-  return {
-    avgScore,
-    avgConf,
-    clouds: { low: avgLow, mid: avgMid, high: avgHigh, precip_mm: avgPrecip },
-    topLayer: layers[0],
-  };
+  state.days = bucketForecastRowsByDay(data.timeline || []);
 }
 
 // Color mix: 0 = cloudy, 1 = sunny
@@ -627,11 +787,34 @@ function applyAtmosphericTheme(row, twilightContext = null) {
 
 // ===== Rate limit cooldown =====
 let _rlTimer = null;
+function ensureRateLimitTimer() {
+  if (_rlTimer) {
+    clearInterval(_rlTimer);
+    _rlTimer = null;
+  }
+  if (rateLimitRemainingMs() <= 0) return;
+  _rlTimer = setInterval(() => {
+    if (Date.now() >= state.rateLimitUntil) {
+      clearRateLimit();
+      clearError();
+    } else {
+      applyRateLimitUi();
+    }
+  }, 500);
+}
+
 function loadRateLimitUntil() {
   try {
     const raw = sessionStorage.getItem(RL_STORAGE_KEY);
     const v = Number(raw || 0);
-    if (Number.isFinite(v) && v > 0) state.rateLimitUntil = v;
+    if (!Number.isFinite(v) || v <= 0) return;
+    if (v <= Date.now()) {
+      clearRateLimit();
+      return;
+    }
+    state.rateLimitUntil = v;
+    ensureRateLimitTimer();
+    applyRateLimitUi();
   } catch { /* ignore */ }
 }
 function saveRateLimitUntil(ts) {
@@ -650,16 +833,7 @@ function startRateLimitCooldown(seconds, message = '') {
   state.rateLimitMsg = String(message || '').trim();
   saveRateLimitUntil(state.rateLimitUntil);
 
-  if (_rlTimer) clearInterval(_rlTimer);
-  _rlTimer = setInterval(() => {
-    if (Date.now() >= state.rateLimitUntil) {
-      clearRateLimit();
-      clearError();
-    } else {
-      applyRateLimitUi();
-    }
-  }, 500);
-
+  ensureRateLimitTimer();
   applyRateLimitUi();
 }
 function rateLimitRemainingMs() {
@@ -696,6 +870,7 @@ function handleCooldownResponse(res, defaultSeconds, maxSeconds, message) {
 
 // ===== Location =====
 function setLocation(lat, lon, label = '') {
+  _locationSeq += 1;
   state.lat = roundCoord(lat, COORD_STATE_DECIMALS);
   state.lon = roundCoord(lon, COORD_STATE_DECIMALS);
   state.label = (label || '').trim();
@@ -713,6 +888,7 @@ function setLocation(lat, lon, label = '') {
     els.cityInput.value = (state.label && state.label !== 'My location') ? state.label : '';
   }
   updateClearLocationButton();
+  clearForecastUi();
 }
 
 // ===== City search (Open-Meteo geocoding) =====
@@ -872,6 +1048,14 @@ function loadCached(lat, lon, threshold, maxAgeMs = 5 * 60 * 1000, opts = {}) {
   }
 }
 
+function clearCached(lat, lon, threshold, opts = {}) {
+  try {
+    sessionStorage.removeItem(cacheKey(lat, lon, threshold, opts));
+  } catch {
+    // ignore privacy mode / quota behavior
+  }
+}
+
 function saveCached(lat, lon, threshold, data, opts = {}) {
   try {
     const key = cacheKey(lat, lon, threshold, opts);
@@ -889,6 +1073,19 @@ function buildDayUrls(lat, lon, threshold, days, mode) {
     urlRay: base + `&model=ray`,
     urlLocal: base + `&model=local`,
   };
+}
+
+function applyForecastPayload(data, {
+  usedModel = '',
+  fallbackFromRay = false,
+  fallbackReason = '',
+} = {}) {
+  state.data = data;
+  state.tzName = data?.meta?.tz_name || null;
+  state.geometryMode = String(data?.model || usedModel || '').toLowerCase() || null;
+  state.rayFallbackActive = Boolean(fallbackFromRay && state.geometryMode === 'local');
+  state.rayFallbackReason = state.rayFallbackActive ? String(fallbackReason || '') : '';
+  prepData(state.data);
 }
 
 async function fetchDay(force = false) {
@@ -915,6 +1112,7 @@ async function fetchDay(force = false) {
   const lon = state.lon;
   if (lat == null || lon == null) {
     if (isCurrent()) {
+      if (!state.data) clearForecastUi();
       showError('No location set');
       setBusy(false);
     }
@@ -927,18 +1125,30 @@ async function fetchDay(force = false) {
   const { urlRay, urlLocal } = buildDayUrls(lat, lon, threshold, DAYS, wantedMode);
 
   if (!force) {
-    let cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'ray', mode: wantedMode });
-    if (!cached) cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, { days: DAYS, model: 'local', mode: wantedMode });
-    if (cached) {
+    const cacheOptions = [
+      { days: DAYS, model: 'ray', mode: wantedMode },
+      { days: DAYS, model: 'local', mode: wantedMode },
+    ];
+    for (const cacheOpts of cacheOptions) {
+      const cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, cacheOpts);
+      if (!cached) continue;
+
+      let normalizedCached = null;
+      try {
+        normalizedCached = normalizeForecastPayload(cached);
+      } catch (e) {
+        if (!(e instanceof ForecastNormalizationError)) throw e;
+        clearCached(lat, lon, threshold, cacheOpts);
+        console.warn('IWS_MALFORMED_CACHED_FORECAST', e);
+        continue;
+      }
+
       if (!isCurrent()) return;
-      state.data = cached;
-      state.tzName = cached?.meta?.tz_name || null;
-      state.geometryMode = String(cached?.model || '').toLowerCase() || null;
-      state.rayFallbackActive = state.geometryMode === 'local';
-      state.rayFallbackReason = state.rayFallbackActive
-        ? 'Using local geometry fallback (ray unavailable on last successful fetch).'
-        : '';
-      prepData(state.data);
+      applyForecastPayload(normalizedCached, {
+        usedModel: cacheOpts.model,
+        fallbackFromRay: cacheOpts.model === 'local',
+        fallbackReason: 'Using local geometry fallback (ray unavailable on last successful fetch).',
+      });
       render();
       if (isCurrent()) setBusy(false);
       return;
@@ -996,19 +1206,21 @@ async function fetchDay(force = false) {
         const j = await res.json();
         if (typeof j?.detail === 'string') msg = j.detail;
       } catch {}
-      if (isCurrent()) showError(msg);
+      if (isCurrent()) {
+        if (!state.data) clearForecastUi();
+        showError(msg);
+      }
       return;
     }
 
-    const data = await res.json();
+    const rawData = await res.json();
     if (!isCurrent()) return;
-    state.data = data;
-    state.tzName = data?.meta?.tz_name || null;
-    state.geometryMode = String(data?.model || usedModel || '').toLowerCase() || null;
-    state.rayFallbackActive = Boolean(fallbackFromRay && state.geometryMode === 'local');
-    state.rayFallbackReason = state.rayFallbackActive
-      ? 'Using local geometry fallback (ray request failed).'
-      : '';
+    const data = normalizeForecastPayload(rawData);
+    applyForecastPayload(data, {
+      usedModel,
+      fallbackFromRay,
+      fallbackReason: 'Using local geometry fallback (ray request failed).',
+    });
     if (state.rayFallbackActive) {
       console.info('IWS_MODEL_FALLBACK', {
         from: 'ray',
@@ -1017,13 +1229,19 @@ async function fetchDay(force = false) {
         error_code: fallbackErrorCode || null,
       });
     }
-    prepData(state.data);
 
-    saveCached(lat, lon, threshold, data, { days: DAYS, model: usedModel, mode: wantedMode });
+    saveCached(lat, lon, threshold, rawData, { days: DAYS, model: usedModel, mode: wantedMode });
     render();
   } catch (e) {
     if (e && (e.name === 'AbortError' || e.code === 20)) return;
-    if (isCurrent()) showError('Network error (could not reach API).');
+    if (isCurrent()) {
+      if (!state.data) clearForecastUi();
+      showError(
+        e instanceof ForecastNormalizationError
+          ? 'Received malformed forecast data. Please try again.'
+          : 'Network error (could not reach API).'
+      );
+    }
     console.error(e);
   } finally {
     if (isCurrent()) setBusy(false);
@@ -1044,7 +1262,6 @@ function sunQualityFromScore(score, isNight) {
       label: 'No sun',
       emoji: '🌙',
       support: 'Sun is below the horizon.',
-      mood: 'blocked',
     };
   }
 
@@ -1054,7 +1271,6 @@ function sunQualityFromScore(score, isNight) {
       label: 'Very weak sun',
       emoji: '☁️',
       support: 'Sunlight is mostly blocked right now.',
-      mood: 'blocked',
     };
   }
   if (s <= 40) {
@@ -1062,7 +1278,6 @@ function sunQualityFromScore(score, isNight) {
       label: 'Weak sun',
       emoji: '🌥️',
       support: 'Only brief or faint sunlight possible.',
-      mood: 'blocked',
     };
   }
   if (s <= 60) {
@@ -1070,7 +1285,6 @@ function sunQualityFromScore(score, isNight) {
       label: 'Limited sun',
       emoji: '⛅',
       support: 'Sunlight is faint or appears briefly.',
-      mood: 'mixed',
     };
   }
   if (s <= 80) {
@@ -1078,14 +1292,12 @@ function sunQualityFromScore(score, isNight) {
       label: 'Good sun',
       emoji: '🌤️',
       support: 'Sunlight is mostly clear, but slightly faint or briefly blocked.',
-      mood: 'sunny',
     };
   }
   return {
     label: 'Excellent sun',
     emoji: '☀️',
     support: 'Strong, uninterrupted sunlight.',
-    mood: 'sunny',
   };
 }
 
@@ -1095,7 +1307,6 @@ function sunQualityFromScoreTomorrow(score, isNight) {
       label: 'No sun',
       emoji: '🌙',
       support: 'The sun stays below the horizon tomorrow.',
-      mood: 'blocked',
     };
   }
 
@@ -1105,7 +1316,6 @@ function sunQualityFromScoreTomorrow(score, isNight) {
       label: 'Very weak sun',
       emoji: '☁️',
       support: 'Direct sunlight looks limited for most of tomorrow.',
-      mood: 'blocked',
     };
   }
   if (s <= 40) {
@@ -1113,7 +1323,6 @@ function sunQualityFromScoreTomorrow(score, isNight) {
       label: 'Weak sun',
       emoji: '🌥️',
       support: 'Only brief or faint sunlight for most of tomorrow.',
-      mood: 'blocked',
     };
   }
   if (s <= 60) {
@@ -1121,7 +1330,6 @@ function sunQualityFromScoreTomorrow(score, isNight) {
       label: 'Limited sun',
       emoji: '⛅',
       support: 'Sunlight is faint or appears briefly tomorrow.',
-      mood: 'mixed',
     };
   }
   if (s <= 80) {
@@ -1129,36 +1337,25 @@ function sunQualityFromScoreTomorrow(score, isNight) {
       label: 'Good sun',
       emoji: '🌤️',
       support: 'Sunlight is mostly clear for much of tomorrow, but slightly faint.',
-      mood: 'sunny',
     };
   }
   return {
     label: 'Excellent sun',
     emoji: '☀️',
     support: 'Strong sunlight for most of tomorrow.',
-    mood: 'sunny',
   };
 }
 
 function renderDecision(focusRow, context = { label: 'now' }) {
-  let decisionLead = document.getElementById('decisionLead');
-  if (!decisionLead && els.decisionContext && els.decisionContext.parentNode) {
-    decisionLead = document.createElement('div');
-    decisionLead.id = 'decisionLead';
-    decisionLead.className = 'muted small decisionLead';
-    els.decisionContext.insertAdjacentElement('beforebegin', decisionLead);
-  }
-
   if (!focusRow) {
     if (els.decisionText) els.decisionText.textContent = '—';
     if (els.scoreNow) els.scoreNow.textContent = '—';
     if (els.confNow) els.confNow.textContent = '—';
-    if (decisionLead) decisionLead.textContent = '';
+    if (els.decisionLead) els.decisionLead.textContent = '';
     if (els.decisionContext) els.decisionContext.textContent = '';
     if (els.whyInline) els.whyInline.textContent = '';
     setMeter(els.meterScore, 0, 'rgba(51,51,51,0.10)');
     setMeter(els.meterConf, 0, 'rgba(51,51,51,0.10)');
-    setMood(null);
     return;
   }
 
@@ -1219,11 +1416,8 @@ function renderDecision(focusRow, context = { label: 'now' }) {
       : sunColor;
   }
 
-  // Set wellness mood class on <html> root
-  setMood(quality.mood);
-
-  if (decisionLead) {
-    decisionLead.textContent = isTomorrow ? 'Based on daylight sun score average.' : '';
+  if (els.decisionLead) {
+    els.decisionLead.textContent = isTomorrow ? 'Based on daylight sun score average.' : '';
   }
 
   // Primary support line: deterministic by horizon/score band only.
@@ -1238,94 +1432,6 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     els.whyInline.textContent = secondary.join(' ');
     els.whyInline.classList.toggle('secondaryLine', secondary.length > 0);
   }
-}
-
-function ensureSunQualityLegend() {
-  if (document.getElementById('sunQualityLegend')) return;
-  const kpi = document.querySelector('.kpi');
-  if (!kpi) return;
-
-  const el = document.createElement('div');
-  el.id = 'sunQualityLegend';
-  el.className = 'sunQualityLegend muted small';
-  el.setAttribute('aria-label', 'Sun quality score legend');
-  el.textContent = 'Sun score: 0–20 ☁️ · 20–40 🌥️ · 40–60 ⛅ · 60–80 🌤️ · 80–100 ☀️';
-  kpi.insertAdjacentElement('afterend', el);
-}
-
-function timelineIntervalMinutes(dayRows) {
-  const rows = dayRows || [];
-  if (rows.length >= 2) {
-    const dt = Math.round((tMs(rows[1]) - tMs(rows[0])) / 60000);
-    if (Number.isFinite(dt) && dt > 0) return dt;
-  }
-  const apiDt = Number(state?.data?.meta?.interval_minutes || 0);
-  if (Number.isFinite(apiDt) && apiDt > 0) return apiDt;
-  return 10;
-}
-
-function meaningfulWindows(dayRows, threshold = DEFAULT_THRESHOLD, minMinutes = MEANINGFUL_WINDOW_MINUTES) {
-  const rows = dayRows || [];
-  if (!rows.length) return [];
-
-  const intervalMinutes = timelineIntervalMinutes(rows);
-  const minMs = minMinutes * 60000;
-  const out = [];
-  let startMs = null;
-  let endMs = null;
-
-  for (const r of rows) {
-    const ok = isDaylightRow(r) && Number(r.sun_score || 0) >= threshold;
-    const ms = tMs(r);
-
-    if (ok && startMs == null) {
-      startMs = ms;
-      endMs = ms + intervalMinutes * 60000;
-      continue;
-    }
-    if (ok && startMs != null) {
-      endMs = ms + intervalMinutes * 60000;
-      continue;
-    }
-
-    if (!ok && startMs != null && endMs != null) {
-      if ((endMs - startMs) >= minMs) {
-        out.push({
-          start: new Date(startMs).toISOString(),
-          end: new Date(endMs).toISOString(),
-          minutes: Math.max(0, Math.round((endMs - startMs) / 60000)),
-        });
-      }
-      startMs = null;
-      endMs = null;
-    }
-  }
-
-  if (startMs != null && endMs != null && (endMs - startMs) >= minMs) {
-    out.push({
-      start: new Date(startMs).toISOString(),
-      end: new Date(endMs).toISOString(),
-      minutes: Math.max(0, Math.round((endMs - startMs) / 60000)),
-    });
-  }
-
-  return out;
-}
-
-function pickSideWindowState(dayRows, tomorrowWin) {
-  const nowMs = Date.now();
-  const wins = meaningfulWindows(dayRows, SIDE_CARD_THRESHOLD, SIDE_CARD_MEANINGFUL_WINDOW_MINUTES);
-  const active = wins.find((w) => {
-    const a = new Date(w.start).getTime();
-    const b = new Date(w.end).getTime();
-    return nowMs >= a && nowMs < b;
-  });
-  if (active) return { mode: 'active_today', win: active };
-
-  const upcoming = wins.find((w) => new Date(w.start).getTime() > nowMs);
-  if (upcoming) return { mode: 'next_today', win: upcoming };
-
-  return { mode: 'fallback_tomorrow', win: tomorrowWin || null };
 }
 
 function renderNextWindow(win, opts = {}) {
@@ -1371,12 +1477,8 @@ function renderNextWindow(win, opts = {}) {
   }
 }
 
-function renderTimeline(dayRows, dayIndex = 0, win = null) {
+function renderTimeline(visibleRows) {
   if (!els.timeline) return;
-
-  const nowMs = Date.now();
-  win = win || daylightWindow(dayRows, 30);
-  const endMsToday = win ? win.end.getTime() : Infinity;
 
   const parts = [];
   parts.push(
@@ -1384,17 +1486,8 @@ function renderTimeline(dayRows, dayIndex = 0, win = null) {
       + '<div>Time</div><div title="Confidence">Conf.</div><div>Sun score</div></div>'
   );
 
-  let shown = 0;
-  for (const r of (dayRows || [])) {
+  for (const r of (visibleRows || [])) {
     const dt = tUtc(r);
-    const inWin = win ? (dt >= win.start && dt <= win.end) : isDaylightRow(r);
-    if (!inWin) continue;
-
-    const ms = tMs(r);
-    if (Number(dayIndex) === 0 && ms < nowMs) continue;
-    if (Number(dayIndex) === 0 && ms > endMsToday) continue;
-    if (shown >= TIMELINE_MAX_ROWS) break;
-
     const t = fmtTime(dt);
     const s = Math.round(Number(r.sun_score || 0));
     const c = isDaylightRow(r) ? Math.round(Number(r.confidence || 0) * 100) : null;
@@ -1415,41 +1508,12 @@ function renderTimeline(dayRows, dayIndex = 0, win = null) {
         + '</div>'
         + '</div>'
     );
-
-    shown += 1;
   }
 
   els.timeline.innerHTML = parts.join('');
 }
 
-function chartRowsForWindow(dayRows, win = null) {
-  if (!dayRows || !dayRows.length) return [];
-  if (!win) return [];
-
-  let startIdx = 0;
-  let endIdx = dayRows.length - 1;
-
-  for (let i = 0; i < dayRows.length; i++) {
-    if (tUtc(dayRows[i]) >= win.start) { startIdx = Math.max(0, i); break; }
-  }
-  for (let i = dayRows.length - 1; i >= 0; i--) {
-    if (tUtc(dayRows[i]) <= win.end) { endIdx = Math.min(dayRows.length - 1, i); break; }
-  }
-
-  if (endIdx < startIdx) return [];
-  return dayRows.slice(startIdx, endIdx + 1);
-}
-
-function maxElevationFromRows(rows) {
-  let maxElev = -Infinity;
-  for (const r of (rows || [])) {
-    const e = Number(r?.elevation);
-    if (Number.isFinite(e) && e > maxElev) maxElev = e;
-  }
-  return maxElev;
-}
-
-function renderChart(dayRows, win = null) {
+function renderChart(dayRows, win = null, rowsOverride = null) {
   if (!els.canvas || !ctx) return;
 
   // Use rect sizing (more reliable on mobile than clientWidth during reflow)
@@ -1474,6 +1538,7 @@ function renderChart(dayRows, win = null) {
 
   if (!dayRows || !dayRows.length) {
     _chartGeom = null;
+    _chartAxisKey = '';
     if (els.yAxis) els.yAxis.innerHTML = '';
     if (els.xAxis) els.xAxis.innerHTML = '';
     return;
@@ -1482,14 +1547,16 @@ function renderChart(dayRows, win = null) {
   win = win || daylightWindow(dayRows, 30);
   if (!win) {
     _chartGeom = null;
+    _chartAxisKey = '';
     if (els.yAxis) els.yAxis.innerHTML = '';
     if (els.xAxis) els.xAxis.innerHTML = '';
     return;
   }
 
-  const rows = chartRowsForWindow(dayRows, win);
+  const rows = rowsOverride || chartRowsForWindow(dayRows, win);
   if (!rows.length) {
     _chartGeom = null;
+    _chartAxisKey = '';
     if (els.yAxis) els.yAxis.innerHTML = '';
     if (els.xAxis) els.xAxis.innerHTML = '';
     return;
@@ -1498,14 +1565,15 @@ function renderChart(dayRows, win = null) {
   const elevs = rows.map(r => Math.max(0, Number(r.elevation || 0)));
   const maxElevRaw = Math.max(...elevs, 1);
   const maxElev = Math.max(10, Math.ceil(maxElevRaw / 10) * 10);
+  const axisKey = chartAxisKeyForRows(rows, state.tzName, maxElev);
 
-  if (els.yAxis) {
+  if (els.yAxis && axisKey !== _chartAxisKey) {
     const ticks = [];
     for (let d = maxElev; d >= 0; d -= 10) ticks.push(d);
     els.yAxis.innerHTML = ticks.map(d => `<div>${d}°</div>`).join('');
   }
 
-  if (els.xAxis) {
+  if (els.xAxis && axisKey !== _chartAxisKey) {
     const t0 = tUtc(rows[0]);
     const t1 = tUtc(rows[rows.length - 1]);
     const steps = 4;
@@ -1523,6 +1591,7 @@ function renderChart(dayRows, win = null) {
     }
     els.xAxis.innerHTML = labels.map(t => `<div>${t}</div>`).join('');
   }
+  _chartAxisKey = axisKey;
 
   const padX = 14;
   const padTop = 14;
@@ -1728,219 +1797,341 @@ function renderChart(dayRows, win = null) {
   }
 }
 
-function nearestNowRow(dayRows) {
-  const nowMs = Date.now();
-  let best = null;
-  let bestDt = Infinity;
-  for (const r of (dayRows || [])) {
-    const dt = Math.abs(tMs(r) - nowMs);
-    if (dt < bestDt) { bestDt = dt; best = r; }
-  }
-  return best;
+function currentDayIndex() {
+  return Number(els.daySelect?.value || 0);
 }
 
-function nearestRowToLocalHour(dayRows, hour = 12) {
-  const rows = (dayRows || []);
-  if (!rows.length) return null;
-
-  // Use the first row's UTC timestamp and then format/display with tz.
-  // The selection is "closest to local hour" visually; this is only for a stable default row.
-  const base = tUtc(rows[0]);
-  const target = new Date(base);
-  target.setHours(hour, 0, 0, 0);
-
-  let best = rows[0];
-  let bestDt = Infinity;
-  for (const r of rows) {
-    const t = tUtc(r);
-    const dt = Math.abs(t - target);
-    if (dt < bestDt) { bestDt = dt; best = r; }
+function ensurePreparedDays() {
+  const dayIndex = currentDayIndex();
+  let dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : null;
+  if (!dayRows) {
+    prepData(state.data);
   }
-  return best;
 }
 
-function buildTomorrowSyntheticDecisionRow(avg, anchor) {
-  return {
-    sun_score: avg.avgScore,
-    confidence: avg.avgConf,
-    elevation: Number(anchor?.elevation || 1),
-    azimuth: Number(anchor?.azimuth || 180),
-    is_daylight: true,
-    time_utc: anchor?.time_utc || null,
-    time_local: anchor?.time_local || null,
-    _themeFallback: true,
-    cloud: avg.clouds,
-  };
+function getCurrentForecastRenderState(nowMs = Date.now()) {
+  if (!state.data) return null;
+  ensurePreparedDays();
+  return deriveForecastRenderState({
+    data: state.data,
+    days: state.days,
+    dayIndex: currentDayIndex(),
+    nowMs,
+  });
 }
 
-function selectDecisionRenderState(dayIndex, dayRows, chartMaxElevation) {
-  if (dayIndex === 0) {
-    const focusRow = nearestNowRow(dayRows);
-    const themeRow = focusRow || nearestRowToLocalHour(dayRows, 12);
-    return {
-      decisionRow: focusRow,
-      decisionContext: { label: 'now', chartMaxElevation },
-      themeRow,
-    };
-  }
-
-  const avg = dayAverages(dayRows);
-  if (!avg) {
-    const fallback = nearestRowToLocalHour(dayRows, 12);
-    const themeFallbackRow = fallback ? { ...fallback, _themeFallback: true } : fallback;
-    return {
-      decisionRow: themeFallbackRow,
-      decisionContext: { label: 'tomorrow (no daylight)', chartMaxElevation },
-      themeRow: themeFallbackRow,
-    };
-  }
-
-  const anchor = nearestRowToLocalHour(dayRows, 12);
-  const synthetic = buildTomorrowSyntheticDecisionRow(avg, anchor);
-  return {
-    decisionRow: synthetic,
-    decisionContext: { label: 'tomorrow (daylight average)', chartMaxElevation },
-    themeRow: synthetic,
-  };
+function redrawChartOnly(nowMs = Date.now()) {
+  const renderState = getCurrentForecastRenderState(nowMs);
+  if (!renderState) return false;
+  renderChart(renderState.chart.dayRows, renderState.chart.dayWin30, renderState.chart.chartRows);
+  return true;
 }
 
-function selectSideWindowRenderState(dayIndex, dayRows, data) {
-  const win = data?.next_sunny_window_by_day
-    ? (data.next_sunny_window_by_day[String(dayIndex)] || null)
-    : (data?.next_sunny_window || null);
-  const tomorrowWin = data?.next_sunny_window_by_day
-    ? (data.next_sunny_window_by_day['1'] || null)
+function updateTimePill() {
+  if (!els.timePill) return;
+  if (state.tzName) {
+    els.timePill.textContent = fmtTime(new Date());
+    els.timePill.title = `Local time (${state.tzName})`;
+  } else {
+    els.timePill.textContent = '—';
+    els.timePill.title = '';
+  }
+}
+
+function renderSunriseSunset(dayWin) {
+  if (!els.sunriseTime || !els.sunsetTime) return;
+  if (!dayWin) {
+    els.sunriseTime.textContent = '—';
+    els.sunsetTime.textContent = '—';
+    els.sunriseTime.title = 'No sunrise (sun stays below horizon)';
+    els.sunsetTime.title = 'No sunset (sun stays below horizon)';
+    return;
+  }
+  els.sunriseTime.textContent = fmtTime(dayWin.start);
+  els.sunsetTime.textContent = fmtTime(dayWin.end);
+  els.sunriseTime.title = fmtDateTime(dayWin.start);
+  els.sunsetTime.title = fmtDateTime(dayWin.end);
+}
+
+function renderTimelineState(timelineState) {
+  if (!els.timeline) return;
+  if (!timelineState?.hasDaylightAhead) {
+    els.timeline.style.display = 'none';
+    els.timeline.innerHTML = '';
+    return;
+  }
+  els.timeline.style.display = 'block';
+  renderTimeline(timelineState.visibleRows);
+}
+
+function renderModelModeNote() {
+  if (!els.modelModeNote) return;
+  if (state.rayFallbackActive) {
+    els.modelModeNote.style.display = 'block';
+    els.modelModeNote.textContent = state.rayFallbackReason;
+  } else {
+    els.modelModeNote.style.display = 'none';
+    els.modelModeNote.textContent = '';
+  }
+}
+
+function rowSnapshotKey(row) {
+  if (!row) return 'null';
+  return [
+    row.time_utc || '',
+    Number(row.sun_score || 0),
+    Number(row.confidence || 0),
+    Number(row.elevation || 0),
+    row.is_daylight ? 1 : 0,
+    row._themeFallback ? 1 : 0,
+    Number(row.cloud?.precip_mm || 0),
+  ].join('|');
+}
+
+function windowSnapshotKey(win) {
+  if (!win) return 'null';
+  return [
+    win.start || '',
+    win.end || '',
+    Number(win.minutes || 0),
+  ].join('|');
+}
+
+function rowsSnapshotKey(rows) {
+  return (rows || []).map((row) => rowSnapshotKey(row)).join('||');
+}
+
+function chartAxisKeyForRows(rows, tzName = state.tzName, maxElevOverride = null) {
+  const chartRows = rows || [];
+  if (!chartRows.length) return '';
+
+  let maxElev = maxElevOverride;
+  if (!Number.isFinite(maxElev)) {
+    maxElev = maxElevationFromRows(chartRows);
+  }
+  const axisMaxElev = Math.max(10, Math.ceil(Math.max(1, Number(maxElev || 0)) / 10) * 10);
+  return [
+    tzName || '',
+    axisMaxElev,
+    chartRows.length,
+    chartRows[0]?.time_utc || '',
+    chartRows[chartRows.length - 1]?.time_utc || '',
+  ].join('|');
+}
+
+function buildRenderSnapshot(renderState, nowMs = Date.now()) {
+  const activeRemainingMinutes = renderState.sideCard?.opts?.activeNow && renderState.sideCard?.win
+    ? Math.max(0, Math.round((new Date(renderState.sideCard.win.end).getTime() - nowMs) / 60000))
     : null;
-
-  if (dayIndex === 1) {
-    return {
-      win,
-      opts: {
-        heading: 'Tomorrow’s likely sun window',
-        emptySub: 'No meaningful window tomorrow.',
-      },
-    };
-  }
-
-  const side = pickSideWindowState(dayRows, tomorrowWin);
-  if (side.mode === 'active_today') {
-    return {
-      win: side.win,
-      opts: {
-        heading: 'Sunlight likely now',
-        activeNow: true,
-      },
-    };
-  }
-  if (side.mode === 'next_today') {
-    return {
-      win: side.win,
-      opts: {
-        heading: 'Next likely sun window today',
-      },
-    };
-  }
   return {
-    win: side.win,
-    opts: {
-      heading: 'Tomorrow’s likely sun window',
-      emptySub: 'No meaningful window left today.',
-    },
+    decisionKey: [
+      renderState.decision.contextLabel,
+      Number(renderState.decision.chartMaxElevation || 0),
+      rowSnapshotKey(renderState.decision.decisionRow),
+    ].join('|'),
+    themeKey: [
+      rowSnapshotKey(renderState.theme.themeRow),
+      renderState.theme.twilightContext?.sunrise?.toISOString?.() || '',
+      renderState.theme.twilightContext?.sunset?.toISOString?.() || '',
+    ].join('|'),
+    sideCardKey: [
+      renderState.sideCard.mode,
+      windowSnapshotKey(renderState.sideCard.win),
+      renderState.sideCard.opts?.heading || '',
+      renderState.sideCard.opts?.emptySub || '',
+      renderState.sideCard.opts?.activeNow ? 1 : 0,
+      activeRemainingMinutes == null ? '' : activeRemainingMinutes,
+    ].join('|'),
+    sunriseSunsetKey: renderState.theme.dayWin
+      ? `${renderState.theme.dayWin.start.toISOString()}|${renderState.theme.dayWin.end.toISOString()}`
+      : 'none',
+    timelineKey: [
+      renderState.timeline.hasDaylightAhead ? 1 : 0,
+      rowsSnapshotKey(renderState.timeline.visibleRows),
+    ].join('|'),
+    chartDataKey: rowsSnapshotKey(renderState.chart.chartRows),
+    chartAxisKey: chartAxisKeyForRows(renderState.chart.chartRows),
   };
 }
 
-function buildAtmosphericThemeInput(dayIndex, dayRows, themeRow) {
-  const dayWin = daylightWindow(dayRows, 0);
-  const useTwilightOverlay = dayIndex === 0;
+function computeRenderPlan(snapshot, prevSnapshot = null, {
+  full = false,
+  includeRateLimitUi = false,
+  includeModelModeNote = false,
+} = {}) {
   return {
-    themeRow,
-    twilightContext: (useTwilightOverlay && dayWin)
-      ? { sunrise: dayWin.start, sunset: dayWin.end }
-      : null,
-    dayWin,
+    updateTimePill: true,
+    updateDecision: full || snapshot.decisionKey !== prevSnapshot?.decisionKey,
+    updateTheme: full || snapshot.themeKey !== prevSnapshot?.themeKey,
+    updateSideCard: full || snapshot.sideCardKey !== prevSnapshot?.sideCardKey,
+    updateSunriseSunset: full || snapshot.sunriseSunsetKey !== prevSnapshot?.sunriseSunsetKey,
+    redrawChart: true,
+    updateTimeline: full || snapshot.timelineKey !== prevSnapshot?.timelineKey,
+    updateRateLimitUi: includeRateLimitUi,
+    updateModelModeNote: includeModelModeNote,
+  };
+}
+
+function applyRenderState(renderState, snapshot, prevSnapshot = null, {
+  full = false,
+  includeRateLimitUi = false,
+  includeModelModeNote = false,
+} = {}) {
+  const plan = computeRenderPlan(snapshot, prevSnapshot, {
+    full,
+    includeRateLimitUi,
+    includeModelModeNote,
+  });
+
+  if (plan.updateTimePill) updateTimePill();
+
+  if (plan.updateDecision) {
+    renderDecision(renderState.decision.decisionRow, {
+      label: renderState.decision.contextLabel,
+      chartMaxElevation: renderState.decision.chartMaxElevation,
+    });
+  }
+
+  if (plan.updateTheme) {
+    applyAtmosphericTheme(renderState.theme.themeRow, renderState.theme.twilightContext);
+  }
+
+  if (plan.updateSideCard) {
+    renderNextWindow(renderState.sideCard.win, renderState.sideCard.opts);
+  }
+
+  if (plan.updateSunriseSunset) {
+    renderSunriseSunset(renderState.theme.dayWin);
+  }
+
+  if (plan.redrawChart) {
+    renderChart(renderState.chart.dayRows, renderState.chart.dayWin30, renderState.chart.chartRows);
+  }
+
+  if (plan.updateTimeline) {
+    renderTimelineState(renderState.timeline);
+  }
+
+  if (plan.updateRateLimitUi) applyRateLimitUi();
+  if (plan.updateModelModeNote) renderModelModeNote();
+}
+
+function setSelectorTestTimezone(tzName = '') {
+  state.tzName = String(tzName || '').trim() || null;
+  _fmtCache.clear();
+  _hourFmtCache.clear();
+}
+
+if (IWS_SELECTOR_TEST_MODE && typeof window !== 'undefined') {
+  function setSelectorTestAppState({
+    data = null,
+    days = null,
+    tzName = '',
+    isBusy = false,
+    dayIndex = 0,
+  } = {}) {
+    state.data = data;
+    state.days = days;
+    state.tzName = String(tzName || '').trim() || null;
+    state.isBusy = Boolean(isBusy);
+    if (els.daySelect) els.daySelect.value = String(dayIndex);
+  }
+
+  function resetSelectorTestRenderState() {
+    _lastRenderSnapshot = null;
+    _chartAxisKey = '';
+    _chartGeom = null;
+    _chartHover.active = false;
+    _chartHover.idx = -1;
+  }
+
+  function getSelectorTestInternals() {
+    return {
+      lastRenderSnapshot: _lastRenderSnapshot ? { ..._lastRenderSnapshot } : null,
+      chartAxisKey: _chartAxisKey,
+      chartHover: { active: _chartHover.active, idx: _chartHover.idx },
+      chartGeom: _chartGeom ? { ..._chartGeom } : null,
+    };
+  }
+
+  function setSelectorTestChartHover({
+    active = false,
+    idx = -1,
+    geom = undefined,
+  } = {}) {
+    _chartHover.active = Boolean(active);
+    _chartHover.idx = _chartHover.active ? Number(idx) : -1;
+    if (geom !== undefined) _chartGeom = geom;
+  }
+
+  window.IWS_SELECTOR_TEST_API = {
+    deriveForecastRenderState,
+    selectDecisionViewState,
+    selectSideCardViewState,
+    selectThemeViewState,
+    selectChartViewState,
+    selectTimelineViewState,
+    visibleTimelineRows,
+    meaningfulWindows,
+    nearestRowToLocalHour,
+    computeAtmosphericTheme,
+    daylightWindow,
+    localHourForDate,
+    normalizeForecastPayload,
+    normalizeTimelineRow,
+    normalizeForecastWindow,
+    bucketForecastRowsByDay,
+    buildRenderSnapshot,
+    computeRenderPlan,
+    chartAxisKeyForRows,
+    redrawChartOnly,
+    render,
+    refreshTimeSensitiveUi,
+    setSelectorTestTimezone,
+    setSelectorTestAppState,
+    resetSelectorTestRenderState,
+    getSelectorTestInternals,
+    setSelectorTestChartHover,
   };
 }
 
 function render() {
   if (!state.data) {
-    if (els.modelModeNote) els.modelModeNote.style.display = 'none';
+    clearForecastUi();
     return;
   }
-
-  // Local time pill
-  if (els.timePill) {
-    if (state.tzName) {
-      els.timePill.textContent = fmtTime(new Date());
-      els.timePill.title = `Local time (${state.tzName})`;
-    } else {
-      els.timePill.textContent = '—';
-      els.timePill.title = '';
-    }
-  }
-
-  const dayIndex = Number(els.daySelect?.value || 0);
-
-  let dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : null;
-  if (!dayRows) {
-    prepData(state.data);
-    dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : [];
-  }
-  const dayWin30 = daylightWindow(dayRows, 30);
-  const chartRows = chartRowsForWindow(dayRows, dayWin30);
-  const chartMaxElevation = maxElevationFromRows(chartRows);
-
-  const decisionState = selectDecisionRenderState(dayIndex, dayRows, chartMaxElevation);
-  renderDecision(decisionState.decisionRow, decisionState.decisionContext);
-
-  const atmosphereInput = buildAtmosphericThemeInput(dayIndex, dayRows, decisionState.themeRow);
-  const dayWin = atmosphereInput.dayWin;
-  applyAtmosphericTheme(atmosphereInput.themeRow, atmosphereInput.twilightContext);
-
-  const sideWindowState = selectSideWindowRenderState(dayIndex, dayRows, state.data);
-  renderNextWindow(sideWindowState.win, sideWindowState.opts);
-
-  // Sunrise/sunset (derived from daylight range like before)
-  if (els.sunriseTime && els.sunsetTime) {
-    if (!dayWin) {
-      els.sunriseTime.textContent = '—';
-      els.sunsetTime.textContent = '—';
-      els.sunriseTime.title = 'No sunrise (sun stays below horizon)';
-      els.sunsetTime.title = 'No sunset (sun stays below horizon)';
-    } else {
-      els.sunriseTime.textContent = fmtTime(dayWin.start);
-      els.sunsetTime.textContent = fmtTime(dayWin.end);
-      els.sunriseTime.title = fmtDateTime(dayWin.start);
-      els.sunsetTime.title = fmtDateTime(dayWin.end);
-    }
-  }
-
-  renderChart(dayRows, dayWin30);
-
-  // Hide timeline if no daylight ahead for selected day
   const nowMs = Date.now();
-  const hasDaylightAhead = (dayIndex === 0)
-    ? (dayRows || []).some(r => isDaylightRow(r) && tMs(r) >= nowMs)
-    : (dayRows || []).some(r => isDaylightRow(r));
-
-  if (!hasDaylightAhead) {
-    if (els.timeline) { els.timeline.style.display = 'none'; els.timeline.innerHTML = ''; }
-  } else {
-    if (els.timeline) els.timeline.style.display = 'block';
-    renderTimeline(dayRows, dayIndex, dayWin30);
+  const renderState = getCurrentForecastRenderState(nowMs);
+  if (!renderState) {
+    clearForecastUi();
+    return;
   }
+  const snapshot = buildRenderSnapshot(renderState, nowMs);
+  applyRenderState(renderState, snapshot, _lastRenderSnapshot, {
+    full: true,
+    includeRateLimitUi: true,
+    includeModelModeNote: true,
+  });
+  _lastRenderSnapshot = snapshot;
+  _lastUiMinute = Math.floor(nowMs / 60000);
+}
 
-  // Keep refresh disabled if rate-limited
-  applyRateLimitUi();
+function refreshTimeSensitiveUi(force = false) {
+  if (!state.data || state.isBusy) return;
+  const nowMs = Date.now();
+  const m = Math.floor(nowMs / 60000);
+  if (!force && _lastUiMinute === m) return;
+  _lastUiMinute = m;
 
-  if (els.modelModeNote) {
-    if (state.rayFallbackActive) {
-      els.modelModeNote.style.display = 'block';
-      els.modelModeNote.textContent = state.rayFallbackReason;
-    } else {
-      els.modelModeNote.style.display = 'none';
-      els.modelModeNote.textContent = '';
-    }
-  }
+  const renderState = getCurrentForecastRenderState(nowMs);
+  if (!renderState) return;
+  const snapshot = buildRenderSnapshot(renderState, nowMs);
+  applyRenderState(renderState, snapshot, _lastRenderSnapshot, {
+    full: false,
+    includeRateLimitUi: false,
+    includeModelModeNote: false,
+  });
+  _lastRenderSnapshot = snapshot;
 }
 
 // ===== Actions =====
@@ -1962,6 +2153,7 @@ async function useHere({ silent = false } = {}) {
   
       // Immediate feedback
       setLocation(lat, lon, 'My location');
+      const reverseGeocodeSeq = _locationSeq;
   
       // Start forecast ASAP (don't wait for city lookup)
       fetchDay(false);
@@ -1987,6 +2179,8 @@ async function useHere({ silent = false } = {}) {
             '';
   
           if (city) {
+            if (reverseGeocodeSeq !== _locationSeq) return;
+            if (state.lat !== lat || state.lon !== lon) return;
             // Only update label; keep the same lat/lon and don't clear state.data
             state.label = String(city).trim();
             if (els.cityInput) els.cityInput.value = state.label;
@@ -2229,29 +2423,25 @@ function initMobilePullToRefresh() {
   }, { passive: true });
 }
 
-initMobilePullToRefresh();
+if (!IWS_SELECTOR_TEST_MODE) initMobilePullToRefresh();
 
 // Keep UI fresh (time pill + “now” marker)
 let _uiTick = null;
 let _lastUiMinute = null;
 
 function uiRefresh() {
-  if (!state.data || state.isBusy) return;
-  const m = Math.floor(Date.now() / 60000);
-  if (_lastUiMinute === m) return;
-  _lastUiMinute = m;
-  render();
+  refreshTimeSensitiveUi(false);
 }
 
 function startUiTick() {
   if (_uiTick) return;
-  uiRefresh();
+  refreshTimeSensitiveUi(true);
   _uiTick = setInterval(uiRefresh, 15 * 1000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) uiRefresh(); });
-  window.addEventListener('focus', uiRefresh);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshTimeSensitiveUi(true); });
+  window.addEventListener('focus', () => refreshTimeSensitiveUi(true));
 }
 
-startUiTick();
+if (!IWS_SELECTOR_TEST_MODE) startUiTick();
 
 function getPresetLocation() {
   const raw = window.IWS_PRESET_LOCATION;
@@ -2271,9 +2461,9 @@ function getPresetLocation() {
 
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', () => {
+  if (IWS_SELECTOR_TEST_MODE) return;
   updateClearLocationButton();
-  ensureSunQualityLegend();
-  applyAtmosphericTheme(null);
+  clearForecastUi();
   loadRateLimitUntil();
   applyRateLimitUi();
 
@@ -2283,7 +2473,6 @@ window.addEventListener('DOMContentLoaded', () => {
   state.geometryMode = null;
   state.rayFallbackActive = false;
   state.rayFallbackReason = '';
-  if (els.timePill) { els.timePill.textContent = '—'; els.timePill.title = ''; }
 
   const preset = getPresetLocation();
   if (preset) {
