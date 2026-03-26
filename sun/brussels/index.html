@@ -14,7 +14,10 @@
   <meta name="twitter:title" content="When Will the Sun Come Out in Brussels? | iwannasun Sun Forecast" />
   <meta name="twitter:description" content="See likely sun breaks in Brussels with a practical timeline forecast." />
   <link rel="stylesheet" href="/styles/base.css">
-  <link rel="stylesheet" href="/styles/app.css">
+  <link rel="stylesheet" href="/styles/theme-atmosphere.css">
+  <link rel="stylesheet" href="/styles/components-forecast.css">
+  <link rel="stylesheet" href="/styles/components-location.css">
+  <link rel="stylesheet" href="/styles/components-chart.css">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
@@ -203,7 +206,13 @@
     <p class="muted small">iwannasun is a weather-based sunlight planning tool for daily outdoor decisions.</p>
   </footer>
 
+  <script src="/forecast-model.js" defer></script>
   <script src="/forecast-selectors.js" defer></script>
+  <script src="/render/timeline.js" defer></script>
+  <script src="/render/chart.js" defer></script>
+  <script src="/theme/atmosphere.js" defer></script>
+  <script src="/controllers/location.js" defer></script>
+  <script src="/controllers/interactions.js" defer></script>
   <script src="/app.js" defer></script>
 </body>
 </html>

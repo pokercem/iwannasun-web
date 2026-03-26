@@ -1,0 +1,130 @@
+/*
+ * Location/search controls.
+ * Responsibilities: search input, clear control, current-location button
+ * layout, and suggestion dropdown styling.
+ */
+
+.cityWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+body:not(.solarApiPage) .cityWrap {
+  z-index: 160;
+}
+
+.cityInput {
+  width: 170px;
+  max-width: 100%;
+  padding-right: 34px;
+}
+
+@media (max-width: 768px) {
+  .cityInput {
+    font-size: 16px;
+  }
+}
+
+.clearInputBtn {
+  position: absolute;
+  right: 8px;
+  top: 0;
+  bottom: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  width: auto;
+  height: 100%;
+  border-radius: 0;
+  padding: 6px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clearInputBtn:hover,
+.clearInputBtn:focus-visible {
+  opacity: 0.75;
+  background: transparent;
+}
+
+body:not(.solarApiPage) .cityWrap .clearInputBtn,
+body:not(.solarApiPage) .cityWrap .clearInputBtn:hover,
+body:not(.solarApiPage) .cityWrap .clearInputBtn:focus-visible,
+body:not(.solarApiPage) .cityWrap .clearInputBtn:active {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.clearInputBtn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+  pointer-events: none;
+}
+
+.suggest {
+  position: absolute;
+  top: 42px;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(20, 24, 28, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  max-height: min(280px, 50vh);
+  display: none;
+  z-index: 220;
+  backdrop-filter: blur(14px);
+}
+
+body:not(.solarApiPage) .suggest {
+  z-index: 240;
+}
+
+.suggest .item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(20, 24, 28, 0.08);
+}
+
+.suggest .item:last-child {
+  border-bottom: none;
+}
+
+.suggest .item:hover {
+  background: rgba(244, 184, 96, 0.10);
+}
+
+.suggest .name {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.suggest .meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+@media (max-width: 520px) {
+  .cityWrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cityInput {
+    width: 100%;
+  }
+}

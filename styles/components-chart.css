@@ -1,0 +1,94 @@
+/*
+ * Chart surface styles.
+ * Responsibilities: chart canvas, axes, chart title block, and chart sizing.
+ */
+
+.chartBlock {
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+
+.chartTitle {
+  opacity: 0.85;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.chartTitle > * {
+  min-width: 0;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  touch-action: pan-y;
+  height: 220px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background:
+    radial-gradient(760px 320px at 26% -6%, rgba(244, 184, 96, 0.10), rgba(244, 184, 96, 0.00) 64%),
+    radial-gradient(760px 280px at 82% 104%, rgba(155, 189, 217, 0.10), rgba(155, 189, 217, 0.00) 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(155, 189, 217, 0.06) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -18px 28px rgba(155, 189, 217, 0.06);
+  margin-top: 8px;
+}
+
+@media (pointer: coarse) {
+  canvas {
+    touch-action: none;
+  }
+}
+
+.chartWrap {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 6px;
+  align-items: stretch;
+  margin-top: 8px;
+}
+
+.yAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+  user-select: none;
+}
+
+.xAxis {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 40px;
+  margin-left: -15px;
+  margin-right: -15px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  user-select: none;
+}
+
+.xAxis > div {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 700px) {
+  canvas {
+    height: 160px;
+  }
+}
+
+@media (max-width: 360px) {
+  canvas {
+    height: 145px;
+  }
+}

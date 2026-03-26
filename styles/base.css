@@ -1,7 +1,7 @@
 /*
- * Main stylesheet for iwannasun.
- * Responsibilities: page layout, responsive behavior, visual mood states,
- * and styling for controls, chart/timeline, and supporting content blocks.
+ * Shared app shell styles for iwannasun.
+ * Responsibilities: reset, global tokens, shell/layout, generic cards,
+ * shared controls, and typography utilities used across app pages.
  */
 
 .srOnly {
@@ -247,102 +247,6 @@ body > main.wrap {
 
 .row > * { flex: none; }
 
-/* Allow header controls to shrink/wrap instead of forcing horizontal overflow */
-.rowBetweenTop .rightControls > * {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.rowBetweenTop .rightControls select {
-  max-width: 100%;
-}
-
-.rowBetweenTop {
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: nowrap;
-  gap: 16px;
-}
-
-/* Give decision area more breathing room */
-.decisionBlock {
-  padding-right: 10px;
-}
-
-/* Critical: allow the left decision block to shrink on small screens */
-.rowBetweenTop .decisionBlock {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* Keep the controls sized to content */
-.rowBetweenTop .rightControls {
-  flex: 0 0 auto;
-}
-
-/* Ensure long sentences wrap instead of expanding the layout */
-.decisionContext,
-.whyInline {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  margin-top: 6px;
-  max-width: 560px;
-}
-
-.rowTop { align-self: flex-start; }
-.rightControls {
-  justify-content: flex-end;
-  gap: 8px;
-  opacity: 0.9;
-}
-
-/* Decision text blocks */
-.decisionContext {
-  margin-top: 8px;
-  line-height: 1.45;
-  font-size: 12.5px;
-  max-width: 560px;
-  color: var(--muted);
-}
-
-.whyInline {
-  margin-top: 5px;
-  line-height: 1.5;
-  font-size: 13px;
-  max-width: 560px;
-  color: rgba(20, 24, 28, 0.78);
-}
-
-.whyInline.secondaryLine {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--muted);
-}
-
-/* Make the answer feel like a "moment" */
-#decisionWrap {
-  display: inline-flex;
-  align-items: baseline;
-  padding: 1px 0 2px;
-  border-radius: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-#decisionText {
-  font-size: 30px;
-  line-height: 1.04;
-  font-weight: 590;
-  letter-spacing: 0.18px;
-}
-
-/* Inputs / buttons */
-.modelModeNote {
-  margin-top: 8px;
-  line-height: 1.35;
-}
-
 .pill {
   padding: 6px 10px;
   border-radius: 999px;
@@ -389,3 +293,140 @@ input:focus, select:focus {
   box-shadow: 0 0 0 4px rgba(244, 184, 96, 0.14);
 }
 
+/* Titles */
+.small { font-size: 12px; }
+.muted { color: var(--muted); }
+
+.big {
+  font-size: 24px;
+  margin: 0;
+  letter-spacing: 0.1px;
+  font-weight: 500;
+}
+
+.bad { color: var(--bad); }
+
+.siteFooter {
+  padding-top: 0;
+}
+
+.siteFooter p {
+  margin: 0;
+  text-align: center;
+}
+
+.cityList {
+  margin-top: 8px;
+  padding-left: 16px;
+}
+
+.cityList li {
+  margin: 3px 0;
+}
+
+.help {
+  opacity: 0.75;
+  font-weight: 600;
+  cursor: help;
+}
+
+@media (max-width: 700px) {
+  html,
+  body {
+    overscroll-behavior-y: contain;
+  }
+
+  .wrap {
+    padding-top: 14px;
+  }
+
+  .controls > .muted.small:first-child {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .topbar {
+    align-items: stretch;
+    gap: 8px;
+    padding: 9px 14px;
+    min-width: 0;
+  }
+
+  .brand {
+    flex: 0 0 45%;
+    max-width: 45%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .brandLogo {
+    height: 70px;
+    width: auto;
+  }
+
+  .brandText {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .brand .sub {
+    font-size: 11px;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  .controls > .muted.small:first-child {
+    font-size: 10.8px;
+    line-height: 1.12;
+  }
+
+  .controlsHelper .desktopCopy { display: none; }
+  .controlsHelper .mobileCopy { display: inline; }
+
+  .controls {
+    flex: 0 0 55%;
+    max-width: 55%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .pillRow,
+  .btnRow {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pillRow .pill {
+    width: 100%;
+  }
+
+  .btnRow button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .card {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .wrap {
+    padding: 14px;
+  }
+}
