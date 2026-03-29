@@ -3,40 +3,73 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>iwannasun Internal Visual Compare</title>
+  <title>iwannasun Local Scorer Compare</title>
   <meta name="robots" content="noindex,nofollow,noarchive" />
   <link rel="stylesheet" href="./test.css" />
 </head>
 <body class="locked">
   <main class="dashboard">
     <header class="hero">
-      <p class="eyebrow">Internal</p>
-      <h1>Production vs Candidate Visual Compare</h1>
-      <p class="sub">Quick visual judgment: does the candidate sun score curve look better?</p>
+      <p class="eyebrow">Debug-Only Local Compare</p>
+      <h1>Production vs Candidate Scorer Compare</h1>
+      <p class="sub">
+        Source of truth is <code>/v1/day_compare</code>. The payload now names both the production scorer and the explicit candidate
+        scorer used for the compare.
+      </p>
     </header>
 
     <section class="panel accessPanel">
-      <h2>Internal Access</h2>
-      <p class="note">This page requires a valid internal token before charts and debug tools are shown.</p>
+      <h2>Access</h2>
+      <p class="note">
+        Local loopback access is allowed on <code>localhost</code> and <code>127.0.0.1</code>. Non-local use still requires a valid
+        internal token.
+      </p>
       <div class="accessRow">
         <input id="unlockTokenInput" type="password" placeholder="IWS_INTERNAL_ACCESS_TOKEN" autocomplete="off" />
-        <button id="unlockBtn" type="button">Unlock Dashboard</button>
+        <button id="unlockBtn" type="button">Unlock Compare</button>
       </div>
       <p id="accessStatus" class="accessStatus" aria-live="polite">Locked.</p>
     </section>
 
     <section class="panel controls requiresAccess">
-      <div class="controls-grid">
+      <div class="controlsHeader">
+        <div>
+          <h2>Compare Request</h2>
+          <p class="note">One request, one candidate, one explicit production-vs-candidate comparison.</p>
+        </div>
+        <div class="sourceBadge">
+          <span>Source</span>
+          <code>/v1/day_compare</code>
+        </div>
+      </div>
+
+      <div class="laneGrid">
+        <article class="laneCard">
+          <p class="laneLabel">Production Lane</p>
+          <h3>Active API Production Scorer</h3>
+          <p class="laneNote">
+            The production scorer identity comes from the compare payload itself, not from a frontend assumption.
+          </p>
+        </article>
+
+        <article class="laneCard laneCardCandidate">
+          <label>
+            Candidate Scorer
+            <select id="candidateSelect">
+              <option value="a21_usable_sun_persistence_g008" selected>A21 usable_sun_persistence_g008</option>
+              <option value="practical_v12_1">practical_v12_1</option>
+            </select>
+          </label>
+          <p class="laneNote">
+            Candidate selection is explicit. No hidden fallback or shadow magic.
+          </p>
+        </article>
+      </div>
+
+      <div class="controlsGrid">
         <label>
           Location
           <input id="citySearch" type="text" placeholder="City or lat,lon (52.084,4.346)" autocomplete="off" />
-        </label>
-
-        <label>
-          Candidate
-          <select id="candidateSelect">
-            <option value="practical_v12_1" selected>practical_v12_1</option>
-          </select>
         </label>
 
         <label>
@@ -50,17 +83,17 @@
         </label>
       </div>
 
+      <div class="city-results" id="cityResults"></div>
+
       <div class="actions">
-        <button id="runBtn" type="button">Update Charts</button>
+        <button id="runBtn" type="button">Run Compare</button>
         <span id="statusText" aria-live="polite"></span>
         <div class="rowFilter" role="group" aria-label="Rows filter">
-          <span>Rows</span>
-          <button id="filterAllBtn" type="button" class="ghost active">All</button>
+          <span>Timeline</span>
+          <button id="filterAllBtn" type="button" class="ghost active">All rows</button>
           <button id="filterChangedBtn" type="button" class="ghost">Changed only</button>
         </div>
       </div>
-
-      <div class="city-results" id="cityResults"></div>
 
       <details class="advancedRequest">
         <summary>Advanced request options</summary>
@@ -87,65 +120,96 @@
               <option value="local">local</option>
             </select>
           </label>
-          <label>
-            Shadow summary since
-            <input id="sinceInput" type="text" value="24h" />
-          </label>
-          <label>
-            Internal token
-            <input id="tokenInput" type="password" placeholder="X-IWS-Internal-Token" />
-          </label>
         </div>
       </details>
     </section>
 
+    <section class="panel requiresAccess">
+      <div class="controlsHeader">
+        <div>
+          <h2>Run Summary</h2>
+          <p class="note">The compare response is the only scoring source of truth used by this page.</p>
+        </div>
+      </div>
+      <div id="metaCards" class="metaCards">
+        <div class="metaCard placeholder">No compare loaded yet.</div>
+      </div>
+      <p id="sourceTruthNote" class="note note-tight">
+        Both scorer names now come from <code>/v1/day_compare</code>. This page does not guess production identity locally.
+      </p>
+    </section>
+
     <section class="panel chartPanel requiresAccess">
-      <h2>Main Chart</h2>
-      <p class="note">Public-style sun score curve, fixed to 0-100 for both production and candidate.</p>
+      <div class="controlsHeader">
+        <div>
+          <h2>Score Curves</h2>
+          <p class="note">Production and candidate sun score curves on the same 0–100 scale.</p>
+        </div>
+      </div>
       <div class="chartWrap">
         <div id="mainYAxis" class="yAxis"></div>
-        <canvas id="compareChart" height="260" aria-label="Production vs candidate sun score"></canvas>
+        <canvas id="compareChart" height="280" aria-label="Production and candidate sun score curves"></canvas>
       </div>
       <div id="mainXAxis" class="xAxis"></div>
       <div class="legend">
         <span class="legendItem"><i class="line prod"></i>Production</span>
         <span class="legendItem"><i class="line cand"></i>Candidate</span>
         <span class="legendItem"><i class="dot changed"></i>Changed row</span>
+        <span class="legendItem"><i class="dot selected"></i>Selected row</span>
       </div>
       <p id="changedHint" class="note note-tight"></p>
     </section>
 
     <section class="panel chartPanel compact requiresAccess">
-      <h2>Difference Chart</h2>
-      <p class="note">Candidate minus production score.</p>
-      <canvas id="deltaChart" height="120" aria-label="Candidate minus production score"></canvas>
+      <div class="controlsHeader">
+        <div>
+          <h2>Delta Curve</h2>
+          <p class="note">Candidate minus production. Use this to see where the candidate is actually moving the meter.</p>
+        </div>
+      </div>
+      <canvas id="deltaChart" height="140" aria-label="Candidate minus production score"></canvas>
     </section>
 
-    <section class="panel requiresAccess">
-      <details>
-        <summary>Show Debug Table</summary>
+    <section class="detailGrid requiresAccess">
+      <section class="panel">
+        <div class="controlsHeader">
+          <div>
+            <h2>Selected Row Inspector</h2>
+            <p class="note">Click a row in the table or the main chart to inspect one case.</p>
+          </div>
+        </div>
+        <div id="selectedRowCard" class="selectedRowCard">
+          <p class="note">No row selected yet.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="controlsHeader">
+          <div>
+            <h2>Biggest Deltas</h2>
+            <p class="note">Sorted by absolute score delta so the important disagreements show up first.</p>
+          </div>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>time</th>
-                <th>production_score</th>
-                <th>candidate_score</th>
+                <th>prod</th>
+                <th>cand</th>
                 <th>delta</th>
-                <th>low_sun</th>
-                <th>broken_cloud</th>
-                <th>high_disagree</th>
+                <th>tags</th>
               </tr>
             </thead>
             <tbody id="rowsBody"></tbody>
           </table>
         </div>
-      </details>
+      </section>
     </section>
 
     <section class="panel requiresAccess">
       <details>
-        <summary>Advanced Debug (hidden)</summary>
+        <summary>Advanced payload / raw compare response</summary>
         <pre id="debugPayload">No data loaded yet.</pre>
       </details>
     </section>
