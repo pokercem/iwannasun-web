@@ -110,13 +110,20 @@
             <div class="muted small whyInline" id="whyInline"></div>
           </div>
 
-          <div class="row rowTop rightControls">
-            <span class="muted small" id="timePill" title="Local time">—</span>
-            <select id="daySelect" aria-label="Select day">
-              <option value="0">Today</option>
-              <option value="1">Tomorrow</option>
-            </select>
-            <button id="btnRefresh" class="btn" type="button" aria-label="Refresh data">Refresh</button>
+          <div class="rightControls">
+            <div class="row rowTop rightControlsTopRow">
+              <span class="muted small" id="timePill" title="Local time">
+                <span class="localTimeLabel">Local time </span><span class="localTimeValue">—</span>
+              </span>
+              <select id="daySelect" aria-label="Select day">
+                <option value="0">Today</option>
+                <option value="1">Tomorrow</option>
+              </select>
+              <button id="btnRefresh" class="btn" type="button" aria-label="Refresh data">Refresh</button>
+            </div>
+            <div class="rightControlsBottomRow">
+              <button id="btnShare" class="btn btnShare" type="button" aria-label="Share forecast">Share</button>
+            </div>
           </div>
         </div>
 

@@ -12,6 +12,7 @@
       showError,
       setBusy,
       nextPaint,
+      onLocationStateChange,
     } = opts;
 
     let attached = false;
@@ -33,6 +34,14 @@
       }[c]));
     }
 
+    function resetTimePill() {
+      if (!els.timePill) return;
+      const valueEl = els.timePill.querySelector('.localTimeValue');
+      if (valueEl) valueEl.textContent = '—';
+      else els.timePill.textContent = '—';
+      els.timePill.title = '';
+    }
+
     function updateClearLocationButton() {
       if (!els.btnClearLocation || !els.cityInput) return;
       const hasValue = String(els.cityInput.value || '').trim().length > 0;
@@ -50,15 +59,13 @@
       state.days = null;
       state.tzName = null;
 
-      if (els.timePill) {
-        els.timePill.textContent = '—';
-        els.timePill.title = '';
-      }
+      resetTimePill();
       if (els.cityInput) {
         els.cityInput.value = (state.label && state.label !== 'My location') ? state.label : '';
       }
       updateClearLocationButton();
       clearForecastUi();
+      if (typeof onLocationStateChange === 'function') onLocationStateChange();
     }
 
     function hideCityResults() {
@@ -171,6 +178,7 @@
                 state.label = String(city).trim();
                 if (els.cityInput) els.cityInput.value = state.label;
                 updateClearLocationButton();
+                if (typeof onLocationStateChange === 'function') onLocationStateChange();
               }
             } catch {
               // Ignore reverse geocode failures and keep the optimistic label.

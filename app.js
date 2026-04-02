@@ -18,6 +18,11 @@ const COORD_STATE_DECIMALS = 3;
 const COORD_CACHE_KEY_DECIMALS = 3;
 const MEANINGFUL_WINDOW_MINUTES = 20;
 const SIDE_CARD_MEANINGFUL_WINDOW_MINUTES = 10;
+const SHARE_NOTICE_DURATION_MS = 3000;
+const SHARE_VIEW_LAT_PARAM = 'lat';
+const SHARE_VIEW_LON_PARAM = 'lon';
+const SHARE_VIEW_LABEL_PARAM = 'label';
+const SHARE_VIEW_DAY_PARAM = 'day';
 
 // Timeline limits
 const TIMELINE_MAX_ROWS = 84;
@@ -42,6 +47,7 @@ const els = {
 
   btnHere: $('btnHere'),
   btnRefresh: $('btnRefresh'),
+  btnShare: $('btnShare'),
   daySelect: $('daySelect'),
 
   decisionWrap: $('decisionWrap'),
@@ -102,6 +108,8 @@ let interactionController = null;
 let _dayAbort = null;
 let _fetchDaySeq = 0;
 let _activeFetchDaySeq = 0;
+let _shareNoticeTimer = null;
+let _shareNoticeEl = null;
 
 // ===== Helpers =====
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -165,6 +173,136 @@ function clearChartHover() {
   interactionController.clearChartHover();
 }
 
+function setTimePillValue(text) {
+  if (!els.timePill) return;
+  const valueEl = els.timePill.querySelector('.localTimeValue');
+  if (valueEl) {
+    valueEl.textContent = String(text || '—');
+    return;
+  }
+  els.timePill.textContent = String(text || '—');
+}
+
+function ensureShareNotice() {
+  if (_shareNoticeEl && document.body?.contains(_shareNoticeEl)) return _shareNoticeEl;
+  const el = document.createElement('div');
+  el.className = 'shareNotice';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  document.body.appendChild(el);
+  _shareNoticeEl = el;
+  return el;
+}
+
+function showShareNotice(message, {
+  isError = false,
+  durationMs = SHARE_NOTICE_DURATION_MS,
+} = {}) {
+  const el = ensureShareNotice();
+  globalThis.clearTimeout(_shareNoticeTimer);
+  el.textContent = String(message || '');
+  el.classList.toggle('isError', Boolean(isError));
+  el.classList.add('isVisible');
+  _shareNoticeTimer = globalThis.setTimeout(() => {
+    el.classList.remove('isVisible');
+  }, Math.max(500, Number(durationMs || SHARE_NOTICE_DURATION_MS)));
+}
+
+function currentDayIndex() {
+  return Number(els.daySelect?.value || 0);
+}
+
+function normalizedShareDayIndex(value = currentDayIndex()) {
+  return clamp(Math.trunc(Number(value || 0)), 0, 1);
+}
+
+function normalizedShareLabel() {
+  const label = String(state.label || '').trim();
+  if (!label) return '';
+  if (label.toLowerCase() === 'my location') return '';
+  return label;
+}
+
+function hasMeaningfulShareLocation(lat = state.lat, lon = state.lon) {
+  const latNum = Number(lat);
+  const lonNum = Number(lon);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return false;
+  if (latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180) return false;
+  if (latNum === 0 && lonNum === 0) return false;
+  return true;
+}
+
+function buildShareUrl({
+  lat = state.lat,
+  lon = state.lon,
+  label = normalizedShareLabel(),
+  dayIndex = normalizedShareDayIndex(),
+} = {}) {
+  const url = new URL(window.location.href);
+  url.search = '';
+
+  if (hasMeaningfulShareLocation(lat, lon)) {
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+    url.searchParams.set(SHARE_VIEW_LAT_PARAM, String(roundCoord(latNum, COORD_STATE_DECIMALS)));
+    url.searchParams.set(SHARE_VIEW_LON_PARAM, String(roundCoord(lonNum, COORD_STATE_DECIMALS)));
+
+    const safeLabel = String(label || '').trim();
+    if (safeLabel) {
+      url.searchParams.set(SHARE_VIEW_LABEL_PARAM, safeLabel);
+    }
+
+    if (dayIndex > 0) {
+      url.searchParams.set(SHARE_VIEW_DAY_PARAM, String(dayIndex));
+    }
+  }
+
+  return url.toString();
+}
+
+function syncShareableUrlState() {
+  if (!window.history || typeof window.history.replaceState !== 'function') return;
+  const nextUrl = buildShareUrl();
+  if (nextUrl === window.location.href) return;
+  window.history.replaceState({}, '', nextUrl);
+}
+
+function readViewStateFromUrl() {
+  let url;
+  try {
+    url = new URL(window.location.href);
+  } catch {
+    return { dayIndex: 0, hasLocation: false };
+  }
+
+  const lat = Number(url.searchParams.get(SHARE_VIEW_LAT_PARAM));
+  const lon = Number(url.searchParams.get(SHARE_VIEW_LON_PARAM));
+  const label = String(url.searchParams.get(SHARE_VIEW_LABEL_PARAM) || '').trim();
+  const dayIndex = normalizedShareDayIndex(url.searchParams.get(SHARE_VIEW_DAY_PARAM));
+  const hasLocation = hasMeaningfulShareLocation(lat, lon);
+
+  return {
+    dayIndex,
+    hasLocation,
+    lat,
+    lon,
+    label,
+  };
+}
+
+function shouldUseNativeShare() {
+  const uaDataMobile = navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean'
+    ? navigator.userAgentData.mobile
+    : null;
+  if (uaDataMobile != null) return uaDataMobile;
+
+  const ua = String(navigator.userAgent || '');
+  if (/Android|iPhone|iPod|Windows Phone|Mobile/i.test(ua)) return true;
+  if (/iPad/i.test(ua)) return true;
+  if (/Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1) return true;
+  return false;
+}
+
 function showError(msg) {
   if (!els.errBox) return;
   els.errBox.style.display = 'block';
@@ -174,6 +312,55 @@ function clearError() {
   if (!els.errBox) return;
   els.errBox.style.display = 'none';
   els.errBox.textContent = '';
+}
+
+async function handleShareClick() {
+  const shareUrl = buildShareUrl();
+  const payload = {
+    title: document.title,
+    text: 'Check out the sun forecast here:',
+    url: shareUrl,
+  };
+
+  if (shouldUseNativeShare() && navigator.share) {
+    try {
+      await navigator.share(payload);
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+    }
+  }
+
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(payload.url);
+      showShareNotice('Link copied');
+      return;
+    }
+  } catch {
+    // Fall through to legacy copy path.
+  }
+
+  try {
+    const input = document.createElement('input');
+    input.value = payload.url;
+    input.setAttribute('readonly', '');
+    input.style.position = 'absolute';
+    input.style.left = '-9999px';
+    document.body.appendChild(input);
+    input.select();
+    input.setSelectionRange(0, input.value.length);
+    const copied = document.execCommand('copy');
+    document.body.removeChild(input);
+    if (copied) {
+      showShareNotice('Link copied');
+      return;
+    }
+  } catch {
+    // No-op.
+  }
+
+  showShareNotice('Copy failed', { isError: true });
 }
 
 function setLabelLeadText(el, text) {
@@ -200,7 +387,7 @@ function clearForecastUi() {
   _chartAxisKey = '';
 
   if (els.timePill) {
-    els.timePill.textContent = '—';
+    setTimePillValue('—');
     els.timePill.title = '';
   }
 
@@ -932,7 +1119,9 @@ function renderDecision(focusRow, context = { label: 'now' }) {
   }
 
   if (els.decisionLead) {
-    els.decisionLead.textContent = isTomorrow ? 'Based on daylight sun score average.' : '';
+    els.decisionLead.innerHTML = isTomorrow
+      ? '<span class="decisionContext decisionContextSubtle">Based on daylight sun score average.</span>'
+      : '';
   }
 
   // Primary support line: deterministic by horizon/score band only.
@@ -1030,10 +1219,6 @@ function renderChart(dayRows, win = null, rowsOverride = null) {
   if (interactionController) interactionController.setChartGeom(result?.geom || null);
 }
 
-function currentDayIndex() {
-  return Number(els.daySelect?.value || 0);
-}
-
 function ensurePreparedDays() {
   const dayIndex = currentDayIndex();
   let dayRows = (state.days && state.days[dayIndex]) ? state.days[dayIndex] : null;
@@ -1063,10 +1248,10 @@ function redrawChartOnly(nowMs = Date.now()) {
 function updateTimePill() {
   if (!els.timePill) return;
   if (state.tzName) {
-    els.timePill.textContent = fmtTime(new Date());
+    setTimePillValue(fmtTime(new Date()));
     els.timePill.title = `Local time (${state.tzName})`;
   } else {
-    els.timePill.textContent = '—';
+    setTimePillValue('—');
     els.timePill.title = '';
   }
 }
@@ -1374,6 +1559,7 @@ locationController = locationControllerModule.createLocationController({
   showError,
   setBusy,
   nextPaint,
+  onLocationStateChange: syncShareableUrlState,
 });
 interactionController = interactionControllerModule.createInteractionController({
   els,
@@ -1400,6 +1586,16 @@ function useHere(opts = {}) {
 
 locationController.attach();
 interactionController.attach();
+if (els.daySelect) {
+  els.daySelect.addEventListener('change', () => {
+    syncShareableUrlState();
+  });
+}
+if (els.btnShare) {
+  els.btnShare.addEventListener('click', () => {
+    handleShareClick();
+  });
+}
 updateClearLocationButton();
 
 // ===== Init =====
@@ -1416,6 +1612,17 @@ window.addEventListener('DOMContentLoaded', () => {
   state.geometryMode = null;
   state.rayFallbackActive = false;
   state.rayFallbackReason = '';
+
+  const sharedView = readViewStateFromUrl();
+  if (els.daySelect) {
+    els.daySelect.value = String(sharedView.dayIndex);
+  }
+
+  if (sharedView.hasLocation) {
+    setLocation(sharedView.lat, sharedView.lon, sharedView.label);
+    fetchDay(false);
+    return;
+  }
 
   const preset = locationController ? locationController.getPresetLocation() : null;
   if (preset) {
