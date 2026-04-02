@@ -275,19 +275,27 @@ function setBusy(isBusy) {
 // Format times in the location timezone
 const _fmtCache = new Map();
 const _hourFmtCache = new Map();
+const TIME_FORMAT_LOCALE = 'en-GB';
 function getFormatters() {
   const tz = state.tzName || '';
   if (_fmtCache.has(tz)) return _fmtCache.get(tz);
 
   const make = (opts) => {
-    try { return new Intl.DateTimeFormat([], tz ? { ...opts, timeZone: tz } : opts); }
-    catch { return new Intl.DateTimeFormat([], opts); }
+    try { return new Intl.DateTimeFormat(TIME_FORMAT_LOCALE, tz ? { ...opts, timeZone: tz } : opts); }
+    catch { return new Intl.DateTimeFormat(TIME_FORMAT_LOCALE, opts); }
   };
 
   const f = {
-    hm: make({ hour: '2-digit', minute: '2-digit' }),
-    h: make({ hour: '2-digit' }),
-    full: make({ year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+    hm: make({ hour: '2-digit', minute: '2-digit', hour12: false }),
+    h: make({ hour: '2-digit', hour12: false }),
+    full: make({
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }),
   };
   _fmtCache.set(tz, f);
   return f;
@@ -300,14 +308,14 @@ function getHourFormatter() {
   if (_hourFmtCache.has(tz)) return _hourFmtCache.get(tz);
   let f = null;
   try {
-    f = new Intl.DateTimeFormat('en-US', {
+    f = new Intl.DateTimeFormat(TIME_FORMAT_LOCALE, {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
       timeZone: tz || undefined,
     });
   } catch {
-    f = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    f = new Intl.DateTimeFormat(TIME_FORMAT_LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false });
   }
   _hourFmtCache.set(tz, f);
   return f;

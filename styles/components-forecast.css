@@ -514,9 +514,9 @@
   }
 
   .timeline {
-    --timeline-cols: max-content max-content minmax(0, 1fr);
-    --timeline-col-gap: 8px;
-    --timeline-conf-offset: -10px;
+    --timeline-cols: 50px 40px minmax(0, 1fr);
+    --timeline-col-gap: 4px;
+    --timeline-conf-offset: -5px;
   }
 
   #decisionText {
