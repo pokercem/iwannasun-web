@@ -777,8 +777,15 @@ function saveCached(lat, lon, data) {
 }
 
 // ===== API =====
+function apiUrl(path) {
+  return new URL(String(path || ''), `${API_BASE}/`).toString();
+}
+
 function buildDayUrl(lat, lon) {
-  return `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+  const url = new URL(apiUrl('/day'));
+  url.searchParams.set('lat', String(lat));
+  url.searchParams.set('lon', String(lon));
+  return url.toString();
 }
 
 function applyForecastPayload(data, {
