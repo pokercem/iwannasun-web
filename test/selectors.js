@@ -155,7 +155,9 @@
       ],
       1: [
         row({ timeUtc: '2026-06-02T10:00:00Z', dayIndex: 1, score: 52, confidence: 0.45, elevation: 4 }),
-        row({ timeUtc: '2026-06-02T12:00:00Z', dayIndex: 1, score: 80, confidence: 0.72, elevation: 28 }),
+        row({ timeUtc: '2026-06-02T12:00:00Z', dayIndex: 1, score: 65, confidence: 0.72, elevation: 28 }),
+        row({ timeUtc: '2026-06-02T12:10:00Z', dayIndex: 1, score: 80, confidence: 0.78, elevation: 30 }),
+        row({ timeUtc: '2026-06-02T12:20:00Z', dayIndex: 1, score: 68, confidence: 0.7, elevation: 27 }),
         row({ timeUtc: '2026-06-02T14:00:00Z', dayIndex: 1, score: 62, confidence: 0.6, elevation: 20 }),
       ],
     };
@@ -163,9 +165,6 @@
     return {
       data: {
         meta: { tz_name: 'UTC', interval_minutes: 10 },
-        next_sunny_window_by_day: {
-          1: windowIso('2026-06-02T12:00:00Z', '2026-06-02T13:00:00Z', 60),
-        },
       },
       days,
     };
@@ -269,8 +268,11 @@
       row({ timeUtc: '2026-06-01T10:20:00Z', score: 78, confidence: 0.68, elevation: 20 }),
       row({ timeUtc: '2026-06-01T10:30:00Z', score: 30, confidence: 0.4, elevation: 16 }),
     ];
-    const tomorrowWin = windowIso('2026-06-02T11:00:00Z', '2026-06-02T12:00:00Z', 60);
-    const state = api.selectSideCardViewState(0, rows, { next_sunny_window_by_day: { 1: tomorrowWin } }, toMs('2026-06-01T10:15:00Z'), 10);
+    const tomorrowRows = [
+      row({ timeUtc: '2026-06-02T11:00:00Z', dayIndex: 1, score: 65, confidence: 0.6, elevation: 18 }),
+      row({ timeUtc: '2026-06-02T11:10:00Z', dayIndex: 1, score: 74, confidence: 0.68, elevation: 24 }),
+    ];
+    const state = api.selectSideCardViewState(0, rows, { 1: tomorrowRows }, toMs('2026-06-01T10:15:00Z'), 10);
     assertEqual(state.mode, 'active_today', 'Side-card should detect an active window today.');
     assertEqual(state.win.start, '2026-06-01T10:00:00.000Z', 'Active window start should be preserved.');
     assertEqual(state.win.end, '2026-06-01T10:30:00.000Z', 'Active window end should be preserved.');
@@ -296,11 +298,16 @@
       row({ timeUtc: '2026-06-01T10:10:00Z', score: 18, confidence: 0.35, elevation: 14 }),
       row({ timeUtc: '2026-06-01T10:20:00Z', score: 22, confidence: 0.38, elevation: 12 }),
     ];
-    const tomorrowWin = windowIso('2026-06-02T13:00:00Z', '2026-06-02T14:00:00Z', 60);
-    const state = api.selectSideCardViewState(0, rows, { next_sunny_window_by_day: { 1: tomorrowWin } }, toMs('2026-06-01T12:00:00Z'), 10);
+    const tomorrowRows = [
+      row({ timeUtc: '2026-06-02T13:00:00Z', dayIndex: 1, score: 65, confidence: 0.62, elevation: 20 }),
+      row({ timeUtc: '2026-06-02T13:10:00Z', dayIndex: 1, score: 78, confidence: 0.7, elevation: 24 }),
+      row({ timeUtc: '2026-06-02T13:20:00Z', dayIndex: 1, score: 72, confidence: 0.68, elevation: 22 }),
+    ];
+    const state = api.selectSideCardViewState(0, rows, { 1: tomorrowRows }, toMs('2026-06-01T12:00:00Z'), 10);
     assertEqual(state.mode, 'fallback_tomorrow', 'Side-card should fall back to tomorrow when today has no window.');
     assertEqual(state.isFallbackTomorrow, true, 'Fallback flag should be preserved.');
-    assertEqual(state.win.start, '2026-06-02T13:00:00Z', 'Tomorrow window should pass through unchanged.');
+    assertEqual(state.win.start, '2026-06-02T13:00:00.000Z', 'Tomorrow window should be recomputed from forecast rows.');
+    assertEqual(state.win.end, '2026-06-02T13:30:00.000Z', 'Tomorrow fallback should use the same sun-break rule.');
   });
 
   test('Side-card keeps a null window when neither today nor tomorrow has a meaningful window', () => {
@@ -311,6 +318,20 @@
     const state = api.selectSideCardViewState(0, rows, {}, toMs('2026-06-01T11:00:00Z'), 10);
     assertEqual(state.mode, 'fallback_tomorrow', 'No-window case should still use fallback-tomorrow mode.');
     assertEqual(state.win, null, 'No-window case should keep a null side-card window.');
+  });
+
+  test('Tomorrow side-card uses the same 65/15 sun-break rule as today', () => {
+    const rows = [
+      row({ timeUtc: '2026-06-02T10:00:00Z', dayIndex: 1, score: 64, confidence: 0.45, elevation: 12 }),
+      row({ timeUtc: '2026-06-02T10:10:00Z', dayIndex: 1, score: 65, confidence: 0.6, elevation: 18 }),
+      row({ timeUtc: '2026-06-02T10:20:00Z', dayIndex: 1, score: 71, confidence: 0.68, elevation: 20 }),
+      row({ timeUtc: '2026-06-02T10:30:00Z', dayIndex: 1, score: 40, confidence: 0.4, elevation: 16 }),
+    ];
+    const state = api.selectSideCardViewState(1, rows, { 1: rows }, toMs('2026-06-01T12:00:00Z'), 10);
+    assertEqual(state.mode, 'tomorrow_selected', 'Tomorrow selection should keep the tomorrow mode.');
+    assertEqual(state.win.start, '2026-06-02T10:10:00.000Z', 'Tomorrow window should start at the first 65+ row.');
+    assertEqual(state.win.end, '2026-06-02T10:30:00.000Z', 'Two ten-minute rows should satisfy the 15-minute minimum.');
+    assertEqual(state.opts.heading, 'Tomorrow’s likely sun window', 'Tomorrow heading should stay unchanged.');
   });
 
   test('Today theme selection passes sunrise and sunset as twilight context', () => {

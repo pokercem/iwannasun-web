@@ -12,12 +12,12 @@ const API_BASE =
     ? 'http://127.0.0.1:8000'
     : 'https://api.iwannasun.com';
 const DEFAULT_THRESHOLD = 70;
-const SIDE_CARD_THRESHOLD = 60;
+const SUN_BREAK_THRESHOLD = 65;
 const DAYS = 2;
 const COORD_STATE_DECIMALS = 3;
 const COORD_CACHE_KEY_DECIMALS = 3;
 const MEANINGFUL_WINDOW_MINUTES = 20;
-const SIDE_CARD_MEANINGFUL_WINDOW_MINUTES = 10;
+const SUN_BREAK_MINIMUM_MINUTES = 15;
 const SHARE_NOTICE_DURATION_MS = 3000;
 const SHARE_VIEW_LAT_PARAM = 'lat';
 const SHARE_VIEW_LON_PARAM = 'lon';
@@ -598,8 +598,8 @@ const forecastSelectors = window.IWSForecastSelectors?.createForecastSelectors?.
   config: {
     DEFAULT_THRESHOLD,
     MEANINGFUL_WINDOW_MINUTES,
-    SIDE_CARD_THRESHOLD,
-    SIDE_CARD_MEANINGFUL_WINDOW_MINUTES,
+    SUN_BREAK_THRESHOLD,
+    SUN_BREAK_MINIMUM_MINUTES,
     TIMELINE_MAX_ROWS,
   },
 });
@@ -739,16 +739,15 @@ function handleCooldownResponse(res, defaultSeconds, maxSeconds, message) {
 }
 
 // ===== Cache =====
-function cacheKey(lat, lon, threshold, { days = 2, model = 'ray', mode = 'full' } = {}) {
+function cacheKey(lat, lon) {
   const rlat = Number(lat).toFixed(COORD_CACHE_KEY_DECIMALS);
   const rlon = Number(lon).toFixed(COORD_CACHE_KEY_DECIMALS);
-  const thr = Number(threshold);
-  return `iwannasun_day_${rlat}_${rlon}_${thr}_d${days}_m${model}_mo${mode}`;
+  return `iwannasun_day_v2_${rlat}_${rlon}`;
 }
 
-function loadCached(lat, lon, threshold, maxAgeMs = 5 * 60 * 1000, opts = {}) {
+function loadCached(lat, lon, maxAgeMs = 5 * 60 * 1000) {
   try {
-    const key = cacheKey(lat, lon, threshold, opts);
+    const key = cacheKey(lat, lon);
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     const obj = JSON.parse(raw);
@@ -760,17 +759,17 @@ function loadCached(lat, lon, threshold, maxAgeMs = 5 * 60 * 1000, opts = {}) {
   }
 }
 
-function clearCached(lat, lon, threshold, opts = {}) {
+function clearCached(lat, lon) {
   try {
-    sessionStorage.removeItem(cacheKey(lat, lon, threshold, opts));
+    sessionStorage.removeItem(cacheKey(lat, lon));
   } catch {
     // ignore privacy mode / quota behavior
   }
 }
 
-function saveCached(lat, lon, threshold, data, opts = {}) {
+function saveCached(lat, lon, data) {
   try {
-    const key = cacheKey(lat, lon, threshold, opts);
+    const key = cacheKey(lat, lon);
     sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
   } catch {
     // ignore quota / privacy mode
@@ -778,24 +777,22 @@ function saveCached(lat, lon, threshold, data, opts = {}) {
 }
 
 // ===== API =====
-function buildDayUrls(lat, lon, threshold, days, mode) {
-  const base = `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
-    + `&threshold=${encodeURIComponent(threshold)}&days=${days}&mode=${encodeURIComponent(mode)}`;
-  return {
-    urlRay: base + `&model=ray`,
-    urlLocal: base + `&model=local`,
-  };
+function buildDayUrl(lat, lon) {
+  return `${API_BASE}/day?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
 }
 
 function applyForecastPayload(data, {
   usedModel = '',
-  fallbackFromRay = false,
-  fallbackReason = '',
+  fallbackFromRay = null,
+  fallbackReason = 'Using local geometry fallback (ray unavailable).',
 } = {}) {
   state.data = data;
   state.tzName = data?.meta?.tz_name || null;
   state.geometryMode = String(data?.model || usedModel || '').toLowerCase() || null;
-  state.rayFallbackActive = Boolean(fallbackFromRay && state.geometryMode === 'local');
+  const inferredFallback = (fallbackFromRay == null)
+    ? (state.geometryMode === 'local')
+    : Boolean(fallbackFromRay && state.geometryMode === 'local');
+  state.rayFallbackActive = inferredFallback;
   state.rayFallbackReason = state.rayFallbackActive ? String(fallbackReason || '') : '';
   prepareDayBuckets(state.data);
 }
@@ -831,39 +828,30 @@ async function fetchDay(force = false) {
     return;
   }
 
-  const threshold = DEFAULT_THRESHOLD;
-  const wantedMode = 'full';
-
-  const { urlRay, urlLocal } = buildDayUrls(lat, lon, threshold, DAYS, wantedMode);
+  const url = buildDayUrl(lat, lon);
 
   if (!force) {
-    const cacheOptions = [
-      { days: DAYS, model: 'ray', mode: wantedMode },
-      { days: DAYS, model: 'local', mode: wantedMode },
-    ];
-    for (const cacheOpts of cacheOptions) {
-      const cached = loadCached(lat, lon, threshold, 5 * 60 * 1000, cacheOpts);
-      if (!cached) continue;
-
+    const cached = loadCached(lat, lon, 5 * 60 * 1000);
+    if (cached) {
       let normalizedCached = null;
       try {
         normalizedCached = normalizeForecastPayload(cached);
       } catch (e) {
         if (!(e instanceof ForecastNormalizationError)) throw e;
-        clearCached(lat, lon, threshold, cacheOpts);
+        clearCached(lat, lon);
         console.warn('IWS_MALFORMED_CACHED_FORECAST', e);
-        continue;
+        normalizedCached = null;
       }
 
-      if (!isCurrent()) return;
-      applyForecastPayload(normalizedCached, {
-        usedModel: cacheOpts.model,
-        fallbackFromRay: cacheOpts.model === 'local',
-        fallbackReason: 'Using local geometry fallback (ray unavailable on last successful fetch).',
-      });
-      render();
-      if (isCurrent()) setBusy(false);
-      return;
+      if (normalizedCached) {
+        if (!isCurrent()) return;
+        applyForecastPayload(normalizedCached, {
+          fallbackReason: 'Using local geometry fallback (ray unavailable on last successful fetch).',
+        });
+        render();
+        if (isCurrent()) setBusy(false);
+        return;
+      }
     }
   }
 
@@ -872,11 +860,7 @@ async function fetchDay(force = false) {
     _dayAbort = new AbortController();
     const { signal } = _dayAbort;
 
-    let usedModel = 'ray';
-    let fallbackFromRay = false;
-    let fallbackStatus = null;
-    let fallbackErrorCode = '';
-    let res = await fetch(urlRay, { signal });
+    const res = await fetch(url, { signal });
     if (!isCurrent()) return;
 
     if (!res.ok) {
@@ -886,8 +870,6 @@ async function fetchDay(force = false) {
         msg = (typeof errBody?.detail === 'string') ? errBody.detail : '';
       } catch {}
       const errCode = (res.headers?.get?.('X-IWS-Error-Code') || '').trim();
-      fallbackStatus = Number(res.status);
-      fallbackErrorCode = String(errCode || '');
 
       // Provider rate limit (Open-Meteo). Backend returns 503 and should include Retry-After.
       if (res.status === 503 && (errCode === 'UPSTREAM_RATE_LIMIT' || msg.toLowerCase().includes('rate limit'))) {
@@ -905,22 +887,11 @@ async function fetchDay(force = false) {
         return;
       }
 
-      // Otherwise: fall back to local model if ray failed for non-rate-limit reasons.
-      fallbackFromRay = true;
-      usedModel = 'local';
-      res = await fetch(urlLocal, { signal });
-      if (!isCurrent()) return;
-    }
-
-    if (!res.ok) {
-      let msg = `API error ${res.status}`;
-      try {
-        const j = await res.json();
-        if (typeof j?.detail === 'string') msg = j.detail;
-      } catch {}
+      let apiMsg = `API error ${res.status}`;
+      if (msg) apiMsg = msg;
       if (isCurrent()) {
         if (!state.data) clearForecastUi();
-        showError(msg);
+        showError(apiMsg);
       }
       return;
     }
@@ -929,20 +900,17 @@ async function fetchDay(force = false) {
     if (!isCurrent()) return;
     const data = normalizeForecastPayload(rawData);
     applyForecastPayload(data, {
-      usedModel,
-      fallbackFromRay,
-      fallbackReason: 'Using local geometry fallback (ray request failed).',
+      fallbackReason: 'Using local geometry fallback (ray unavailable).',
     });
     if (state.rayFallbackActive) {
       console.info('IWS_MODEL_FALLBACK', {
         from: 'ray',
         to: 'local',
-        status: fallbackStatus,
-        error_code: fallbackErrorCode || null,
+        source: 'backend_auto_day',
       });
     }
 
-    saveCached(lat, lon, threshold, rawData, { days: DAYS, model: usedModel, mode: wantedMode });
+    saveCached(lat, lon, rawData);
     render();
   } catch (e) {
     if (e && (e.name === 'AbortError' || e.code === 20)) return;

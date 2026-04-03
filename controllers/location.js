@@ -73,6 +73,8 @@
       els.cityResults.style.display = 'none';
       els.cityResults.innerHTML = '';
       cityActiveIndex = -1;
+      // Allow the same query to be searched again after results are dismissed.
+      lastCityQuery = '';
       if (els.cityInput) els.cityInput.setAttribute('aria-expanded', 'false');
     }
 

@@ -17,8 +17,12 @@
 
     const DEFAULT_THRESHOLD = Number(config.DEFAULT_THRESHOLD || 70);
     const MEANINGFUL_WINDOW_MINUTES = Number(config.MEANINGFUL_WINDOW_MINUTES || 20);
-    const SIDE_CARD_THRESHOLD = Number(config.SIDE_CARD_THRESHOLD || 60);
-    const SIDE_CARD_MEANINGFUL_WINDOW_MINUTES = Number(config.SIDE_CARD_MEANINGFUL_WINDOW_MINUTES || 10);
+    const SUN_BREAK_THRESHOLD = Number(
+      config.SUN_BREAK_THRESHOLD ?? config.SIDE_CARD_THRESHOLD ?? 65
+    );
+    const SUN_BREAK_MINIMUM_MINUTES = Number(
+      config.SUN_BREAK_MINIMUM_MINUTES ?? config.SIDE_CARD_MEANINGFUL_WINDOW_MINUTES ?? 15
+    );
     const TIMELINE_MAX_ROWS = Number(config.TIMELINE_MAX_ROWS || 84);
 
     function daylightWindow(dayRows, padMinutes = 30) {
@@ -186,13 +190,23 @@
       return out;
     }
 
-    function pickSideWindowState(dayRows, tomorrowWin, nowMs = Date.now(), intervalMinutesHint = 0) {
-      const wins = meaningfulWindows(
+    function sunBreakWindows(dayRows, intervalMinutesHint = 0) {
+      return meaningfulWindows(
         dayRows,
-        SIDE_CARD_THRESHOLD,
-        SIDE_CARD_MEANINGFUL_WINDOW_MINUTES,
+        SUN_BREAK_THRESHOLD,
+        SUN_BREAK_MINIMUM_MINUTES,
         intervalMinutesHint
       );
+    }
+
+    function firstSunBreakWindow(dayRows, intervalMinutesHint = 0) {
+      const wins = sunBreakWindows(dayRows, intervalMinutesHint);
+      return wins.length ? wins[0] : null;
+    }
+
+    function pickSideWindowState(dayRows, tomorrowRows, nowMs = Date.now(), intervalMinutesHint = 0) {
+      const wins = sunBreakWindows(dayRows, intervalMinutesHint);
+      const tomorrowWin = firstSunBreakWindow(tomorrowRows, intervalMinutesHint);
       const active = wins.find((win) => {
         const startMs = new Date(win.start).getTime();
         const endMs = new Date(win.end).getTime();
@@ -332,13 +346,10 @@
       };
     }
 
-    function selectSideCardViewState(dayIndex, dayRows, data, nowMs = Date.now(), intervalMinutesHint = 0) {
-      const win = data?.next_sunny_window_by_day
-        ? (data.next_sunny_window_by_day[String(dayIndex)] || null)
-        : (data?.next_sunny_window || null);
-      const tomorrowWin = data?.next_sunny_window_by_day
-        ? (data.next_sunny_window_by_day['1'] || null)
-        : null;
+    function selectSideCardViewState(dayIndex, dayRows, days, nowMs = Date.now(), intervalMinutesHint = 0) {
+      const tomorrowRows = (days && days[1]) ? days[1] : [];
+      const win = firstSunBreakWindow(dayRows, intervalMinutesHint);
+      const tomorrowWin = firstSunBreakWindow(tomorrowRows, intervalMinutesHint);
 
       if (dayIndex === 1) {
         return {
@@ -356,7 +367,7 @@
         };
       }
 
-      const side = pickSideWindowState(dayRows, tomorrowWin, nowMs, intervalMinutesHint);
+      const side = pickSideWindowState(dayRows, tomorrowRows, nowMs, intervalMinutesHint);
       if (side.mode === 'active_today') {
         return {
           mode: side.mode,
@@ -461,7 +472,7 @@
       const intervalMinutesHint = Number(data?.meta?.interval_minutes || 0);
       const chart = selectChartViewState(dayRows);
       const decision = selectDecisionViewState(dayIndex, dayRows, chart.chartMaxElevation, nowMs);
-      const sideCard = selectSideCardViewState(dayIndex, dayRows, data, nowMs, intervalMinutesHint);
+      const sideCard = selectSideCardViewState(dayIndex, dayRows, days, nowMs, intervalMinutesHint);
       const theme = selectThemeViewState(dayIndex, chart.dayWin, decision.themeRow);
       const timeline = selectTimelineViewState(dayIndex, dayRows, chart.dayWin30, nowMs);
       return {
@@ -480,6 +491,8 @@
       dayAverages,
       timelineIntervalMinutes,
       meaningfulWindows,
+      sunBreakWindows,
+      firstSunBreakWindow,
       pickSideWindowState,
       chartRowsForWindow,
       maxElevationFromRows,
