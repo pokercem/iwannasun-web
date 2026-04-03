@@ -128,19 +128,29 @@ function blendRgb(a, b, t) {
   };
 }
 
+const PUBLIC_RUNTIME_COLORS = Object.freeze({
+  meterFillEmpty: 'var(--meter-fill-empty)',
+  meterFillNeutral: 'var(--meter-fill-neutral)',
+  meterFillStrong: 'var(--meter-fill-strong)',
+});
+
+const SUN_SCORE_RGB_STOPS = Object.freeze({
+  mutedLow: Object.freeze({ r: 160, g: 162, b: 144 }),
+  muted: Object.freeze({ r: 186, g: 176, b: 136 }),
+  pale: Object.freeze({ r: 214, g: 190, b: 118 }),
+  warm: Object.freeze({ r: 236, g: 176, b: 74 }),
+  gold: Object.freeze({ r: 246, g: 186, b: 62 }),
+});
+
 function sunScoreRgb(t) {
   const u = clamp(Number(t || 0), 0, 1);
-  // Shared score palette used by chart/title/timeline and now atmospheric source glow.
-  const mutedLow = { r: 160, g: 162, b: 144 };
-  const muted = { r: 186, g: 176, b: 136 };
-  const pale = { r: 214, g: 190, b: 118 };
-  const warm = { r: 236, g: 176, b: 74 };
-  const gold = { r: 246, g: 186, b: 62 };
+  // Shared score palette used by chart, title, timeline, and atmospheric source glow.
+  const stops = SUN_SCORE_RGB_STOPS;
 
-  if (u >= 0.9) return blendRgb(warm, gold, (u - 0.9) / 0.1);
-  if (u >= 0.7) return blendRgb(pale, warm, (u - 0.7) / 0.2);
-  if (u >= 0.5) return blendRgb(muted, pale, (u - 0.5) / 0.2);
-  return blendRgb(mutedLow, muted, u / 0.5);
+  if (u >= 0.9) return blendRgb(stops.warm, stops.gold, (u - 0.9) / 0.1);
+  if (u >= 0.7) return blendRgb(stops.pale, stops.warm, (u - 0.7) / 0.2);
+  if (u >= 0.5) return blendRgb(stops.muted, stops.pale, (u - 0.5) / 0.2);
+  return blendRgb(stops.mutedLow, stops.muted, u / 0.5);
 }
 
 // Debounce helper (mobile resize/orientation can fire many events)
@@ -406,8 +416,8 @@ function clearForecastUi() {
     els.whyInline.textContent = '';
     els.whyInline.classList.remove('secondaryLine');
   }
-  setMeter(els.meterScore, 0, 'rgba(51,51,51,0.10)');
-  setMeter(els.meterConf, 0, 'rgba(51,51,51,0.10)');
+  setMeter(els.meterScore, 0, PUBLIC_RUNTIME_COLORS.meterFillEmpty);
+  setMeter(els.meterConf, 0, PUBLIC_RUNTIME_COLORS.meterFillEmpty);
 
   if (els.nextWindowHeading) els.nextWindowHeading.textContent = 'Your next sun break';
   if (els.nextWindow) {
@@ -955,7 +965,7 @@ function setMeter(fillEl, pct, color) {
   if (!fillEl) return;
   const p = clamp(Number(pct || 0), 0, 100);
   fillEl.style.width = `${p}%`;
-  fillEl.style.background = color || 'rgba(51,51,51,0.22)';
+  fillEl.style.background = color || PUBLIC_RUNTIME_COLORS.meterFillNeutral;
 }
 
 function sunQualityFromScore(score, isNight) {
@@ -1056,8 +1066,8 @@ function renderDecision(focusRow, context = { label: 'now' }) {
     if (els.decisionLead) els.decisionLead.textContent = '';
     if (els.decisionContext) els.decisionContext.textContent = '';
     if (els.whyInline) els.whyInline.textContent = '';
-    setMeter(els.meterScore, 0, 'rgba(51,51,51,0.10)');
-    setMeter(els.meterConf, 0, 'rgba(51,51,51,0.10)');
+    setMeter(els.meterScore, 0, PUBLIC_RUNTIME_COLORS.meterFillEmpty);
+    setMeter(els.meterConf, 0, PUBLIC_RUNTIME_COLORS.meterFillEmpty);
     return;
   }
 
@@ -1090,7 +1100,7 @@ function renderDecision(focusRow, context = { label: 'now' }) {
       els.confNow.textContent = '—';
       els.confNow.title = 'Sun below horizon (confidence not applicable).';
     }
-    setMeter(els.meterConf, 0, 'rgba(51,51,51,0.10)');
+    setMeter(els.meterConf, 0, PUBLIC_RUNTIME_COLORS.meterFillEmpty);
   } else {
     const cp = Math.round(c * 100);
     if (els.confNow) {
@@ -1100,7 +1110,7 @@ function renderDecision(focusRow, context = { label: 'now' }) {
         : 'Confidence = how reliable the sun score estimate is (higher = more stable conditions).';
     }
     // Confidence uses a neutral ink color (not the sunny color) so it feels distinct
-    setMeter(els.meterConf, cp, 'rgba(51,51,51,0.28)');
+    setMeter(els.meterConf, cp, PUBLIC_RUNTIME_COLORS.meterFillStrong);
   }
 
   const quality = isTomorrow

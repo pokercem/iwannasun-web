@@ -6,15 +6,48 @@
 
 body:not(.solarApiPage) {
   color-scheme: light;
-  --text: rgba(20, 26, 34, 0.94);
-  --muted: rgba(20, 26, 34, 0.66);
-  --line: rgba(20, 26, 34, 0.15);
-  --bad: rgba(20, 26, 34, 0.80);
+  --ink-rgb: 20, 26, 34;
+  --shadow-rgb: 18, 35, 62;
+  --text: rgba(var(--ink-rgb), 0.94);
+  --muted: rgba(var(--ink-rgb), 0.66);
+  --text-strong-secondary: rgba(var(--ink-rgb), 0.78);
+  --text-prominent: rgba(var(--ink-rgb), 0.88);
+  --line: rgba(var(--ink-rgb), 0.15);
+  --bad: rgba(var(--ink-rgb), 0.80);
   --card: var(--atm-card);
   --card2: var(--atm-card-2);
-  --stroke: rgba(20, 26, 34, 0.12);
-  --shadow: 0 14px 36px rgba(18, 35, 62, 0.12);
-  --shadowSoft: 0 10px 24px rgba(18, 35, 62, 0.09);
+  --stroke: rgba(var(--ink-rgb), 0.12);
+  --border-default: rgba(var(--ink-rgb), 0.10);
+  --border-strong: rgba(var(--ink-rgb), 0.12);
+  --border-input: rgba(var(--ink-rgb), 0.14);
+  --border-focus: rgba(var(--sun-rgb), 0.46);
+  --border-link: rgba(var(--ink-rgb), 0.24);
+  --border-accent: rgba(var(--sun-rgb), 0.44);
+  --surface-soft: rgba(var(--surface-rgb), 0.68);
+  --surface-soft-strong: rgba(var(--surface-rgb), 0.72);
+  --surface-panel: rgba(var(--surface-rgb), 0.76);
+  --surface-control: rgba(var(--surface-rgb), 0.78);
+  --surface-control-strong: rgba(var(--surface-rgb), 0.80);
+  --surface-overlay: rgba(var(--surface-rgb), 0.90);
+  --surface-toast: rgba(var(--surface-rgb), 0.92);
+  --surface-warm: rgba(var(--paper-warm-tint-rgb), 0.92);
+  --error-border: rgba(var(--error-rgb), 0.34);
+  --error-bg: rgba(var(--error-rgb), 0.12);
+  --meter-bg: rgba(var(--ink-rgb), 0.10);
+  --bar-bg: rgba(var(--ink-rgb), 0.10);
+  --fill-accent-ring: rgba(var(--sun-rgb), 0.17);
+  --shadow-xs: 0 8px 16px rgba(var(--shadow-rgb), 0.07);
+  --shadow-sm: 0 6px 16px rgba(var(--shadow-rgb), 0.09);
+  --shadow-md: 0 8px 18px rgba(var(--shadow-rgb), 0.09);
+  --shadow-lg: 0 10px 22px rgba(var(--shadow-rgb), 0.10);
+  --shadow-xl: 0 10px 24px rgba(var(--shadow-rgb), 0.10);
+  --shadow-topbar: 0 8px 24px rgba(var(--shadow-rgb), 0.10);
+  --shadow-button: 0 8px 18px rgba(var(--shadow-rgb), 0.09);
+  --shadow-pill-float: 0 6px 14px rgba(var(--shadow-rgb), 0.10);
+  --shadow: 0 14px 36px rgba(var(--shadow-rgb), 0.12);
+  --shadowSoft: 0 10px 24px rgba(var(--shadow-rgb), 0.09);
+  --inset-control: inset 0 0 0 1px rgba(var(--surface-rgb), 0.52);
+  --inset-highlight: inset 0 1px 0 rgba(var(--surface-rgb), 0.58);
   --ptr-pull: 0px;
   position: relative;
   color: var(--text);
@@ -49,9 +82,9 @@ body:not(.solarApiPage) > * {
 }
 
 body:not(.solarApiPage) .topbar {
-  background: rgba(255, 255, 255, 0.56);
-  border-bottom: 1px solid rgba(20, 26, 34, 0.12);
-  box-shadow: 0 8px 24px rgba(18, 35, 62, 0.10);
+  background: rgba(var(--surface-rgb), 0.56);
+  border-bottom: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-topbar);
   overflow: visible;
   z-index: 140;
 }
@@ -66,7 +99,7 @@ body:not(.solarApiPage) .card,
 body:not(.solarApiPage) .suggest,
 body:not(.solarApiPage) .loadingInner {
   background: linear-gradient(180deg, var(--card), var(--card2));
-  border: 1px solid rgba(20, 26, 34, 0.12);
+  border: 1px solid var(--border-strong);
   box-shadow: var(--shadowSoft);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -75,16 +108,16 @@ body:not(.solarApiPage) .loadingInner {
 body:not(.solarApiPage) .side .card {
   background: var(--card);
   background-image: none;
-  border-color: rgba(20, 26, 34, 0.11);
-  box-shadow: 0 10px 24px rgba(18, 35, 62, 0.10);
+  border-color: rgba(var(--ink-rgb), 0.11);
+  box-shadow: 0 10px 24px rgba(var(--shadow-rgb), 0.10);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
 body:not(.solarApiPage) .pill {
-  background: rgba(255, 255, 255, 0.76);
-  border-color: rgba(20, 26, 34, 0.12);
-  box-shadow: 0 6px 16px rgba(18, 35, 62, 0.09);
+  background: var(--surface-panel);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 body:not(.solarApiPage) button,
@@ -92,31 +125,31 @@ body:not(.solarApiPage) .btn,
 body:not(.solarApiPage) input,
 body:not(.solarApiPage) select {
   color: var(--text);
-  border-color: rgba(20, 26, 34, 0.14);
-  box-shadow: 0 8px 18px rgba(18, 35, 62, 0.09);
+  border-color: var(--border-input);
+  box-shadow: var(--shadow-button);
 }
 
 body:not(.solarApiPage) button,
 body:not(.solarApiPage) .btn {
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--surface-control);
 }
 
 body:not(.solarApiPage) button:hover,
 body:not(.solarApiPage) .btn:hover {
-  background: rgba(255, 255, 255, 0.90);
+  background: var(--surface-overlay);
 }
 
 body:not(.solarApiPage) input,
 body:not(.solarApiPage) select {
-  background: rgba(255, 255, 255, 0.80);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.52);
+  background: var(--surface-control-strong);
+  box-shadow: var(--inset-control);
 }
 
 body:not(.solarApiPage) input:focus,
 body:not(.solarApiPage) select:focus {
-  border-color: rgba(244, 184, 96, 0.46);
-  background: rgba(255, 255, 255, 0.90);
-  box-shadow: 0 0 0 4px rgba(244, 184, 96, 0.17);
+  border-color: var(--border-focus);
+  background: var(--surface-overlay);
+  box-shadow: 0 0 0 4px var(--fill-accent-ring);
 }
 
 body:not(.solarApiPage) .decisionContext,
@@ -136,66 +169,66 @@ body:not(.solarApiPage) .trow .muted {
 }
 
 body:not(.solarApiPage) .notes .aboutText b {
-  color: rgba(20, 26, 34, 0.78);
+  color: var(--text-strong-secondary);
 }
 
 body:not(.solarApiPage) .aboutAttrib a {
-  color: rgba(20, 26, 34, 0.76);
-  border-bottom-color: rgba(20, 26, 34, 0.24);
+  color: rgba(var(--ink-rgb), 0.76);
+  border-bottom-color: var(--border-link);
 }
 
 body:not(.solarApiPage) .aboutAttrib a:hover {
-  border-bottom-color: rgba(244, 184, 96, 0.68);
+  border-bottom-color: rgba(var(--sun-rgb), 0.68);
 }
 
 body:not(.solarApiPage) .kpi .box {
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(20, 26, 34, 0.10);
-  box-shadow: 0 8px 16px rgba(18, 35, 62, 0.07);
+  background: var(--surface-soft);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xs);
 }
 
 body:not(.solarApiPage) .meter {
-  background: rgba(20, 26, 34, 0.10);
+  background: var(--meter-bg);
 }
 
 body:not(.solarApiPage) .sunTimesRow,
 body:not(.solarApiPage) .timeline,
 body:not(.solarApiPage) .trow {
-  border-color: rgba(20, 26, 34, 0.10);
+  border-color: var(--border-default);
 }
 
 body:not(.solarApiPage) .bar {
-  background: rgba(20, 26, 34, 0.10);
+  background: var(--bar-bg);
 }
 
 body:not(.solarApiPage) canvas {
-  border-color: rgba(20, 26, 34, 0.12);
+  border-color: var(--border-strong);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(155, 189, 217, 0.08) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58), inset 0 -12px 22px rgba(155, 189, 217, 0.11);
+    linear-gradient(180deg, rgba(var(--surface-rgb), 0.34) 0%, rgba(var(--sky-rgb), 0.08) 100%);
+  box-shadow: var(--inset-highlight), inset 0 -12px 22px var(--fill-sky-strong);
 }
 
 body:not(.solarApiPage) .err {
-  border-color: rgba(244, 128, 102, 0.34);
-  background: rgba(244, 128, 102, 0.12);
-  color: rgba(20, 26, 34, 0.92);
+  border-color: var(--error-border);
+  background: var(--error-bg);
+  color: rgba(var(--ink-rgb), 0.92);
 }
 
 body:not(.solarApiPage) .loadingOverlay {
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--surface-soft-strong);
 }
 
 body:not(.solarApiPage) .ptrIndicator {
-  color: rgba(20, 26, 34, 0.78);
-  border-color: rgba(20, 26, 34, 0.16);
-  background: rgba(255, 255, 255, 0.90);
-  box-shadow: 0 6px 14px rgba(18, 35, 62, 0.10);
+  color: var(--text-strong-secondary);
+  border-color: rgba(var(--ink-rgb), 0.16);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-pill-float);
 }
 
 body:not(.solarApiPage) .ptrIndicator.armed {
-  color: rgba(20, 26, 34, 0.90);
-  border-color: rgba(244, 184, 96, 0.44);
-  background: rgba(255, 250, 242, 0.92);
+  color: rgba(var(--ink-rgb), 0.90);
+  border-color: var(--border-accent);
+  background: var(--surface-warm);
 }
 
 @media (max-width: 700px) {

@@ -17,10 +17,23 @@
 }
 
 :root {
-  /* Wellness palette (warm light + calm ink) */
-  --text: rgba(20, 24, 28, 0.92);
-  --muted: rgba(20, 24, 28, 0.62);
-  --line: rgba(20, 24, 28, 0.10);
+  /* Core color sources */
+  --ink-rgb: 20, 24, 28;
+  --shadow-rgb: 0, 0, 0;
+  --surface-rgb: 255, 255, 255;
+  --sun-rgb: 244, 184, 96;
+  --sky-rgb: 155, 189, 217;
+  --error-rgb: 244, 128, 102;
+  --paper-warm-rgb: 249, 249, 247;
+  --paper-warm-tint-rgb: 255, 250, 242;
+  --paper-error-rgb: 255, 248, 246;
+
+  /* Ink ladder */
+  --text: rgba(var(--ink-rgb), 0.92);
+  --muted: rgba(var(--ink-rgb), 0.62);
+  --text-strong-secondary: rgba(var(--ink-rgb), 0.78);
+  --text-prominent: rgba(var(--ink-rgb), 0.88);
+  --line: rgba(var(--ink-rgb), 0.10);
 
   /* Background: warm calm base */
   --bg0: #fff7ea;
@@ -30,16 +43,74 @@
   /* Accents */
   --sun: #f4b860;
   --sky: #9bbdd9;
+  --fill-accent-soft: rgba(var(--sun-rgb), 0.10);
+  --fill-accent-hover: rgba(var(--sun-rgb), 0.14);
+  --fill-accent-glow: rgba(var(--sun-rgb), 0.18);
+  --fill-accent-ring: rgba(var(--sun-rgb), 0.14);
+  --fill-sky-soft: rgba(var(--sky-rgb), 0.10);
+  --fill-sky-glow: rgba(var(--sky-rgb), 0.14);
+  --fill-sky-subtle: rgba(var(--sky-rgb), 0.06);
+  --fill-sky-strong: rgba(var(--sky-rgb), 0.11);
 
   /* Status */
-  --bad: rgba(20, 24, 28, 0.78);
+  --bad: var(--text-strong-secondary);
+  --error-border: rgba(var(--error-rgb), 0.30);
+  --error-border-strong: rgba(var(--error-rgb), 0.34);
+  --error-bg: rgba(var(--error-rgb), 0.10);
+  --error-bg-strong: rgba(var(--error-rgb), 0.12);
 
-  /* Surfaces (Apple-Health calm) */
-  --card: rgba(255, 255, 255, 0.76);
-  --card2: rgba(255, 255, 255, 0.62);
-  --stroke: rgba(20, 24, 28, 0.07);
-  --shadow: 0 14px 34px rgba(0, 0, 0, 0.08);
-  --shadowSoft: 0 10px 22px rgba(0, 0, 0, 0.06);
+  /* Surface ladder */
+  --surface-panel-secondary: rgba(var(--surface-rgb), 0.62);
+  --surface-veil: rgba(var(--surface-rgb), 0.48);
+  --surface-legend: rgba(var(--surface-rgb), 0.52);
+  --surface-soft: rgba(var(--surface-rgb), 0.68);
+  --surface-soft-strong: rgba(var(--surface-rgb), 0.72);
+  --surface-panel: rgba(var(--surface-rgb), 0.76);
+  --surface-control: rgba(var(--surface-rgb), 0.78);
+  --surface-control-strong: rgba(var(--surface-rgb), 0.80);
+  --surface-elevated: rgba(var(--surface-rgb), 0.84);
+  --surface-floating: rgba(var(--surface-rgb), 0.88);
+  --surface-overlay: rgba(var(--surface-rgb), 0.90);
+  --surface-toast: rgba(var(--surface-rgb), 0.92);
+  --surface-overlay-soft: rgba(var(--paper-warm-rgb), 0.78);
+  --surface-warm: rgba(var(--paper-warm-tint-rgb), 0.94);
+  --surface-error-soft: rgba(var(--paper-error-rgb), 0.96);
+
+  --card: var(--surface-panel);
+  --card2: var(--surface-panel-secondary);
+
+  /* Borders and strokes */
+  --stroke: rgba(var(--ink-rgb), 0.07);
+  --border-subtle: rgba(var(--ink-rgb), 0.07);
+  --border-soft: rgba(var(--ink-rgb), 0.08);
+  --border-default: rgba(var(--ink-rgb), 0.10);
+  --border-strong: rgba(var(--ink-rgb), 0.12);
+  --border-input: rgba(var(--ink-rgb), 0.14);
+  --border-focus: rgba(var(--sun-rgb), 0.40);
+  --border-link: rgba(var(--ink-rgb), 0.18);
+  --border-accent: rgba(var(--sun-rgb), 0.34);
+
+  /* Neutral meters and bars */
+  --meter-bg: rgba(var(--ink-rgb), 0.06);
+  --meter-fill-empty: rgba(var(--ink-rgb), 0.10);
+  --meter-fill-neutral: rgba(var(--ink-rgb), 0.22);
+  --meter-fill-strong: rgba(var(--ink-rgb), 0.28);
+  --bar-bg: rgba(var(--ink-rgb), 0.09);
+
+  /* Shadows and highlights */
+  --shadow-xs: 0 6px 12px rgba(var(--shadow-rgb), 0.03);
+  --shadow-sm: 0 6px 14px rgba(var(--shadow-rgb), 0.045);
+  --shadow-md: 0 8px 18px rgba(var(--shadow-rgb), 0.05);
+  --shadow-lg: 0 10px 22px rgba(var(--shadow-rgb), 0.08);
+  --shadow-xl: 0 18px 44px rgba(var(--shadow-rgb), 0.12);
+  --shadow-button: 0 10px 18px rgba(var(--shadow-rgb), 0.045);
+  --shadow-pill-float: 0 4px 12px rgba(var(--shadow-rgb), 0.08);
+  --shadow-toast: 0 6px 14px rgba(var(--shadow-rgb), 0.08);
+  --shadow: 0 14px 34px rgba(var(--shadow-rgb), 0.08);
+  --shadowSoft: 0 10px 22px rgba(var(--shadow-rgb), 0.06);
+  --inset-highlight-soft: inset 0 1px 0 rgba(var(--surface-rgb), 0.42);
+  --inset-highlight: inset 0 1px 0 rgba(var(--surface-rgb), 0.45);
+  --inset-control: inset 0 0 0 1px rgba(var(--surface-rgb), 0.40);
   --radius: 20px;
 
   /* Motion */
@@ -52,8 +123,8 @@
   --atm-tw-top: hsl(286 18% 65% / 0);
   --atm-tw-mid: hsl(332 22% 72% / 0);
   --atm-tw-bottom: hsl(24 20% 74% / 0);
-  --atm-card: rgba(255, 255, 255, 0.82);
-  --atm-card-2: rgba(255, 255, 255, 0.70);
+  --atm-card: rgba(var(--surface-rgb), 0.82);
+  --atm-card-2: rgba(var(--surface-rgb), 0.70);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -61,8 +132,8 @@
 /* Base page background */
 html {
   background:
-    radial-gradient(1100px 620px at 18% -12%, rgba(244, 184, 96, 0.18), rgba(244, 184, 96, 0.00) 64%),
-    radial-gradient(1000px 700px at 92% 0%, rgba(155, 189, 217, 0.14), rgba(155, 189, 217, 0.00) 62%),
+    radial-gradient(1100px 620px at 18% -12%, var(--fill-accent-glow), rgba(var(--sun-rgb), 0.00) 64%),
+    radial-gradient(1000px 700px at 92% 0%, var(--fill-sky-glow), rgba(var(--sky-rgb), 0.00) 62%),
     linear-gradient(180deg, var(--bg0) 0%, var(--bg1) 54%, var(--bg2) 100%);
   min-height: 100%;
 }
@@ -95,14 +166,14 @@ body > main.wrap {
 /* Topbar */
 .topbar {
   padding: 12px 18px;
-  border-bottom: 1px solid rgba(20, 24, 28, 0.10);
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   gap: 12px;
   align-items: center;
   justify-content: space-between;
   position: sticky;
   top: 0;
-  background: rgba(255, 255, 255, 0.62);
+  background: var(--surface-panel-secondary);
   backdrop-filter: blur(14px);
   z-index: 10;
 }
@@ -199,9 +270,9 @@ body > main.wrap {
 /* Side-panel card polish: slightly cleaner, more consistent surfaces */
 .side .card {
   padding: 16px 17px;
-  border-color: rgba(20, 24, 28, 0.10);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.68));
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  border-color: var(--border-default);
+  background: linear-gradient(180deg, var(--surface-elevated), var(--surface-soft));
+  box-shadow: var(--shadow-md), var(--inset-highlight-soft);
 }
 
 .side .card.notes {
@@ -251,15 +322,15 @@ body > main.wrap {
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.68);
+  background: var(--surface-soft);
   color: var(--text);
   font-size: 13px;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.045);
+  box-shadow: var(--shadow-sm);
 }
 
 button, .btn {
   border: 1px solid var(--stroke);
-  background: rgba(244, 184, 96, 0.10);
+  background: var(--fill-accent-soft);
   color: var(--text);
   padding: 8px 11px;
   border-radius: 14px;
@@ -267,10 +338,10 @@ button, .btn {
   font-size: 13px;
   font-weight: 500;
   transition: transform 160ms var(--ease), background 160ms var(--ease), box-shadow 160ms var(--ease);
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.045);
+  box-shadow: var(--shadow-button);
 }
 button:hover, .btn:hover {
-  background: rgba(244, 184, 96, 0.14);
+  background: var(--fill-accent-hover);
   transform: translateY(-1px);
 }
 button:active, .btn:active { transform: translateY(0px); }
@@ -278,19 +349,19 @@ button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; box-shadow
 
 input, select {
   border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--surface-control);
   color: var(--text);
   padding: 8px 11px;
   border-radius: 14px;
   font-size: 13px;
   outline: none;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.40);
+  box-shadow: var(--inset-control);
   transition: box-shadow 160ms var(--ease), border-color 160ms var(--ease), background 160ms var(--ease);
 }
 input:focus, select:focus {
-  border-color: rgba(244, 184, 96, 0.40);
-  background: rgba(255, 255, 255, 0.84);
-  box-shadow: 0 0 0 4px rgba(244, 184, 96, 0.14);
+  border-color: var(--border-focus);
+  background: var(--surface-elevated);
+  box-shadow: 0 0 0 4px var(--fill-accent-ring);
 }
 
 /* Titles */

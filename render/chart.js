@@ -1,6 +1,34 @@
 'use strict';
 
 (function initChartRenderModule(global) {
+  const LIGHT_CHART_COLORS = Object.freeze({
+    gridStroke: 'rgba(20,24,28,0.12)',
+    baseStroke: 'rgba(20,24,28,0.28)',
+    nowStroke: 'rgba(20,24,28,0.24)',
+    atmosphereTop: 'rgba(255,248,236,0.10)',
+    atmosphereMid: 'rgba(255,255,255,0.03)',
+    atmosphereBottom: 'rgba(255,255,255,0.00)',
+    nowHalo: 'rgba(244,184,96,0.24)',
+    nowDotFill: 'rgba(120,72,20,0.96)',
+    nowDotStroke: 'rgba(120,72,20,0.62)',
+    hoverGuide: 'rgba(20,24,28,0.28)',
+    hoverDotFill: 'rgba(255,255,255,0.90)',
+    tooltipFill: 'rgba(255,255,255,0.94)',
+    tooltipStroke: 'rgba(20,24,28,0.10)',
+    tooltipText: 'rgba(20,24,28,0.82)',
+  });
+
+  const DARK_CHART_COLORS = Object.freeze({
+    gridStroke: 'rgba(0,0,0,0.10)',
+    baseStroke: 'rgba(0,0,0,0.26)',
+    nowStroke: 'rgba(0,0,0,0.22)',
+    atmosphereTop: 'rgba(255,248,236,0.06)',
+    atmosphereMid: 'rgba(255,255,255,0.015)',
+    atmosphereBottom: 'rgba(255,255,255,0.00)',
+    nowDotFill: 'rgba(255,244,226,0.95)',
+    nowDotStroke: 'rgba(255,248,232,0.92)',
+  });
+
   function chartAxisKeyForRows(rows, {
     tzName = '',
     maxElevOverride = null,
@@ -126,9 +154,8 @@
     const padTop = 14;
     const padBottom = 18;
     const lightAtmosphere = Boolean(document.body && !document.body.classList.contains('solarApiPage'));
-    const gridStroke = lightAtmosphere ? 'rgba(20,24,28,0.12)' : 'rgba(0,0,0,0.10)';
-    const baseStroke = lightAtmosphere ? 'rgba(20,24,28,0.28)' : 'rgba(0,0,0,0.26)';
-    const nowStroke = lightAtmosphere ? 'rgba(20,24,28,0.24)' : 'rgba(0,0,0,0.22)';
+    const palette = lightAtmosphere ? LIGHT_CHART_COLORS : DARK_CHART_COLORS;
+    const { gridStroke, baseStroke, nowStroke } = palette;
 
     const yOf = (e) => {
       const usableH = h - padTop - padBottom;
@@ -174,15 +201,9 @@
     ctx.fill();
 
     const atmosphereGrad = ctx.createLinearGradient(0, padTop, 0, h - padBottom);
-    if (lightAtmosphere) {
-      atmosphereGrad.addColorStop(0, 'rgba(255,248,236,0.10)');
-      atmosphereGrad.addColorStop(0.42, 'rgba(255,255,255,0.03)');
-      atmosphereGrad.addColorStop(1, 'rgba(255,255,255,0.00)');
-    } else {
-      atmosphereGrad.addColorStop(0, 'rgba(255, 248, 236, 0.06)');
-      atmosphereGrad.addColorStop(0.42, 'rgba(255, 255, 255, 0.015)');
-      atmosphereGrad.addColorStop(1, 'rgba(255, 255, 255, 0.00)');
-    }
+    atmosphereGrad.addColorStop(0, palette.atmosphereTop);
+    atmosphereGrad.addColorStop(0.42, palette.atmosphereMid);
+    atmosphereGrad.addColorStop(1, palette.atmosphereBottom);
     ctx.fillStyle = atmosphereGrad;
     ctx.fill();
 
@@ -252,17 +273,17 @@
       const idx = Math.round(u * (pts.length - 1));
       const p = pts[clamp(idx, 0, pts.length - 1)];
 
-      ctx.fillStyle = 'rgba(244,184,96,0.24)';
+      ctx.fillStyle = LIGHT_CHART_COLORS.nowHalo;
       ctx.beginPath();
       ctx.arc(xn, p.y, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = lightAtmosphere ? 'rgba(120,72,20,0.96)' : 'rgba(255,244,226,0.95)';
+      ctx.fillStyle = palette.nowDotFill;
       ctx.beginPath();
       ctx.arc(xn, p.y, 2.5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = lightAtmosphere ? 'rgba(120,72,20,0.62)' : 'rgba(255,248,232,0.92)';
+      ctx.strokeStyle = palette.nowDotStroke;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(xn, p.y, 2.5, 0, Math.PI * 2);
@@ -276,7 +297,7 @@
       const label = `${fmtTime(hp.t)} · ${Math.round(hp.s)}%`;
 
       ctx.save();
-      ctx.strokeStyle = 'rgba(20,24,28,0.28)';
+      ctx.strokeStyle = LIGHT_CHART_COLORS.hoverGuide;
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 4]);
       ctx.beginPath();
@@ -285,7 +306,7 @@
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = 'rgba(255,255,255,0.90)';
+      ctx.fillStyle = LIGHT_CHART_COLORS.hoverDotFill;
       ctx.beginPath();
       ctx.arc(hp.x, hp.y, 5, 0, Math.PI * 2);
       ctx.fill();
@@ -304,15 +325,15 @@
       let tipX = Math.round(hp.x - tipW / 2);
       tipX = clamp(tipX, padX + 2, w - padX - tipW - 2);
 
-      ctx.fillStyle = 'rgba(255,255,255,0.94)';
-      ctx.strokeStyle = 'rgba(20,24,28,0.10)';
+      ctx.fillStyle = LIGHT_CHART_COLORS.tooltipFill;
+      ctx.strokeStyle = LIGHT_CHART_COLORS.tooltipStroke;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.rect(tipX, tipY, tipW, tipH);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = 'rgba(20,24,28,0.82)';
+      ctx.fillStyle = LIGHT_CHART_COLORS.tooltipText;
       ctx.fillText(label, tipX + txPad, tipY + tipH / 2);
       ctx.restore();
     }
