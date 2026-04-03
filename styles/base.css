@@ -315,6 +315,10 @@ input:focus, select:focus {
   text-align: center;
 }
 
+.siteFooter .footerModelLine {
+  white-space: nowrap;
+}
+
 .cityList {
   margin-top: 8px;
   padding-left: 16px;
@@ -344,6 +348,34 @@ input:focus, select:focus {
     width: 100%;
     text-align: center;
   }
+
+  .grid > .cardRel {
+    order: 2;
+  }
+
+  .grid > .side {
+    display: contents;
+  }
+
+  .positioningLine {
+    order: 1;
+  }
+
+  .positioningLine .muted.small {
+    color: var(--sun);
+  }
+
+  .side > .card {
+    order: 3;
+  }
+
+  .side > .card.notes {
+    order: 4;
+  }
+
+  .siteFooter p:first-child {
+    display: none;
+  }
 }
 
 @media (max-width: 520px) {
@@ -365,8 +397,9 @@ input:focus, select:focus {
   }
 
   .brandLogo {
-    height: 70px;
+    height: 87px;
     width: auto;
+    margin-top: 4px;
   }
 
   .brandText {
@@ -378,12 +411,7 @@ input:focus, select:focus {
   }
 
   .brand .sub {
-    font-size: 11px;
-    line-height: 1.15;
-    text-align: center;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
+    display: none;
   }
 
   .controls > .muted.small:first-child {
