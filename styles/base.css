@@ -464,13 +464,16 @@ input:focus, select:focus {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: flex-start;
     gap: 4px;
+    padding: 4px 0 2px 2px;
+    box-sizing: border-box;
   }
 
   .brandLogo {
-    height: 87px;
+    height: 76px;
     width: auto;
-    margin-top: 4px;
+    margin-top: 0;
   }
 
   .brandText {
